@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/kit_provider.dart';
 import 'providers/emergency_provider.dart';
+import 'providers/monitoring_provider.dart';
 import 'screens/home_dashboard_screen.dart';
 import 'screens/kit_management_screen.dart';
 import 'screens/disaster_guide_screen.dart';
@@ -22,6 +23,7 @@ class LifeCheckpointApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => KitProvider()),
         ChangeNotifierProvider(create: (_) => EmergencyProvider()),
+        ChangeNotifierProvider(create: (_) => MonitoringProvider()),
       ],
       child: MaterialApp(
         title: 'LifeCheckpoint',
@@ -87,7 +89,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                     child: const Icon(Icons.checklist_rtl_outlined),
                   )
                 : const Icon(Icons.checklist_rtl_outlined),
-            selectedIcon: const Icon(Icons.checklist_rtl, color: AppTheme.primaryCrimson),
+            selectedIcon:
+                const Icon(Icons.checklist_rtl, color: AppTheme.primaryCrimson),
             label: 'Emergency Kit',
           ),
           const NavigationDestination(
@@ -97,8 +100,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
           const NavigationDestination(
             icon: Icon(Icons.phone_in_talk_outlined),
-            selectedIcon: Icon(Icons.phone_in_talk, color: AppTheme.primaryCrimson),
-            label: 'Directory',
+            selectedIcon:
+                Icon(Icons.phone_in_talk, color: AppTheme.primaryCrimson),
+            label: 'Plans & SOS',
           ),
         ],
       ),

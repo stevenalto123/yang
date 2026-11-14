@@ -1,11 +1,11 @@
 {
-    "name": "life_checkpoint",
-    "short_name": "life_checkpoint",
+    "name": "LifeCheckpoint: Disaster Preparedness",
+    "short_name": "LifeCheckpoint",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#F8FAFC",
+    "theme_color": "#9E1B32",
+    "description": "Multi-Platform Application in Emergency Monitoring and Disaster Preparedness - Emilio Aguinaldo College",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

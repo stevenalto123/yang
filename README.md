@@ -10,71 +10,35 @@
 
 | SOP / Research Question (Slide 3) | Implemented Feature Module | Source File |
 | :--- | :--- | :--- |
-| **RQ 1.1: Digital checklist of essential emergency supplies** | 72-hour survival Go-Bag checklist categorized into Water & Food, First Aid, Tools, Documents, Sanitation, and Clothing. | [`lib/screens/kit_management_screen.dart`](lib/screens/kit_management_screen.dart)<br>[`lib/data/default_kit_items.dart`](lib/data/default_kit_items.dart) |
-| **RQ 1.2: Emergency plans and contact details** | 1-tap offline telephone dialer & SMS emergency beacon for National 911, Philippine Red Cross 143, BFP, PNP, NDRRMC, MMDA, and personal family contacts. | [`lib/screens/emergency_contacts_screen.dart`](lib/screens/emergency_contacts_screen.dart)<br>[`lib/data/emergency_hotlines_data.dart`](lib/data/emergency_hotlines_data.dart) |
-| **RQ 1.3: Disaster preparedness information & safety guidelines** | Step-by-step offline disaster protocols for **Typhoon (Bagyo)**, **Earthquake (Lindol)**, **Flood (Baha)**, **Fire (Sunog)**, and **Volcano (Bulkan)** with Before, During, and After action phases. | [`lib/screens/disaster_guide_screen.dart`](lib/screens/disaster_guide_screen.dart)<br>[`lib/data/disaster_data.dart`](lib/data/disaster_data.dart) |
-| **RQ 2.1: Monitoring availability of emergency supplies** | Live visual readiness score (0–100%), packed vs missing items tracker, and quantity control steppers. | [`lib/providers/kit_provider.dart`](lib/providers/kit_provider.dart) |
-| **RQ 2.2: Updating and tracking expiration dates** | Calendar DatePicker integration, countdown of remaining days, and automated shelf-life badges. | [`lib/models/kit_item.dart`](lib/models/kit_item.dart) |
-| **RQ 2.3: Identifying missing or expired items** | Instant status chips & visual alerts highlighting expired medications and unpacked rations. | [`lib/screens/kit_management_screen.dart`](lib/screens/kit_management_screen.dart) |
-| **RQ 2.4: Sending notifications for necessary replacements** | Dynamic dashboard banner alerts and navigation badges warning households when supplies expire within 30 days or have expired. | [`lib/screens/home_dashboard_screen.dart`](lib/screens/home_dashboard_screen.dart) |
-| **RQ 3 & 4: Performance, Usability & Effectiveness Evaluation (Slide 6)** | Built-in **Readiness Self-Assessment Audit & ISO 25010 Usability Testing instrumentation** matching the capstone evaluation criteria. | [`lib/screens/self_assessment_screen.dart`](lib/screens/self_assessment_screen.dart) |
-| **Evacuation Center Locator (Slide 2 Note)** | Designated emergency shelters directory (EAC Gym, Paco, Ermita, Quezon City, Cavite) with offline coordinates, facilities, and contact details. | [`lib/screens/evacuation_map_screen.dart`](lib/screens/evacuation_map_screen.dart)<br>[`lib/data/evacuation_centers_data.dart`](lib/data/evacuation_centers_data.dart) |
+| **Emergency Monitoring (Title & Slide 2 Note)** | Live Metro Manila weather telemetry (Open-Meteo) & Philippine seismic feed (USGS/PH region) with offline cache fallback, defense drill simulator, and household safety check-in log. | [`lib/screens/emergency_monitoring_screen.dart`](lib/screens/emergency_monitoring_screen.dart)<br>[`lib/providers/monitoring_provider.dart`](lib/providers/monitoring_provider.dart) |
+| **RQ 1.1 & Smart Recommender (Slide 2 Note)** | 72-hour Go-Bag digital checklist with **Smart Kit Recommender** that scales targets by household size and adds tailored gear for infants, seniors, pets, flood-prone & earthquake zones. | [`lib/screens/kit_management_screen.dart`](lib/screens/kit_management_screen.dart)<br>[`lib/models/household_profile.dart`](lib/models/household_profile.dart) |
+| **RQ 1.2: Emergency plans and contact details** | Customizable **Household Emergency Plan** (meeting points, utility shutoffs, family blood/medical profiles) + 1-tap offline telephone dialer & SMS beacon for 911, Red Cross 143, BFP, PNP, NDRRMC, MMDA. | [`lib/screens/emergency_plan_screen.dart`](lib/screens/emergency_plan_screen.dart)<br>[`lib/screens/emergency_contacts_screen.dart`](lib/screens/emergency_contacts_screen.dart) |
+| **RQ 1.3: Disaster preparedness safety guidelines** | Offline disaster protocols for **Typhoon (Bagyo)**, **Earthquake (Lindol)**, **Flood (Baha)**, **Fire (Sunog)**, and **Volcano (Bulkan)** across Before, During, and After phases. | [`lib/screens/disaster_guide_screen.dart`](lib/screens/disaster_guide_screen.dart)<br>[`lib/data/disaster_data.dart`](lib/data/disaster_data.dart) |
+| **RQ 2.1–2.3: Monitoring availability, expiry & missing items** | Live readiness gauge (0–100%), consistent packed/missing counts, DatePicker expiry tracking, status filters, and 1-tap **Mark Replaced**. | [`lib/providers/kit_provider.dart`](lib/providers/kit_provider.dart)<br>[`lib/models/kit_item.dart`](lib/models/kit_item.dart) |
+| **RQ 2.4: Replacement notifications** | **Replacement Alerts & Restock Center** with configurable lead-time warnings (7/14/30/60 days), PWA Web Notification API alerts, and clipboard restock shopping list export. | [`lib/screens/notifications_screen.dart`](lib/screens/notifications_screen.dart)<br>[`lib/utils/notification_helper.dart`](lib/utils/notification_helper.dart) |
+| **GPS & Evacuation Map (Slide 2 Note)** | Browser/device GPS detection, offline **Interactive Shelter Radar**, Haversine distance & compass bearing sorting, plus custom barangay shelter storage. | [`lib/screens/evacuation_map_screen.dart`](lib/screens/evacuation_map_screen.dart)<br>[`lib/utils/location_service.dart`](lib/utils/location_service.dart) |
+| **RQ 3 & 4 / Slide 6 Instrumentation** | Readiness Self-Checklist audit + interactive **ISO/IEC 25010 Usability & Effectiveness Survey** with full report export. | [`lib/screens/self_assessment_screen.dart`](lib/screens/self_assessment_screen.dart) |
 
 ---
 
-## 🚀 How to Run the Application
+## 🚀 How to Run & Test
 
-### 1. Run Live in Browser (Instant Preview)
+### 1. Run Live in Browser (PWA)
 ```bash
 flutter run -d chrome
 ```
-*(Or preview the pre-compiled production build directly from `build/web/index.html` via any local HTTP server like `npx serve build/web`).*
-
-### 2. Run on Connected Android Device or Emulator
+Or start the local static server after `flutter build web --base-href /`:
 ```bash
-flutter run -d android
+node serve_web.js
 ```
 
-### 3. Build Production Android APK (For Panel Defense & Usability Testing)
+### 2. Build Production Android APK
 ```bash
 flutter build apk --release
 ```
-The output APK will be located at:
-`build/app/outputs/flutter-apk/app-release.apk`
+Output APK: `build/app/outputs/flutter-apk/app-release.apk`
 
-### 4. Run Automated Test Suite
+### 3. Run Automated Tests
 ```bash
 flutter test
-```
-*(All unit and widget tests verify readiness calculations, expiration detectors, and search/filtering algorithms).*
-
----
-
-## 🏛️ Project Directory Structure
-
-```
-lib/
-├── data/
-│   ├── default_kit_items.dart          # Standard 72-hour survival Go-Bag items (NDRRMC/Red Cross)
-│   ├── disaster_data.dart              # Multi-hazard disaster guidelines (Typhoon, Quake, Flood, Fire, Volcano)
-│   ├── emergency_hotlines_data.dart    # Philippine national & local emergency hotlines
-│   └── evacuation_centers_data.dart    # Evacuation centers (EAC Gym, Manila, QC, Cavite)
-├── models/
-│   ├── disaster_protocol.dart          # Disaster hazard & phase models
-│   ├── emergency_contact.dart          # Contact & hotline models
-│   ├── evacuation_center.dart          # Safe zone & shelter models
-│   └── kit_item.dart                   # Supply item & expiration logic
-├── providers/
-│   ├── emergency_provider.dart         # Emergency dialer, SMS beacon & location launcher
-│   └── kit_provider.dart               # Offline local persistence (SharedPreferences) & readiness analytics
-├── screens/
-│   ├── disaster_guide_screen.dart      # Hazard protocols (Before, During, After)
-│   ├── emergency_contacts_screen.dart  # 1-tap dialer & ICE family contacts
-│   ├── evacuation_map_screen.dart      # Shelter finder with facilities & navigation
-│   ├── home_dashboard_screen.dart      # Readiness gauge, critical alert banners & quick SOS
-│   ├── kit_management_screen.dart      # Categorized checklist, expiry badges & item CRUD
-│   └── self_assessment_screen.dart     # Capstone research instrument & audit report
-├── utils/
-│   └── app_theme.dart                  # EAC Institutional Crimson & Disaster Alert design system
-└── main.dart                           # Entry point with bottom navigation bar & badge alerts
 ```

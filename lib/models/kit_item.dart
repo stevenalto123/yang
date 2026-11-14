@@ -75,31 +75,44 @@ class KitItem {
     DateTime? lastUpdated,
   }) : lastUpdated = lastUpdated ?? DateTime.now();
 
-  /// Check if the item is expired
+  /// Check if the item is past its expiration date
   bool get isExpired {
     if (expirationDate == null) return false;
     final now = DateTime.now();
     return expirationDate!.isBefore(DateTime(now.year, now.month, now.day));
   }
 
-  /// Check if item will expire within the next 30 days
-  bool get isExpiringSoon {
+  /// Check if item will expire within [thresholdDays] (default 30 days)
+  bool isExpiringWithin(int thresholdDays) {
     if (expirationDate == null || isExpired) return false;
     final now = DateTime.now();
-    final difference = expirationDate!.difference(now).inDays;
-    return difference >= 0 && difference <= 30;
+    final today = DateTime(now.year, now.month, now.day);
+    final expDay = DateTime(
+        expirationDate!.year, expirationDate!.month, expirationDate!.day);
+    final difference = expDay.difference(today).inDays;
+    return difference >= 0 && difference <= thresholdDays;
   }
 
+  /// Default 30-day expiring soon check
+  bool get isExpiringSoon => isExpiringWithin(30);
+
+  /// Item is completely packed with sufficient quantity
+  bool get isComplete => isPacked && quantity >= targetQuantity;
+
+  /// Item has some quantity packed, but still short of target
+  bool get isPartial => quantity > 0 && quantity < targetQuantity;
+
   /// Check if the item is missing or quantity is below target
-  bool get isMissing {
-    return !isPacked || quantity < targetQuantity;
-  }
+  bool get isMissing => !isPacked || quantity < targetQuantity;
 
   /// Returns days remaining before expiration (null if no expiration)
   int? get daysUntilExpiration {
     if (expirationDate == null) return null;
     final now = DateTime.now();
-    return expirationDate!.difference(DateTime(now.year, now.month, now.day)).inDays;
+    final today = DateTime(now.year, now.month, now.day);
+    final expDay = DateTime(
+        expirationDate!.year, expirationDate!.month, expirationDate!.day);
+    return expDay.difference(today).inDays;
   }
 
   Map<String, dynamic> toMap() {
@@ -118,17 +131,21 @@ class KitItem {
   }
 
   factory KitItem.fromMap(Map<String, dynamic> map) {
+    final qty = map['quantity'] ?? 0;
+    final target = map['targetQuantity'] ?? 1;
+    final packed = map['isPacked'] ?? false;
     return KitItem(
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       category: KitCategory.values[map['category'] ?? 0],
-      quantity: map['quantity'] ?? 0,
-      targetQuantity: map['targetQuantity'] ?? 1,
+      quantity: qty,
+      targetQuantity: target,
       unit: map['unit'] ?? 'pcs',
       expirationDate: map['expirationDate'] != null
           ? DateTime.tryParse(map['expirationDate'])
           : null,
-      isPacked: map['isPacked'] ?? false,
+      // Enforce consistency: an item is packed only if quantity meets target
+      isPacked: packed && qty >= target,
       notes: map['notes'] ?? '',
       lastUpdated: map['lastUpdated'] != null
           ? DateTime.tryParse(map['lastUpdated'])
@@ -138,7 +155,8 @@ class KitItem {
 
   String toJson() => json.encode(toMap());
 
-  factory KitItem.fromJson(String source) => KitItem.fromMap(json.decode(source));
+  factory KitItem.fromJson(String source) =>
+      KitItem.fromMap(json.decode(source));
 
   KitItem copyWith({
     String? id,
@@ -148,6 +166,7 @@ class KitItem {
     int? targetQuantity,
     String? unit,
     DateTime? expirationDate,
+    bool clearExpirationDate = false,
     bool? isPacked,
     String? notes,
     DateTime? lastUpdated,
@@ -159,7 +178,9 @@ class KitItem {
       quantity: quantity ?? this.quantity,
       targetQuantity: targetQuantity ?? this.targetQuantity,
       unit: unit ?? this.unit,
-      expirationDate: expirationDate ?? this.expirationDate,
+      expirationDate: clearExpirationDate
+          ? null
+          : (expirationDate ?? this.expirationDate),
       isPacked: isPacked ?? this.isPacked,
       notes: notes ?? this.notes,
       lastUpdated: lastUpdated ?? DateTime.now(),

@@ -3,13 +3,16 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/emergency_contact.dart';
 import '../providers/emergency_provider.dart';
+import '../utils/action_feedback.dart';
 import '../utils/app_theme.dart';
+import 'emergency_plan_screen.dart';
 
 class EmergencyContactsScreen extends StatefulWidget {
   const EmergencyContactsScreen({super.key});
 
   @override
-  State<EmergencyContactsScreen> createState() => _EmergencyContactsScreenState();
+  State<EmergencyContactsScreen> createState() =>
+      _EmergencyContactsScreenState();
 }
 
 class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
@@ -21,12 +24,24 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
     final filtered = _selectedCategory == null
         ? emergency.allContacts
-        : emergency.allContacts.where((c) => c.category == _selectedCategory).toList();
+        : emergency.allContacts
+            .where((c) => c.category == _selectedCategory)
+            .toList();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emergency Directory'),
+        title: const Text('Emergency Plans & Contacts'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.assignment_ind_outlined),
+            tooltip: 'Household Emergency Plan',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EmergencyPlanScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.person_add_alt_1),
             tooltip: 'Add Family Contact',
@@ -58,6 +73,64 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
             ),
           ),
 
+          // Household Emergency Plan Card Shortcut
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const EmergencyPlanScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: Colors.blue.shade700,
+                      radius: 18,
+                      child: const Icon(Icons.home_work,
+                          color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'My Household Emergency Plan',
+                            style: TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue.shade900,
+                            ),
+                          ),
+                          Text(
+                            'Meeting point: ${emergency.emergencyPlan.primaryMeetingPoint}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 11.5, color: Colors.blue.shade800),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios,
+                        size: 14, color: Colors.blue.shade800),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
           // Category Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -69,8 +142,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   selected: _selectedCategory == null,
                   selectedColor: AppTheme.primaryCrimson,
                   labelStyle: TextStyle(
-                    color: _selectedCategory == null ? Colors.white : Colors.black87,
-                    fontWeight: _selectedCategory == null ? FontWeight.bold : FontWeight.normal,
+                    color:
+                        _selectedCategory == null ? Colors.white : Colors.black87,
+                    fontWeight: _selectedCategory == null
+                        ? FontWeight.bold
+                        : FontWeight.normal,
                     fontSize: 11.5,
                   ),
                   onSelected: (_) => setState(() => _selectedCategory = null),
@@ -86,10 +162,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                       selectedColor: AppTheme.primaryCrimson,
                       labelStyle: TextStyle(
                         color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                         fontSize: 11.5,
                       ),
-                      onSelected: (_) => setState(() => _selectedCategory = cat),
+                      onSelected: (_) =>
+                          setState(() => _selectedCategory = cat),
                     ),
                   );
                 }),
@@ -187,13 +265,17 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                       const SizedBox(height: 2),
                       Text(
                         contact.agencyOrRelationship,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500),
                       ),
                       if (contact.description.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           contact.description,
-                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                          style: TextStyle(
+                              fontSize: 11, color: Colors.grey.shade600),
                         ),
                       ],
                     ],
@@ -201,15 +283,16 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 ),
                 if (!contact.isDefault)
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+                    icon: const Icon(Icons.delete_outline,
+                        size: 20, color: Colors.red),
                     tooltip: 'Remove Contact',
-                    onPressed: () => emergency.removePersonalContact(contact.id),
+                    onPressed: () =>
+                        emergency.removePersonalContact(contact.id),
                   ),
               ],
             ),
             const Divider(height: 20),
 
-            // Call and SMS Action Buttons
             Row(
               children: [
                 Expanded(
@@ -224,7 +307,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                       'Call: ${contact.phoneNumber}',
                       style: const TextStyle(fontSize: 12.5),
                     ),
-                    onPressed: () => emergency.makePhoneCall(contact.phoneNumber),
+                    onPressed: () => ActionFeedback.callWithFeedback(
+                      context,
+                      emergency,
+                      contact.phoneNumber,
+                      contact.name,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -232,18 +320,19 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: badgeColor,
                     side: BorderSide(color: badgeColor),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
                   ),
                   icon: const Icon(Icons.sms, size: 16),
                   label: const Text('SMS', style: TextStyle(fontSize: 12.5)),
-                  onPressed: () {
-                    emergency.sendEmergencySms(
-                      phoneNumber: contact.phoneNumber,
-                      message:
-                          'EMERGENCY: Urgent assistance needed from LifeCheckpoint user at current household location.',
-                    );
-                  },
+                  onPressed: () => ActionFeedback.smsWithFeedback(
+                    context,
+                    emergency,
+                    contact.phoneNumber,
+                    'EMERGENCY: Urgent assistance needed (${emergency.emergencyPlan.householdName}). Location: ${emergency.userLat.toStringAsFixed(4)}, ${emergency.userLng.toStringAsFixed(4)}',
+                  ),
                 ),
               ],
             ),
@@ -253,7 +342,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     );
   }
 
-  void _showAddPersonalContactDialog(BuildContext context, EmergencyProvider emergency) {
+  void _showAddPersonalContactDialog(
+      BuildContext context, EmergencyProvider emergency) {
     final nameCtrl = TextEditingController();
     final relationCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -308,11 +398,14 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 EmergencyContact(
                   id: const Uuid().v4(),
                   name: name,
-                  agencyOrRelationship: relationCtrl.text.trim().isEmpty ? 'Family' : relationCtrl.text.trim(),
+                  agencyOrRelationship: relationCtrl.text.trim().isEmpty
+                      ? 'Family'
+                      : relationCtrl.text.trim(),
                   phoneNumber: phone,
                   category: ContactCategory.familyAndPersonal,
                   isDefault: false,
-                  description: 'Emergency ICE (In Case of Emergency) Family Contact',
+                  description:
+                      'Emergency ICE (In Case of Emergency) Family Contact',
                 ),
               );
               Navigator.pop(ctx);

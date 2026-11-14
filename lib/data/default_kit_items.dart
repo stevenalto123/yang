@@ -31,11 +31,11 @@ List<KitItem> getDefaultKitItems() {
       id: 'energy_biscuits',
       name: 'High-Energy Biscuits / Crackers & Granola Bars',
       category: KitCategory.waterAndFood,
-      quantity: 5,
+      quantity: 4,
       targetQuantity: 6,
       unit: 'packs',
       expirationDate: now.add(const Duration(days: 45)),
-      isPacked: true,
+      isPacked: false, // Partial quantity (4/6): needs 2 more packs
       notes: 'Long shelf-life and high carbohydrate.',
     ),
     KitItem(
@@ -53,14 +53,25 @@ List<KitItem> getDefaultKitItems() {
     // 2. First Aid & Medicine
     KitItem(
       id: 'first_aid_kit',
-      name: 'Standard First-Aid Kit (Bandages, Gauze, Betadine, Alcohol)',
+      name: 'Standard First-Aid Kit (Bandages, Gauze, Medical Tape)',
       category: KitCategory.medicalAndFirstAid,
       quantity: 1,
       targetQuantity: 1,
       unit: 'set',
       expirationDate: now.add(const Duration(days: 120)),
       isPacked: true,
-      notes: 'Check antiseptic expiration regularly.',
+      notes: 'Check sterile dressing seals regularly.',
+    ),
+    KitItem(
+      id: 'antiseptic_solution',
+      name: 'Povidone-Iodine & 70% Isopropyl Alcohol',
+      category: KitCategory.medicalAndFirstAid,
+      quantity: 1,
+      targetQuantity: 1,
+      unit: 'bottle',
+      expirationDate: now.subtract(const Duration(days: 5)), // Sample expired item for alert demo
+      isPacked: true,
+      notes: 'Expired antiseptic loses potency; replace immediately.',
     ),
     KitItem(
       id: 'paracetamol',
@@ -69,7 +80,7 @@ List<KitItem> getDefaultKitItems() {
       quantity: 10,
       targetQuantity: 10,
       unit: 'tablets',
-      expirationDate: now.add(const Duration(days: 20)), // Expiring soon to demonstrate alert feature!
+      expirationDate: now.add(const Duration(days: 14)), // Sample expiring soon item
       isPacked: true,
       notes: 'Store in airtight waterproof container.',
     ),
@@ -81,7 +92,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 6,
       unit: 'packs',
       expirationDate: now.add(const Duration(days: 300)),
-      isPacked: true,
+      isPacked: false, // Partial (4/6)
       notes: 'Crucial for water contamination outbreaks.',
     ),
     KitItem(
@@ -116,7 +127,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 8,
       unit: 'pcs',
       expirationDate: now.add(const Duration(days: 700)),
-      isPacked: false,
+      isPacked: false, // Partial (4/8)
       notes: 'Check for battery leakage twice a year.',
     ),
     KitItem(
@@ -149,7 +160,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 2,
       unit: 'units',
       expirationDate: null,
-      isPacked: true,
+      isPacked: false, // Partial (1/2)
       notes: 'Keep charged at 100% capacity.',
     ),
     KitItem(
@@ -243,7 +254,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 2,
       unit: 'sets',
       expirationDate: null,
-      isPacked: false,
+      isPacked: false, // Partial (1/2)
       notes: 'Quick-dry shirts, underwear, socks.',
     ),
   ];

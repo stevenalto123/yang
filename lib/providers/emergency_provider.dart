@@ -4,39 +4,94 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/emergency_contact.dart';
 import '../models/evacuation_center.dart';
+import '../models/emergency_plan.dart';
 import '../data/emergency_hotlines_data.dart';
 import '../data/evacuation_centers_data.dart';
+import '../utils/location_service.dart';
 
 class EmergencyProvider extends ChangeNotifier {
-  static const String _personalContactsKey = 'lifecheckpoint_personal_contacts_v1';
+  static const String _personalContactsKey =
+      'lifecheckpoint_personal_contacts_v1';
+  static const String _emergencyPlanKey =
+      'lifecheckpoint_emergency_plan_v1';
+  static const String _customSheltersKey =
+      'lifecheckpoint_custom_shelters_v1';
 
   List<EmergencyContact> _defaultContacts = [];
   List<EmergencyContact> _personalContacts = [];
-  List<EvacuationCenter> _evacuationCenters = [];
+  List<EvacuationCenter> _defaultCenters = [];
+  List<EvacuationCenter> _customCenters = [];
+  HouseholdEmergencyPlan _emergencyPlan = HouseholdEmergencyPlan();
+
   String _selectedCity = 'All';
   bool _isLoading = true;
 
+  // GPS state (defaults to EAC Paco Manila reference until live GPS is fetched)
+  double _userLat = 14.5822;
+  double _userLng = 120.9882;
+  bool _hasLiveGps = false;
+  bool _isLocating = false;
+  double? _gpsAccuracyMeters;
+
   EmergencyProvider() {
     _defaultContacts = getDefaultEmergencyContacts();
-    _evacuationCenters = getDefaultEvacuationCenters();
-    loadPersonalContacts();
+    _defaultCenters = getDefaultEvacuationCenters();
+    _loadAllData();
   }
 
   bool get isLoading => _isLoading;
   String get selectedCity => _selectedCity;
+  HouseholdEmergencyPlan get emergencyPlan => _emergencyPlan;
 
-  List<EmergencyContact> get allContacts => [..._defaultContacts, ..._personalContacts];
-  List<EmergencyContact> get defaultContacts => List.unmodifiable(_defaultContacts);
-  List<EmergencyContact> get personalContacts => List.unmodifiable(_personalContacts);
+  double get userLat => _userLat;
+  double get userLng => _userLng;
+  bool get hasLiveGps => _hasLiveGps;
+  bool get isLocating => _isLocating;
+  double? get gpsAccuracyMeters => _gpsAccuracyMeters;
+
+  List<EmergencyContact> get allContacts =>
+      [..._defaultContacts, ..._personalContacts];
+  List<EmergencyContact> get defaultContacts =>
+      List.unmodifiable(_defaultContacts);
+  List<EmergencyContact> get personalContacts =>
+      List.unmodifiable(_personalContacts);
+
+  List<EvacuationCenter> get allEvacuationCenters =>
+      [..._customCenters, ..._defaultCenters];
 
   List<String> get availableCities {
-    final cities = _evacuationCenters.map((e) => e.city).toSet().toList();
+    final cities = allEvacuationCenters.map((e) => e.city).toSet().toList();
     return ['All', ...cities];
   }
 
+  /// Returns shelters sorted by nearest Haversine distance from current GPS
   List<EvacuationCenter> get filteredEvacuationCenters {
-    if (_selectedCity == 'All') return _evacuationCenters;
-    return _evacuationCenters.where((center) => center.city == _selectedCity).toList();
+    final base = _selectedCity == 'All'
+        ? allEvacuationCenters
+        : allEvacuationCenters
+            .where((center) => center.city == _selectedCity)
+            .toList();
+
+    final sorted = List<EvacuationCenter>.from(base);
+    sorted.sort((a, b) {
+      final distA =
+          LocationService.distanceInKm(_userLat, _userLng, a.latitude, a.longitude);
+      final distB =
+          LocationService.distanceInKm(_userLat, _userLng, b.latitude, b.longitude);
+      return distA.compareTo(distB);
+    });
+    return sorted;
+  }
+
+  double distanceToCenterKm(EvacuationCenter center) {
+    return LocationService.distanceInKm(
+        _userLat, _userLng, center.latitude, center.longitude);
+  }
+
+  String bearingToCenter(EvacuationCenter center) {
+    return LocationService.bearingTo(
+            _userLat, _userLng, center.latitude, center.longitude)
+        .cardinal;
   }
 
   void setSelectedCity(String city) {
@@ -44,19 +99,49 @@ class EmergencyProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadPersonalContacts() async {
+  Future<void> _loadAllData() async {
     _isLoading = true;
     notifyListeners();
 
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonString = prefs.getString(_personalContactsKey);
-      if (jsonString != null && jsonString.isNotEmpty) {
-        final List<dynamic> decoded = json.decode(jsonString);
-        _personalContacts = decoded.map((c) => EmergencyContact.fromMap(c)).toList();
+
+      // Load personal contacts
+      final contactsJson = prefs.getString(_personalContactsKey);
+      if (contactsJson != null && contactsJson.isNotEmpty) {
+        final List<dynamic> decoded = json.decode(contactsJson);
+        _personalContacts =
+            decoded.map((c) => EmergencyContact.fromMap(c)).toList();
+      }
+
+      // Load emergency plan
+      final planJson = prefs.getString(_emergencyPlanKey);
+      if (planJson != null && planJson.isNotEmpty) {
+        _emergencyPlan = HouseholdEmergencyPlan.fromJson(planJson);
+      }
+
+      // Load custom shelters
+      final sheltersJson = prefs.getString(_customSheltersKey);
+      if (sheltersJson != null && sheltersJson.isNotEmpty) {
+        final List<dynamic> decodedShelters = json.decode(sheltersJson);
+        _customCenters = decodedShelters
+            .map((s) => EvacuationCenter(
+                  id: s['id'] ?? '',
+                  name: s['name'] ?? '',
+                  address: s['address'] ?? '',
+                  city: s['city'] ?? 'Local',
+                  latitude: (s['latitude'] ?? 14.5822).toDouble(),
+                  longitude: (s['longitude'] ?? 120.9882).toDouble(),
+                  contactPerson: s['contactPerson'] ?? 'Barangay Officer',
+                  contactNumber: s['contactNumber'] ?? '911',
+                  capacityPeople: s['capacityPeople'] ?? 500,
+                  isOpen: s['isOpen'] ?? true,
+                  facilities: s['facilities'] ?? 'Community Shelter',
+                ))
+            .toList();
       }
     } catch (e) {
-      debugPrint('Error loading personal contacts: $e');
+      debugPrint('Error loading emergency data: $e');
     }
 
     _isLoading = false;
@@ -66,11 +151,76 @@ class EmergencyProvider extends ChangeNotifier {
   Future<void> _savePersonalContacts() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final jsonString = json.encode(_personalContacts.map((c) => c.toMap()).toList());
+      final jsonString =
+          json.encode(_personalContacts.map((c) => c.toMap()).toList());
       await prefs.setString(_personalContactsKey, jsonString);
     } catch (e) {
       debugPrint('Error saving personal contacts: $e');
     }
+  }
+
+  Future<void> saveEmergencyPlan(HouseholdEmergencyPlan plan) async {
+    _emergencyPlan = plan;
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_emergencyPlanKey, plan.toJson());
+    } catch (e) {
+      debugPrint('Error saving emergency plan: $e');
+    }
+  }
+
+  Future<void> addCustomEvacuationCenter(EvacuationCenter center) async {
+    _customCenters.insert(0, center);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _customCenters
+          .map((c) => {
+                'id': c.id,
+                'name': c.name,
+                'address': c.address,
+                'city': c.city,
+                'latitude': c.latitude,
+                'longitude': c.longitude,
+                'contactPerson': c.contactPerson,
+                'contactNumber': c.contactNumber,
+                'capacityPeople': c.capacityPeople,
+                'isOpen': c.isOpen,
+                'facilities': c.facilities,
+              })
+          .toList();
+      await prefs.setString(_customSheltersKey, json.encode(list));
+    } catch (e) {
+      debugPrint('Error saving custom shelter: $e');
+    }
+  }
+
+  Future<bool> detectLiveGps() async {
+    _isLocating = true;
+    notifyListeners();
+
+    final pos = await LocationService.getCurrentPosition();
+    _isLocating = false;
+
+    if (pos != null) {
+      _userLat = pos.lat;
+      _userLng = pos.lng;
+      _gpsAccuracyMeters = pos.accuracy;
+      _hasLiveGps = true;
+      notifyListeners();
+      return true;
+    }
+
+    notifyListeners();
+    return false;
+  }
+
+  void setManualLocation(double lat, double lng) {
+    _userLat = lat;
+    _userLng = lng;
+    _hasLiveGps = false;
+    notifyListeners();
   }
 
   void addPersonalContact(EmergencyContact contact) {
@@ -87,7 +237,6 @@ class EmergencyProvider extends ChangeNotifier {
 
   /// Launch phone dialer directly (Works offline via native cellular telecommunications)
   Future<bool> makePhoneCall(String phoneNumber) async {
-    // Strip non-dialable characters except '+'
     final cleanNumber = phoneNumber.replaceAll(RegExp(r'[^0-9+]'), '');
     final Uri callUri = Uri(scheme: 'tel', path: cleanNumber);
     try {
@@ -125,7 +274,8 @@ class EmergencyProvider extends ChangeNotifier {
 
   /// Open coordinates in Maps app or browser
   Future<bool> openMapLocation(double lat, double lng, String label) async {
-    final Uri mapUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    final Uri mapUri =
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
     try {
       if (await canLaunchUrl(mapUri)) {
         return await launchUrl(mapUri, mode: LaunchMode.externalApplication);
