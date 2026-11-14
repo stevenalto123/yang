@@ -111,15 +111,35 @@ class KitProvider extends ChangeNotifier {
         .toList();
   }
 
-  /// Overall readiness score in percentage (0 - 100%)
-  /// Counts valid (non-expired) packed completeness across all items
+  /// Weighted survival readiness score in percentage (0 - 100%)
+  /// Critical supplies (Water, Food, Medical) carry 3x weight; Essential 2x; Important 1x
   double get readinessPercentage {
     if (_items.isEmpty) return 0.0;
 
-    int validComplete =
+    double totalWeight = 0.0;
+    double readyWeight = 0.0;
+    for (final item in _items) {
+      final weight = item.category.priorityWeight.toDouble();
+      totalWeight += weight;
+      if (!item.isExpired) {
+        if (item.isComplete) {
+          readyWeight += weight;
+        } else if (item.quantity > 0 && item.targetQuantity > 0) {
+          readyWeight +=
+              weight * (item.quantity / item.targetQuantity).clamp(0.0, 0.85);
+        }
+      }
+    }
+    if (totalWeight <= 0) return 0.0;
+    return ((readyWeight / totalWeight) * 100.0).clamp(0.0, 100.0);
+  }
+
+  /// Unweighted raw percentage of complete, non-expired items
+  double get rawCompletionPercentage {
+    if (_items.isEmpty) return 0.0;
+    final validComplete =
         _items.where((item) => item.isComplete && !item.isExpired).length;
-    double score = (validComplete / _items.length) * 100.0;
-    return score.clamp(0.0, 100.0);
+    return ((validComplete / _items.length) * 100.0).clamp(0.0, 100.0);
   }
 
   String get readinessStatus {

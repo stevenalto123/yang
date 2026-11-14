@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/kit_item.dart';
 import '../providers/kit_provider.dart';
+import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/notification_helper.dart';
 
@@ -17,7 +18,10 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   String _permissionStatus = NotificationHelper.getPermissionStatus();
 
-  Future<void> _triggerReplacementNotification(KitProvider kit) async {
+  Future<void> _triggerReplacementNotification(
+    KitProvider kit,
+    bool isFil,
+  ) async {
     final expired = kit.expiredItems;
     final soon = kit.expiringSoonItems;
     final missing = kit.missingItems;
@@ -45,7 +49,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor:
-              expired.isNotEmpty ? AppTheme.accentAlert : AppTheme.primaryCrimson,
+              expired.isNotEmpty ? AppTheme.dangerRed : AppTheme.primaryNavy,
           content: Text(
             sent
                 ? 'PWA Notification sent: $title'
@@ -60,24 +64,42 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   @override
   Widget build(BuildContext context) {
     final kit = context.watch<KitProvider>();
+    final settings = context.watch<SettingsProvider>();
+    final isDark = settings.isDarkMode;
+    final isFil = settings.isFilipino;
+
     final expired = kit.expiredItems;
     final soon = kit.expiringSoonItems;
     final missing = kit.missingItems;
 
+    final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
+    final subtleText = isDark ? Colors.white70 : Colors.grey.shade700;
+    final accentTone = isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Replacement Alerts & Restock'),
+        title: Text(
+          isFil
+              ? 'Mga Alerto sa Pagpapalit'
+              : 'Replacement Alerts & Restock',
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.copy_all),
-            tooltip: 'Copy Restock Shopping List',
+            tooltip: isFil
+                ? 'Kopyahin ang Listahan ng Bibilhin'
+                : 'Copy Restock Shopping List',
             onPressed: () {
               Clipboard.setData(
                 ClipboardData(text: kit.generateRestockSummaryText()),
               );
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Restock shopping list copied to clipboard!'),
+                SnackBar(
+                  content: Text(
+                    isFil
+                        ? 'Nakopya na ang restock shopping list!'
+                        : 'Restock shopping list copied to clipboard!',
+                  ),
                 ),
               );
             },
@@ -96,55 +118,84 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.notifications_active,
-                          color: AppTheme.primaryCrimson),
+                      Icon(Icons.notifications_active, color: accentTone),
                       const SizedBox(width: 8),
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Replacement Reminder Settings',
+                          isFil
+                              ? 'Setting ng Paalala sa Expiration'
+                              : 'Replacement Reminder Settings',
                           style: TextStyle(
-                              fontSize: 15, fontWeight: FontWeight.bold),
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: headingColor,
+                          ),
                         ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 3),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: _permissionStatus == 'granted'
-                              ? Colors.green.shade50
-                              : Colors.grey.shade100,
+                              ? (isDark
+                                  ? AppTheme.safeGreen.withAlpha(45)
+                                  : Colors.green.shade50)
+                              : (isDark
+                                  ? AppTheme.darkBg
+                                  : Colors.grey.shade100),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           'Push: ${_permissionStatus.toUpperCase()}',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                             color: _permissionStatus == 'granted'
-                                ? AppTheme.safeGreen
-                                : Colors.grey.shade700,
+                                ? (isDark
+                                    ? Colors.green.shade200
+                                    : AppTheme.safeGreen)
+                                : subtleText,
                           ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Warn me when supplies will expire within:',
-                    style: TextStyle(fontSize: 12.5),
+                  Text(
+                    isFil
+                        ? 'Balaan ako kapag mapapaso ang gamit sa loob ng:'
+                        : 'Warn me when supplies will expire within:',
+                    style: TextStyle(fontSize: 14, color: subtleText),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
+                    runSpacing: 8,
                     children: [7, 14, 30, 60].map((days) {
                       final selected = kit.expiryAlertDays == days;
                       return ChoiceChip(
-                        label: Text('$days days'),
+                        materialTapTargetSize: MaterialTapTargetSize.padded,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        label: Text('$days ${isFil ? 'araw' : 'days'}'),
                         selected: selected,
-                        selectedColor: AppTheme.primaryCrimson,
+                        selectedColor: AppTheme.primaryNavy,
+                        backgroundColor:
+                            isDark ? AppTheme.darkBg : Colors.grey.shade100,
+                        side: BorderSide(
+                          color: selected
+                              ? AppTheme.primaryNavy
+                              : (isDark
+                                  ? AppTheme.darkBorder
+                                  : Colors.grey.shade300),
+                        ),
                         labelStyle: TextStyle(
-                          color: selected ? Colors.white : Colors.black87,
-                          fontSize: 12,
+                          color: selected ? Colors.white : headingColor,
+                          fontSize: 14,
                           fontWeight:
                               selected ? FontWeight.bold : FontWeight.normal,
                         ),
@@ -152,13 +203,21 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      icon: const Icon(Icons.notification_add, size: 18),
-                      label: const Text('Send Replacement Alert Notification'),
-                      onPressed: () => _triggerReplacementNotification(kit),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size(0, 48),
+                      ),
+                      icon: const Icon(Icons.notification_add, size: 20),
+                      label: Text(
+                        isFil
+                            ? 'Magpadala ng Paalala Ngayon'
+                            : 'Send Replacement Alert Notification',
+                      ),
+                      onPressed: () =>
+                          _triggerReplacementNotification(kit, isFil),
                     ),
                   ),
                 ],
@@ -169,65 +228,93 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           // Urgent Expired Items
           _buildGroupHeader(
-            'Expired Items — Replace Immediately (${expired.length})',
-            AppTheme.accentAlert,
+            isFil
+                ? 'Paso Na — Palitan Agad (${expired.length})'
+                : 'Expired Items — Replace Immediately (${expired.length})',
+            isDark ? Colors.red.shade300 : AppTheme.dangerRed,
             Icons.error_outline,
           ),
           if (expired.isEmpty)
-            _buildEmptyRow('No expired items found.')
+            _buildEmptyRow(
+              isFil ? 'Walang pasong gamit.' : 'No expired items found.',
+              subtleText,
+            )
           else
             ...expired.map((item) => _buildAlertItemCard(
                   context,
                   kit,
                   item,
+                  isDark: isDark,
                   badgeText:
                       'Expired ${DateFormat('MMM dd, yyyy').format(item.expirationDate!)}',
-                  accent: AppTheme.accentAlert,
-                  actionLabel: 'Mark Replaced',
-                  onAction: () => _showReplaceDateDialog(context, kit, item),
+                  accent: AppTheme.dangerRed,
+                  textAccent: isDark ? Colors.red.shade200 : AppTheme.dangerRed,
+                  actionLabel: isFil ? 'Pinalitan' : 'Mark Replaced',
+                  onAction: () =>
+                      _showReplaceDateDialog(context, kit, item, isFil),
                 )),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Expiring Soon Items
           _buildGroupHeader(
-            'Expiring Within ${kit.expiryAlertDays} Days (${soon.length})',
-            AppTheme.warningAmber,
+            isFil
+                ? 'Malapit Ma-expire sa ${kit.expiryAlertDays} Araw (${soon.length})'
+                : 'Expiring Within ${kit.expiryAlertDays} Days (${soon.length})',
+            isDark ? Colors.amber.shade300 : AppTheme.warningAmber,
             Icons.schedule,
           ),
           if (soon.isEmpty)
             _buildEmptyRow(
-                'No items expiring within the next ${kit.expiryAlertDays} days.')
+              isFil
+                  ? 'Walang malapit ma-expire sa loob ng ${kit.expiryAlertDays} araw.'
+                  : 'No items expiring within the next ${kit.expiryAlertDays} days.',
+              subtleText,
+            )
           else
             ...soon.map((item) => _buildAlertItemCard(
                   context,
                   kit,
                   item,
+                  isDark: isDark,
                   badgeText: '${item.daysUntilExpiration} days remaining',
                   accent: AppTheme.warningAmber,
-                  actionLabel: 'Update Expiry',
-                  onAction: () => _showReplaceDateDialog(context, kit, item),
+                  textAccent:
+                      isDark ? Colors.amber.shade200 : AppTheme.warningAmber,
+                  actionLabel: isFil ? 'I-update' : 'Update Expiry',
+                  onAction: () =>
+                      _showReplaceDateDialog(context, kit, item, isFil),
                 )),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // Missing / Low Stock Items
           _buildGroupHeader(
-            'Missing or Incomplete Supplies (${missing.length})',
-            Colors.blueGrey.shade700,
+            isFil
+                ? 'Kulang o Hindi Kumpleto (${missing.length})'
+                : 'Missing or Incomplete Supplies (${missing.length})',
+            isDark ? Colors.blueGrey.shade200 : Colors.blueGrey.shade700,
             Icons.inventory_2_outlined,
           ),
           if (missing.isEmpty)
-            _buildEmptyRow('All emergency kit items are completely packed!')
+            _buildEmptyRow(
+              isFil
+                  ? 'Kumpleto na ang lahat ng emergency kit items!'
+                  : 'All emergency kit items are completely packed!',
+              subtleText,
+            )
           else
             ...missing.map((item) => _buildAlertItemCard(
                   context,
                   kit,
                   item,
+                  isDark: isDark,
                   badgeText:
                       'Have ${item.quantity} / ${item.targetQuantity} ${item.unit}',
                   accent: Colors.orange.shade800,
-                  actionLabel: 'Mark Packed',
+                  textAccent:
+                      isDark ? Colors.orange.shade200 : Colors.orange.shade800,
+                  actionLabel: isFil ? 'Kumpleto' : 'Mark Packed',
                   onAction: () => kit.togglePacked(item.id),
                 )),
 
@@ -242,13 +329,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 6),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: 15,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -259,12 +346,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  Widget _buildEmptyRow(String text) {
+  Widget _buildEmptyRow(String text, Color subtleText) {
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Text(text,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        padding: const EdgeInsets.all(14),
+        child: Text(text, style: TextStyle(fontSize: 14, color: subtleText)),
       ),
     );
   }
@@ -273,8 +359,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     BuildContext context,
     KitProvider kit,
     KitItem item, {
+    required bool isDark,
     required String badgeText,
     required Color accent,
+    required Color textAccent,
     required String actionLabel,
     required VoidCallback onAction,
   }) {
@@ -282,7 +370,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: accent.withAlpha(80)),
+        side: BorderSide(color: accent.withAlpha(110)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -294,16 +382,20 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 children: [
                   Text(
                     item.name,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppTheme.darkSlate,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     badgeText,
                     style: TextStyle(
-                        fontSize: 11.5,
-                        color: accent,
-                        fontWeight: FontWeight.w600),
+                      fontSize: 14,
+                      color: textAccent,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -312,10 +404,14 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: accent,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 48),
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                textStyle:
-                    const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                textStyle: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               onPressed: onAction,
               child: Text(actionLabel),
@@ -327,10 +423,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _showReplaceDateDialog(
-      BuildContext context, KitProvider kit, KitItem item) async {
+    BuildContext context,
+    KitProvider kit,
+    KitItem item,
+    bool isFil,
+  ) async {
     final picked = await showDatePicker(
       context: context,
-      helpText: 'Select New Expiration Date for Replaced Supply',
+      helpText: isFil
+          ? 'Piliin ang Bagong Expiration Date'
+          : 'Select New Expiration Date for Replaced Supply',
       initialDate: DateTime.now().add(const Duration(days: 365)),
       firstDate: DateTime.now(),
       lastDate: DateTime(2035),
@@ -342,7 +444,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           SnackBar(
             backgroundColor: AppTheme.safeGreen,
             content: Text(
-                '${item.name} marked replaced (Exp: ${DateFormat('MMM dd, yyyy').format(picked)})'),
+              '${item.name} marked replaced (Exp: ${DateFormat('MMM dd, yyyy').format(picked)})',
+            ),
           ),
         );
       }

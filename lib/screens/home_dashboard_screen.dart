@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/kit_provider.dart';
 import '../providers/emergency_provider.dart';
+import '../providers/kit_provider.dart';
 import '../providers/monitoring_provider.dart';
-import '../utils/action_feedback.dart';
+import '../providers/settings_provider.dart';
+import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
-import 'evacuation_map_screen.dart';
-import 'self_assessment_screen.dart';
-import 'emergency_monitoring_screen.dart';
+import 'disaster_guide_screen.dart';
 import 'emergency_plan_screen.dart';
 import 'notifications_screen.dart';
+import 'self_assessment_screen.dart';
 
 class HomeDashboardScreen extends StatelessWidget {
   final Function(int) onNavigateTab;
@@ -22,10 +22,16 @@ class HomeDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = context.watch<KitProvider>();
-    final emergency = context.watch<EmergencyProvider>();
     final monitoring = context.watch<MonitoringProvider>();
+    final settings = context.watch<SettingsProvider>();
+    context.watch<EmergencyProvider>();
+
+    final isDark = settings.isDarkMode;
+    final isFil = settings.isFilipino;
+    final s = AppStrings(isFil);
 
     final readiness = kit.readinessPercentage;
+    final rawReadiness = kit.rawCompletionPercentage;
     final expiredCount = kit.expiredItemsCount;
     final expiringSoonCount = kit.expiringSoonItemsCount;
     final missingCount = kit.missingItemsCount;
@@ -33,11 +39,11 @@ class HomeDashboardScreen extends StatelessWidget {
 
     Color scoreColor;
     if (readiness >= 85) {
-      scoreColor = AppTheme.safeGreen;
+      scoreColor = isDark ? Colors.green.shade300 : AppTheme.safeGreen;
     } else if (readiness >= 50) {
-      scoreColor = AppTheme.warningAmber;
+      scoreColor = isDark ? Colors.amber.shade300 : AppTheme.warningAmber;
     } else {
-      scoreColor = AppTheme.accentAlert;
+      scoreColor = isDark ? Colors.red.shade300 : AppTheme.dangerRed;
     }
 
     final isHazardAlert =
@@ -45,60 +51,109 @@ class HomeDashboardScreen extends StatelessWidget {
             monitoring.currentThreatLevel.contains('ALERT') ||
             monitoring.currentThreatLevel.contains('WARNING');
 
+    final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
+    final subtleText = isDark ? Colors.white70 : Colors.grey.shade700;
+
     return Scaffold(
       appBar: AppBar(
+        titleSpacing: 12,
         title: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
-                color: Colors.white.withAlpha(51),
+                color: Colors.white.withAlpha(35),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.shield_outlined,
-                  color: Colors.white, size: 22),
+              child: const Icon(
+                Icons.shield_outlined,
+                color: Colors.white,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 10),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'LifeCheckpoint',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                ),
-                Text(
-                  'Emergency Monitoring & Preparedness',
-                  style: TextStyle(
-                      fontSize: 11,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'LifeCheckpoint',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  Text(
+                    s.appSubtitle,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
                       fontWeight: FontWeight.normal,
-                      color: Colors.white70),
-                ),
-              ],
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
+          // EN / FIL Language Toggle (minimum 48dp height)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: InkWell(
+              onTap: () => settings.toggleLanguage(),
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                constraints: const BoxConstraints(minWidth: 52, minHeight: 44),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Colors.white.withAlpha(32),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white38),
+                ),
+                child: Text(
+                  isFil ? 'FIL' : 'EN',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ),
           IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: Icon(
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: Colors.white,
+            ),
+            tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            onPressed: () => settings.toggleDarkMode(),
+          ),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: alertCount > 0
                 ? Badge(
                     label: Text('$alertCount'),
-                    backgroundColor: Colors.amber.shade800,
-                    child: const Icon(Icons.notifications_outlined,
-                        color: Colors.white),
+                    backgroundColor: AppTheme.dangerRed,
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                    ),
                   )
-                : const Icon(Icons.notifications_outlined, color: Colors.white),
-            tooltip: 'Replacement Alerts',
+                : const Icon(
+                    Icons.notifications_outlined,
+                    color: Colors.white,
+                  ),
+            tooltip: s.replacementAlerts,
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationsScreen()),
               );
             },
-          ),
-          IconButton(
-            icon: const Icon(Icons.sos, color: Colors.white, size: 28),
-            tooltip: 'Emergency SOS Call (911)',
-            onPressed: () => _showEmergencyDialog(context, emergency),
           ),
         ],
       ),
@@ -111,64 +166,77 @@ class HomeDashboardScreen extends StatelessWidget {
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 96),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Institutional EAC Banner
+                    // Subtle EAC Institutional Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryCrimson.withAlpha(20),
-                        borderRadius: BorderRadius.circular(8),
+                        color: AppTheme.eacCrimson.withAlpha(isDark ? 55 : 18),
+                        borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: AppTheme.primaryCrimson.withAlpha(51)),
+                          color: AppTheme.eacCrimson.withAlpha(isDark ? 140 : 60),
+                        ),
                       ),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.school,
-                              size: 16, color: AppTheme.primaryCrimson),
-                          const SizedBox(width: 8),
-                          Expanded(
+                          Icon(
+                            Icons.school,
+                            size: 16,
+                            color: isDark
+                                ? Colors.pink.shade200
+                                : AppTheme.eacCrimson,
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
                             child: Text(
-                              'Emilio Aguinaldo College • Capstone Research Project',
+                              'Emilio Aguinaldo College • Disaster Preparedness',
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 11.5,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey.shade800,
+                                color: isDark
+                                    ? Colors.pink.shade100
+                                    : AppTheme.eacCrimson,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 12),
 
-                    // Live Emergency Monitoring Status Strip
+                    // Top Urgent Alert / Monitoring Status Strip
                     InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  const EmergencyMonitoringScreen()),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => onNavigateTab(2),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
+                        constraints: const BoxConstraints(minHeight: 56),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           color: isHazardAlert
-                              ? const Color(0xFFFFEBEE)
-                              : const Color(0xFFE8F5E9),
-                          borderRadius: BorderRadius.circular(10),
+                              ? (isDark
+                                  ? AppTheme.dangerRed.withAlpha(45)
+                                  : const Color(0xFFFFEBEE))
+                              : (isDark
+                                  ? AppTheme.safeGreen.withAlpha(35)
+                                  : const Color(0xFFE8F5E9)),
+                          borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: isHazardAlert
-                                ? AppTheme.accentAlert
-                                : Colors.green.shade300,
+                                ? AppTheme.dangerRed
+                                : (isDark
+                                    ? Colors.green.shade400
+                                    : Colors.green.shade300),
                           ),
                         ),
                         child: Row(
@@ -178,76 +246,105 @@ class HomeDashboardScreen extends StatelessWidget {
                                   ? Icons.warning_amber_rounded
                                   : Icons.radar,
                               color: isHazardAlert
-                                  ? AppTheme.accentAlert
-                                  : AppTheme.safeGreen,
-                              size: 22,
+                                  ? (isDark
+                                      ? Colors.red.shade200
+                                      : AppTheme.dangerRed)
+                                  : (isDark
+                                      ? Colors.green.shade200
+                                      : AppTheme.safeGreen),
+                              size: 24,
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    'MONITORING: ${monitoring.currentThreatLevel}',
+                                    monitoring.currentThreatLevel,
                                     style: TextStyle(
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.bold,
                                       color: isHazardAlert
-                                          ? AppTheme.accentAlert
-                                          : Colors.green.shade900,
+                                          ? (isDark
+                                              ? Colors.red.shade200
+                                              : AppTheme.dangerRed)
+                                          : (isDark
+                                              ? Colors.green.shade200
+                                              : Colors.green.shade900),
                                     ),
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
                                     monitoring.weather != null
-                                        ? 'Metro Manila: ${monitoring.weather!.temperatureC.toStringAsFixed(0)}°C • ${monitoring.weather!.conditionText} (${monitoring.earthquakes.length} PH quakes tracked)'
-                                        : 'Tap for weather, PH seismic feed & check-in log',
-                                    maxLines: 1,
+                                        ? 'Metro Manila: ${monitoring.weather!.temperatureC.toStringAsFixed(0)}°C • ${monitoring.weather!.conditionText} (${monitoring.earthquakes.length} PH quakes)'
+                                        : (isFil
+                                            ? 'I-tap para sa lagay ng panahon at lindol'
+                                            : 'Tap for weather, PH seismic feed & check-in'),
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey.shade800,
+                                      fontSize: 14,
+                                      color: subtleText,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            const Icon(Icons.chevron_right, size: 18),
+                            Icon(Icons.chevron_right, color: subtleText),
                           ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
 
-                    // Readiness Score Card
+                    // Weighted Readiness Score Card
                     _buildReadinessCard(
-                        context, kit, readiness, scoreColor),
-                    const SizedBox(height: 12),
+                      context,
+                      kit,
+                      s,
+                      readiness,
+                      rawReadiness,
+                      scoreColor,
+                      isDark,
+                      isFil,
+                      headingColor,
+                      subtleText,
+                    ),
 
-                    // Critical Expiration & Missing Alerts
-                    if (expiredCount > 0 || expiringSoonCount > 0)
+                    if (expiredCount > 0 || expiringSoonCount > 0) ...[
+                      const SizedBox(height: 12),
                       _buildAlertBanner(
-                          context, kit, expiredCount, expiringSoonCount),
+                        context,
+                        kit,
+                        expiredCount,
+                        expiringSoonCount,
+                        isDark,
+                        isFil,
+                      ),
+                    ],
 
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Core System Modules',
+                    const SizedBox(height: 18),
+                    Text(
+                      s.quickToolsTitle,
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 17,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.darkSlate,
+                        color: headingColor,
                       ),
                     ),
                     const SizedBox(height: 10),
 
-                    // Navigation Action Grid
-                    _buildQuickActionGrid(
-                        context, kit, missingCount, alertCount, monitoring),
-
-                    const SizedBox(height: 18),
-
-                    // Immediate Emergency Dispatch Tile
-                    _buildSosTile(context, emergency),
-                    const SizedBox(height: 24),
+                    // Clean 2x2 Preparedness Tools Grid (IntrinsicHeight avoids overflow)
+                    _buildQuickToolsGrid(
+                      context,
+                      s,
+                      missingCount,
+                      alertCount,
+                      isDark,
+                      isFil,
+                      headingColor,
+                      subtleText,
+                    ),
                   ],
                 ),
               ),
@@ -255,104 +352,115 @@ class HomeDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildReadinessCard(BuildContext context, KitProvider kit,
-      double readiness, Color scoreColor) {
+  Widget _buildReadinessCard(
+    BuildContext context,
+    KitProvider kit,
+    AppStrings s,
+    double readiness,
+    double rawReadiness,
+    Color scoreColor,
+    bool isDark,
+    bool isFil,
+    Color headingColor,
+    Color subtleText,
+  ) {
+    final linkColor = isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SizedBox(
-              width: 88,
-              height: 88,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CircularProgressIndicator(
-                    value: readiness / 100,
-                    strokeWidth: 9,
-                    backgroundColor: Colors.grey.shade200,
-                    color: scoreColor,
-                    strokeCap: StrokeCap.round,
-                  ),
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
+            Row(
+              children: [
+                SizedBox(
+                  width: 92,
+                  height: 92,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CircularProgressIndicator(
+                        value: (readiness / 100).clamp(0.0, 1.0),
+                        strokeWidth: 9,
+                        backgroundColor:
+                            isDark ? AppTheme.darkBg : Colors.grey.shade200,
+                        color: scoreColor,
+                        strokeCap: StrokeCap.round,
+                      ),
+                      Center(
+                        child: Text(
                           '${readiness.toStringAsFixed(0)}%',
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: scoreColor,
                           ),
                         ),
-                        Text(
-                          'READY',
-                          style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.grey.shade600,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        s.weightedScoreLabel,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: subtleText,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        s.readinessStatus(readiness),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: scoreColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${kit.packedItemsCount}/${kit.totalItemsCount} ${isFil ? 'kumpleto' : 'packed'} (${rawReadiness.toStringAsFixed(0)}% raw) • ${kit.householdProfile.totalPeople} pax',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          color: headingColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 18),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    kit.readinessStatus,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                      color: scoreColor,
+            const SizedBox(height: 10),
+            Text(
+              s.weightedExplain,
+              style: TextStyle(fontSize: 14, color: subtleText),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 48),
+                      foregroundColor: linkColor,
+                      side: BorderSide(color: linkColor),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${kit.packedItemsCount} complete, ${kit.missingItemsCount} to pack (${kit.totalItemsCount} total for ${kit.householdProfile.totalPeople} pax).',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Colors.grey.shade700,
-                      height: 1.3,
+                    icon: const Icon(Icons.checklist_rtl, size: 18),
+                    label: Text(
+                      isFil ? 'Ayusin ang Kit' : 'Update Go-Bag Kit',
+                      style: const TextStyle(fontSize: 14),
                     ),
+                    onPressed: () => onNavigateTab(1),
                   ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const SelfAssessmentScreen(),
-                        ),
-                      );
-                    },
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Readiness Audit & Survey',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryCrimson,
-                          ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_ios,
-                            size: 10, color: AppTheme.primaryCrimson),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ],
         ),
@@ -360,24 +468,37 @@ class HomeDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAlertBanner(BuildContext context, KitProvider kit,
-      int expired, int expiringSoon) {
+  Widget _buildAlertBanner(
+    BuildContext context,
+    KitProvider kit,
+    int expired,
+    int expiringSoon,
+    bool isDark,
+    bool isFil,
+  ) {
     final hasExpired = expired > 0;
+    final accent = hasExpired
+        ? (isDark ? Colors.red.shade200 : AppTheme.dangerRed)
+        : (isDark ? Colors.amber.shade200 : AppTheme.warningAmber);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: hasExpired ? const Color(0xFFFFEBEE) : const Color(0xFFFFF3E0),
+        color: hasExpired
+            ? (isDark ? AppTheme.dangerRed.withAlpha(45) : const Color(0xFFFFEBEE))
+            : (isDark
+                ? AppTheme.warningAmber.withAlpha(45)
+                : const Color(0xFFFFF3E0)),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: hasExpired ? const Color(0xFFFFCDD2) : const Color(0xFFFFE0B2),
+          color: hasExpired ? AppTheme.dangerRed : AppTheme.warningAmber,
         ),
       ),
       child: Row(
         children: [
           Icon(
             hasExpired ? Icons.error_outline : Icons.schedule,
-            color: hasExpired ? AppTheme.accentAlert : AppTheme.warningAmber,
+            color: accent,
             size: 26,
           ),
           const SizedBox(width: 10),
@@ -387,144 +508,173 @@ class HomeDashboardScreen extends StatelessWidget {
               children: [
                 Text(
                   hasExpired
-                      ? '$expired expired & $expiringSoon expiring item(s)!'
-                      : '$expiringSoon item(s) expiring within ${kit.expiryAlertDays} days!',
+                      ? (isFil
+                          ? '$expired paso at $expiringSoon malapit ma-expire!'
+                          : '$expired expired & $expiringSoon expiring item(s)!')
+                      : (isFil
+                          ? '$expiringSoon gamit ang malapit ma-expire sa ${kit.expiryAlertDays} araw!'
+                          : '$expiringSoon item(s) expiring within ${kit.expiryAlertDays} days!'),
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: hasExpired
-                        ? AppTheme.accentAlert
-                        : Colors.brown.shade800,
+                    color: accent,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Tap Replace to review and rotate supplies before expiry.',
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                  isFil
+                      ? 'Pindutin ang Palitan para mag-update.'
+                      : 'Tap Replace to review and rotate supplies.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white70 : Colors.grey.shade800,
+                  ),
                 ),
               ],
             ),
           ),
           TextButton(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 48),
+              foregroundColor: accent,
+            ),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationsScreen()),
               );
             },
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              foregroundColor:
-                  hasExpired ? AppTheme.accentAlert : AppTheme.warningAmber,
+            child: Text(
+              isFil ? 'Palitan' : 'Replace',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
-            child: const Text('Replace',
-                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildQuickActionGrid(
+  Widget _buildQuickToolsGrid(
     BuildContext context,
-    KitProvider kit,
+    AppStrings s,
     int missingCount,
     int alertCount,
-    MonitoringProvider monitoring,
+    bool isDark,
+    bool isFil,
+    Color headingColor,
+    Color subtleText,
   ) {
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.25,
+    return Column(
       children: [
-        _buildActionTile(
-          icon: Icons.checklist_rtl_rounded,
-          iconColor: Colors.blue.shade700,
-          title: 'Emergency Kit',
-          subtitle: '$missingCount items to pack',
-          badgeText: missingCount > 0 ? '$missingCount Missing' : 'Ready',
-          badgeColor:
-              missingCount > 0 ? Colors.orange.shade700 : AppTheme.safeGreen,
-          onTap: () => onNavigateTab(1),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildToolCard(
+                  isDark: isDark,
+                  headingColor: headingColor,
+                  subtleText: subtleText,
+                  icon: Icons.menu_book_rounded,
+                  iconColor: isDark ? Colors.purple.shade200 : Colors.purple.shade700,
+                  title: s.disasterGuides,
+                  subtitle: isFil ? 'Bagyo, Lindol, Sunog' : 'Typhoon, Quake, Fire',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const DisasterGuideScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildToolCard(
+                  isDark: isDark,
+                  headingColor: headingColor,
+                  subtleText: subtleText,
+                  icon: Icons.home_work_outlined,
+                  iconColor: isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy,
+                  title: s.householdPlan,
+                  subtitle: isFil ? 'Tagpuan at mga shutoff' : 'Meeting spots & shutoffs',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const EmergencyPlanScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
-        _buildActionTile(
-          icon: Icons.radar,
-          iconColor: Colors.red.shade700,
-          title: 'Emergency Monitor',
-          subtitle: 'Weather, quakes & log',
-          badgeText: monitoring.isOfflineMode ? 'Cached' : 'Live',
-          badgeColor: monitoring.isOfflineMode
-              ? Colors.orange.shade800
-              : AppTheme.safeGreen,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                  builder: (_) => const EmergencyMonitoringScreen()),
-            );
-          },
-        ),
-        _buildActionTile(
-          icon: Icons.menu_book_rounded,
-          iconColor: Colors.purple.shade700,
-          title: 'Disaster Guides',
-          subtitle: 'Typhoon, Quake, Fire',
-          badgeText: '5 Guides',
-          badgeColor: Colors.purple.shade700,
-          onTap: () => onNavigateTab(2),
-        ),
-        _buildActionTile(
-          icon: Icons.map_outlined,
-          iconColor: Colors.teal.shade700,
-          title: 'GPS & Shelter Map',
-          subtitle: 'Offline radar & distance',
-          badgeText: 'GPS Ready',
-          badgeColor: Colors.teal.shade700,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const EvacuationMapScreen()),
-            );
-          },
-        ),
-        _buildActionTile(
-          icon: Icons.home_work_outlined,
-          iconColor: Colors.indigo.shade700,
-          title: 'My Emergency Plan',
-          subtitle: 'Meeting spots & shutoffs',
-          badgeText: 'Offline',
-          badgeColor: Colors.indigo.shade700,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const EmergencyPlanScreen()),
-            );
-          },
-        ),
-        _buildActionTile(
-          icon: Icons.phone_in_talk_rounded,
-          iconColor: AppTheme.accentAlert,
-          title: 'Hotlines & Alerts',
-          subtitle: '911, BFP, PRC, PNP',
-          badgeText: alertCount > 0 ? '$alertCount Alerts' : 'Directory',
-          badgeColor:
-              alertCount > 0 ? AppTheme.accentAlert : AppTheme.primaryCrimson,
-          onTap: () => onNavigateTab(3),
+        const SizedBox(height: 12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildToolCard(
+                  isDark: isDark,
+                  headingColor: headingColor,
+                  subtleText: subtleText,
+                  icon: Icons.notifications_active_outlined,
+                  iconColor: alertCount > 0
+                      ? (isDark ? Colors.red.shade200 : AppTheme.dangerRed)
+                      : (isDark ? Colors.amber.shade200 : AppTheme.warningAmber),
+                  title: s.replacementAlerts,
+                  subtitle: alertCount > 0
+                      ? (isFil ? '$alertCount paalala ngayon' : '$alertCount active alerts')
+                      : (isFil ? '$missingCount kulang pa' : '$missingCount items missing'),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NotificationsScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildToolCard(
+                  isDark: isDark,
+                  headingColor: headingColor,
+                  subtleText: subtleText,
+                  icon: Icons.fact_check_outlined,
+                  iconColor: isDark ? Colors.tealAccent : Colors.teal.shade700,
+                  title: s.readinessAudit,
+                  subtitle: isFil ? 'ISO survey at grado' : 'Category score & survey',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SelfAssessmentScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildActionTile({
+  Widget _buildToolCard({
+    required bool isDark,
+    required Color headingColor,
+    required Color subtleText,
     required IconData icon,
     required Color iconColor,
     required String title,
     required String subtitle,
-    required String badgeText,
-    required Color badgeColor,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -532,69 +682,42 @@ class HomeDashboardScreen extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       child: Ink(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? AppTheme.darkCard : Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.grey.shade200),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(10),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(
+            color: isDark ? AppTheme.darkBorder : Colors.grey.shade200,
+          ),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: iconColor.withAlpha(26),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, color: iconColor, size: 22),
-                  ),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: badgeColor.withAlpha(26),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      badgeText,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: badgeColor,
-                      ),
-                    ),
-                  ),
-                ],
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconColor.withAlpha(isDark ? 45 : 24),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: iconColor, size: 24),
               ),
+              const SizedBox(height: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      fontSize: 13.5,
+                    style: TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.darkSlate,
+                      color: headingColor,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 14, color: subtleText),
                   ),
                 ],
               ),
@@ -602,170 +725,6 @@ class HomeDashboardScreen extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildSosTile(BuildContext context, EmergencyProvider emergency) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFB71C1C), Color(0xFFD32F2F)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withAlpha(64),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () => _showEmergencyDialog(context, emergency),
-          child: const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  backgroundColor: Colors.white,
-                  radius: 22,
-                  child: Icon(Icons.emergency_share,
-                      color: Color(0xFFB71C1C), size: 26),
-                ),
-                SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'EMERGENCY SOS DISPATCH',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '1-Tap Direct Call to 911 / Red Cross & SMS Beacon',
-                        style: TextStyle(fontSize: 11, color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(Icons.arrow_forward_ios,
-                    color: Colors.white70, size: 16),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showEmergencyDialog(
-      BuildContext context, EmergencyProvider emergency) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.warning_amber_rounded,
-                      color: AppTheme.accentAlert, size: 28),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Instant Emergency Dispatch',
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Direct cellular connection - works without active internet or data.',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-              const Divider(height: 24),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFFFEBEE),
-                  child: Icon(Icons.phone, color: AppTheme.accentAlert),
-                ),
-                title: const Text('Call National Emergency 911',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('Nationwide police, fire, rescue dispatch'),
-                trailing: const Icon(Icons.call, color: AppTheme.accentAlert),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ActionFeedback.callWithFeedback(
-                      context, emergency, '911', 'National Emergency 911');
-                },
-              ),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFFFEBEE),
-                  child:
-                      Icon(Icons.medical_services, color: AppTheme.accentAlert),
-                ),
-                title: const Text('Call Red Cross Hotline 143',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text('Ambulance and humanitarian rescue'),
-                trailing: const Icon(Icons.call, color: AppTheme.accentAlert),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ActionFeedback.callWithFeedback(
-                      context, emergency, '143', 'Philippine Red Cross');
-                },
-              ),
-              ListTile(
-                leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFE8F5E9),
-                  child: Icon(Icons.sms, color: AppTheme.safeGreen),
-                ),
-                title: const Text('Send Emergency Distress SMS',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: const Text(
-                    'Broadcasts GPS & emergency alert to family contact'),
-                trailing: const Icon(Icons.send, color: AppTheme.safeGreen),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  final firstContact = emergency.personalContacts.isNotEmpty
-                      ? emergency.personalContacts.first.phoneNumber
-                      : '911';
-                  ActionFeedback.smsWithFeedback(
-                    context,
-                    emergency,
-                    firstContact,
-                    'EMERGENCY (${emergency.emergencyPlan.householdName}): Need urgent assistance! GPS: ${emergency.userLat.toStringAsFixed(4)}, ${emergency.userLng.toStringAsFixed(4)}',
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
-        );
-      },
     );
   }
 }

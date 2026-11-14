@@ -129,6 +129,50 @@ void main() {
       }
     });
 
+    test('Weighted readiness weights critical survival items higher than low-weight items', () async {
+      expect(KitCategory.waterAndFood.priorityWeight, equals(3));
+      expect(KitCategory.medicalAndFirstAid.priorityWeight, equals(3));
+      expect(KitCategory.toolsAndLighting.priorityWeight, equals(2));
+      expect(KitCategory.sanitationAndHygiene.priorityWeight, equals(1));
+      expect(
+        KitCategory.waterAndFood.priorityWeight,
+        greaterThan(KitCategory.sanitationAndHygiene.priorityWeight),
+      );
+
+      final pHigh = KitProvider();
+      final pLow = KitProvider();
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final highItem = KitItem(
+        id: 'test_weight_3',
+        name: 'Test Critical Water',
+        category: KitCategory.waterAndFood,
+        quantity: 0,
+        targetQuantity: 1,
+      );
+      final lowItem = KitItem(
+        id: 'test_weight_1',
+        name: 'Test Sanitation Wipes',
+        category: KitCategory.sanitationAndHygiene,
+        quantity: 0,
+        targetQuantity: 1,
+      );
+
+      pHigh.addItem(highItem);
+      pHigh.addItem(lowItem);
+      pLow.addItem(highItem);
+      pLow.addItem(lowItem);
+
+      expect(pHigh.readinessPercentage, closeTo(pLow.readinessPercentage, 0.001));
+
+      pHigh.togglePacked('test_weight_3');
+      pLow.togglePacked('test_weight_1');
+
+      expect(pHigh.rawCompletionPercentage,
+          closeTo(pLow.rawCompletionPercentage, 0.001));
+      expect(pHigh.readinessPercentage, greaterThan(pLow.readinessPercentage));
+    });
+
     test('Offline Haversine GPS distance and bearing calculates accurately', () {
       // Distance from EAC Manila (14.5822, 120.9882) to Paco Hall (14.5804, 120.9931)
       final distKm = LocationService.distanceInKm(14.5822, 120.9882, 14.5804, 120.9931);

@@ -7,7 +7,9 @@ import '../providers/emergency_provider.dart';
 import '../utils/app_theme.dart';
 
 class EmergencyPlanScreen extends StatefulWidget {
-  const EmergencyPlanScreen({super.key});
+  final bool isEmbedded;
+
+  const EmergencyPlanScreen({super.key, this.isEmbedded = false});
 
   @override
   State<EmergencyPlanScreen> createState() => _EmergencyPlanScreenState();
@@ -109,6 +111,198 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
+
+    final bodyContent = ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkCard : Colors.blue.shade50,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: isDark ? AppTheme.darkBorder : Colors.blue.shade200),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.family_restroom,
+                  color: isDark ? Colors.lightBlueAccent : Colors.blue.shade800),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Pre-plan your family meeting points, utility shutoffs, and medical profiles. Stored 100% offline.',
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? Colors.grey.shade200 : Colors.blue.shade900),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                tooltip: 'Copy Plan Summary',
+                onPressed: _copyPlanToClipboard,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        _buildSectionHeader('1. Household & Evacuation Assembly Points'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _householdCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Household / Family Name',
+                    prefixIcon: Icon(Icons.home_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _addressCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Home Address / Barangay',
+                    prefixIcon: Icon(Icons.location_on_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _primaryMeetCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Primary Meeting Point (Outside Home)',
+                    prefixIcon: Icon(Icons.flag_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _secondarySiteCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Secondary Evacuation Center',
+                    prefixIcon: Icon(Icons.roofing),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _goBagLocCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Where Go-Bag is Stored',
+                    prefixIcon: Icon(Icons.backpack_outlined),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        _buildSectionHeader('2. Utility Shutoff Locations'),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _breakerCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Main Electrical Breaker Location',
+                    prefixIcon: Icon(Icons.electric_bolt),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _lpgCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'LPG Tank / Gas Shutoff Valve',
+                    prefixIcon: Icon(Icons.propane_tank_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _waterCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Main Water Valve Location',
+                    prefixIcon: Icon(Icons.water_damage_outlined),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionHeader('3. Family Medical & Blood Profiles'),
+            TextButton.icon(
+              icon: const Icon(Icons.person_add, size: 18),
+              label: const Text('Add Member'),
+              onPressed: _showAddMemberDialog,
+            ),
+          ],
+        ),
+        if (_members.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Text(
+                'No household members added yet. Add blood types and allergies for emergency responders.',
+                style: TextStyle(fontSize: 14, color: subColor),
+              ),
+            ),
+          )
+        else
+          ..._members.map((m) => Card(
+                margin: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: AppTheme.primaryNavy.withAlpha(30),
+                    child: Text(
+                      m.bloodType,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: isDark
+                            ? Colors.lightBlueAccent
+                            : AppTheme.primaryNavy,
+                      ),
+                    ),
+                  ),
+                  title: Text('${m.name} (${m.roleOrAge})',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15)),
+                  subtitle: Text('Medical/Allergies: ${m.medicalConditions}',
+                      style: const TextStyle(fontSize: 14)),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline,
+                        color: AppTheme.dangerRed),
+                    onPressed: () {
+                      setState(() {
+                        _members.removeWhere((item) => item.id == m.id);
+                      });
+                      _savePlan();
+                    },
+                  ),
+                ),
+              )),
+
+        const SizedBox(height: 18),
+        ElevatedButton.icon(
+          icon: const Icon(Icons.save),
+          label: const Text('Save Emergency Plan Offline'),
+          onPressed: _savePlan,
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return bodyContent;
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Household Emergency Plan'),
@@ -125,179 +319,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.family_restroom, color: Colors.blue.shade800),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Pre-plan your family meeting points, utility shutoffs, and medical profiles. Stored 100% offline.',
-                    style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          _buildSectionHeader('1. Household & Evacuation Assembly Points'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _householdCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Household / Family Name',
-                      prefixIcon: Icon(Icons.home_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _addressCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Home Address / Barangay',
-                      prefixIcon: Icon(Icons.location_on_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _primaryMeetCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Primary Meeting Point (Outside Home)',
-                      prefixIcon: Icon(Icons.flag_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _secondarySiteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Secondary Evacuation Center',
-                      prefixIcon: Icon(Icons.roofing),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _goBagLocCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Where Go-Bag is Stored',
-                      prefixIcon: Icon(Icons.backpack_outlined),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          _buildSectionHeader('2. Utility Shutoff Locations'),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _breakerCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Main Electrical Breaker Location',
-                      prefixIcon: Icon(Icons.electric_bolt),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _lpgCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'LPG Tank / Gas Shutoff Valve',
-                      prefixIcon: Icon(Icons.propane_tank_outlined),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _waterCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Main Water Valve Location',
-                      prefixIcon: Icon(Icons.water_damage_outlined),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildSectionHeader('3. Family Medical & Blood Profiles'),
-              TextButton.icon(
-                icon: const Icon(Icons.person_add, size: 18),
-                label: const Text('Add Member'),
-                onPressed: _showAddMemberDialog,
-              ),
-            ],
-          ),
-          if (_members.isEmpty)
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Text(
-                  'No household members added yet. Add blood types and allergies for emergency responders.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ),
-            )
-          else
-            ..._members.map((m) => Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppTheme.primaryCrimson.withAlpha(26),
-                      child: Text(
-                        m.bloodType,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primaryCrimson,
-                        ),
-                      ),
-                    ),
-                    title: Text('${m.name} (${m.roleOrAge})',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13.5)),
-                    subtitle: Text('Medical/Allergies: ${m.medicalConditions}',
-                        style: const TextStyle(fontSize: 12)),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () {
-                        setState(() {
-                          _members.removeWhere((item) => item.id == m.id);
-                        });
-                        _savePlan();
-                      },
-                    ),
-                  ),
-                )),
-
-          const SizedBox(height: 18),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.save),
-            label: const Text('Save Emergency Plan Offline'),
-            onPressed: _savePlan,
-          ),
-          const SizedBox(height: 24),
-        ],
-      ),
+      body: bodyContent,
     );
   }
 
@@ -307,9 +329,8 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 14.5,
+          fontSize: 16,
           fontWeight: FontWeight.bold,
-          color: AppTheme.darkSlate,
         ),
       ),
     );
@@ -343,9 +364,19 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
-                  value: bloodType,
+                  initialValue: bloodType,
                   decoration: const InputDecoration(labelText: 'Blood Type'),
-                  items: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown']
+                  items: [
+                    'A+',
+                    'A-',
+                    'B+',
+                    'B-',
+                    'AB+',
+                    'AB-',
+                    'O+',
+                    'O-',
+                    'Unknown'
+                  ]
                       .map((b) => DropdownMenuItem(value: b, child: Text(b)))
                       .toList(),
                   onChanged: (v) {

@@ -48,6 +48,25 @@ extension KitCategoryExtension on KitCategory {
         return 'child_care';
     }
   }
+
+  /// Weight for survival readiness calculation:
+  /// 3 = Critical Survival (Water, Food, Medical)
+  /// 2 = Essential (Tools, Lighting, Docs, Special Needs)
+  /// 1 = Important (Sanitation, Clothing)
+  int get priorityWeight {
+    switch (this) {
+      case KitCategory.waterAndFood:
+      case KitCategory.medicalAndFirstAid:
+        return 3;
+      case KitCategory.toolsAndLighting:
+      case KitCategory.documentsAndCash:
+      case KitCategory.specialNeeds:
+        return 2;
+      case KitCategory.sanitationAndHygiene:
+      case KitCategory.clothingAndBedding:
+        return 1;
+    }
+  }
 }
 
 class KitItem {

@@ -42,11 +42,15 @@ const server = http.createServer((req, res) => {
         res.writeHead(500);
         res.end('Error loading ' + filePath);
       } else {
-        res.writeHead(200, {
+        const headers = {
           'Content-Type': contentType,
           'Access-Control-Allow-Origin': '*'
-        });
-        res.end(content, 'utf-8');
+        };
+        if (path.basename(filePath) === 'sw.js') {
+          headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+        }
+        res.writeHead(200, headers);
+        res.end(content);
       }
     });
   });

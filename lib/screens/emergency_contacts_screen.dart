@@ -8,7 +8,9 @@ import '../utils/app_theme.dart';
 import 'emergency_plan_screen.dart';
 
 class EmergencyContactsScreen extends StatefulWidget {
-  const EmergencyContactsScreen({super.key});
+  final bool isEmbedded;
+
+  const EmergencyContactsScreen({super.key, this.isEmbedded = false});
 
   @override
   State<EmergencyContactsScreen> createState() =>
@@ -21,6 +23,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   @override
   Widget build(BuildContext context) {
     final emergency = context.watch<EmergencyProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
 
     final filtered = _selectedCategory == null
         ? emergency.allContacts
@@ -28,9 +32,171 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
             .where((c) => c.category == _selectedCategory)
             .toList();
 
+    final content = Column(
+      children: [
+        // Offline notice banner
+        Container(
+          color: isDark
+              ? const Color(0xFF0F291E)
+              : const Color(0xFFE8F5E9),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              Icon(Icons.wifi_off,
+                  size: 18,
+                  color: isDark
+                      ? const Color(0xFF4ADE80)
+                      : AppTheme.safeGreen),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Direct Offline Cellular Dialing • No Internet Required',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFFBBF7D0)
+                        : Colors.green.shade900,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                style: TextButton.styleFrom(minimumSize: const Size(48, 40)),
+                icon: const Icon(Icons.person_add_alt_1, size: 18),
+                label: const Text('Add ICE', style: TextStyle(fontSize: 13)),
+                onPressed: () =>
+                    _showAddPersonalContactDialog(context, emergency),
+              ),
+            ],
+          ),
+        ),
+
+        if (!widget.isEmbedded)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const EmergencyPlanScreen()),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkCard : Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: isDark
+                          ? AppTheme.darkBorder
+                          : Colors.blue.shade200),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: AppTheme.primaryNavy,
+                      radius: 20,
+                      child: const Icon(Icons.home_work,
+                          color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'My Household Emergency Plan',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Meeting point: ${emergency.emergencyPlan.primaryMeetingPoint}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 13.5, color: subColor),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios, size: 16),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        // Category Filter Chips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: const Text('All Contacts'),
+                selected: _selectedCategory == null,
+                selectedColor: AppTheme.primaryNavy,
+                labelStyle: TextStyle(
+                  color: _selectedCategory == null
+                      ? Colors.white
+                      : (isDark ? Colors.white : Colors.black87),
+                  fontWeight: _selectedCategory == null
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                  fontSize: 13,
+                ),
+                onSelected: (_) => setState(() => _selectedCategory = null),
+              ),
+              const SizedBox(width: 6),
+              ...ContactCategory.values.map((cat) {
+                final isSelected = _selectedCategory == cat;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(cat.displayName),
+                    selected: isSelected,
+                    selectedColor: AppTheme.primaryNavy,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : (isDark ? Colors.white : Colors.black87),
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontSize: 13,
+                    ),
+                    onSelected: (_) => setState(() => _selectedCategory = cat),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+
+        // Contacts List
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 90),
+            itemCount: filtered.length,
+            itemBuilder: (context, index) {
+              final contact = filtered[index];
+              return _buildContactCard(context, contact, emergency, isDark, subColor);
+            },
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return content;
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emergency Plans & Contacts'),
+        title: const Text('Emergency Contacts'),
         actions: [
           IconButton(
             icon: const Icon(Icons.assignment_ind_outlined),
@@ -49,153 +215,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Offline notice banner
-          Container(
-            color: const Color(0xFFE8F5E9),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: Row(
-              children: [
-                const Icon(Icons.wifi_off, size: 16, color: AppTheme.safeGreen),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Direct Offline Cellular Dialing • No Internet Required',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.green.shade900,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Household Emergency Plan Card Shortcut
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const EmergencyPlanScreen()),
-                );
-              },
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.blue.shade200),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: Colors.blue.shade700,
-                      radius: 18,
-                      child: const Icon(Icons.home_work,
-                          color: Colors.white, size: 18),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'My Household Emergency Plan',
-                            style: TextStyle(
-                              fontSize: 13.5,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade900,
-                            ),
-                          ),
-                          Text(
-                            'Meeting point: ${emergency.emergencyPlan.primaryMeetingPoint}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 11.5, color: Colors.blue.shade800),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(Icons.arrow_forward_ios,
-                        size: 14, color: Colors.blue.shade800),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Category Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              children: [
-                ChoiceChip(
-                  label: const Text('All Contacts'),
-                  selected: _selectedCategory == null,
-                  selectedColor: AppTheme.primaryCrimson,
-                  labelStyle: TextStyle(
-                    color:
-                        _selectedCategory == null ? Colors.white : Colors.black87,
-                    fontWeight: _selectedCategory == null
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    fontSize: 11.5,
-                  ),
-                  onSelected: (_) => setState(() => _selectedCategory = null),
-                ),
-                const SizedBox(width: 6),
-                ...ContactCategory.values.map((cat) {
-                  final isSelected = _selectedCategory == cat;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(cat.displayName),
-                      selected: isSelected,
-                      selectedColor: AppTheme.primaryCrimson,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : Colors.black87,
-                        fontWeight:
-                            isSelected ? FontWeight.bold : FontWeight.normal,
-                        fontSize: 11.5,
-                      ),
-                      onSelected: (_) =>
-                          setState(() => _selectedCategory = cat),
-                    ),
-                  );
-                }),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-
-          // Contacts List
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              itemCount: filtered.length,
-              itemBuilder: (context, index) {
-                final contact = filtered[index];
-                return _buildContactCard(context, contact, emergency);
-              },
-            ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppTheme.primaryCrimson,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Family'),
-        onPressed: () => _showAddPersonalContactDialog(context, emergency),
-      ),
+      body: content,
     );
   }
 
@@ -203,17 +223,19 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     BuildContext context,
     EmergencyContact contact,
     EmergencyProvider emergency,
+    bool isDark,
+    Color subColor,
   ) {
     Color badgeColor;
     IconData agencyIcon;
 
     switch (contact.category) {
       case ContactCategory.nationalHotline:
-        badgeColor = AppTheme.accentAlert;
+        badgeColor = AppTheme.dangerRed;
         agencyIcon = Icons.notifications_active;
         break;
       case ContactCategory.police:
-        badgeColor = Colors.indigo;
+        badgeColor = isDark ? Colors.lightBlueAccent : Colors.indigo;
         agencyIcon = Icons.local_police;
         break;
       case ContactCategory.fire:
@@ -221,21 +243,21 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
         agencyIcon = Icons.local_fire_department;
         break;
       case ContactCategory.medicalAndRedCross:
-        badgeColor = Colors.red.shade700;
+        badgeColor = AppTheme.dangerRed;
         agencyIcon = Icons.medical_services;
         break;
       case ContactCategory.disasterManagement:
-        badgeColor = Colors.teal.shade800;
+        badgeColor = isDark ? Colors.tealAccent : Colors.teal.shade800;
         agencyIcon = Icons.shield;
         break;
       case ContactCategory.familyAndPersonal:
-        badgeColor = Colors.purple.shade700;
+        badgeColor = isDark ? Colors.purpleAccent : Colors.purple.shade700;
         agencyIcon = Icons.family_restroom;
         break;
     }
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(
@@ -245,9 +267,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  backgroundColor: badgeColor.withAlpha(26),
-                  radius: 20,
-                  child: Icon(agencyIcon, color: badgeColor, size: 22),
+                  backgroundColor: badgeColor.withAlpha(30),
+                  radius: 22,
+                  child: Icon(agencyIcon, color: badgeColor, size: 24),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -257,25 +279,23 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                       Text(
                         contact.name,
                         style: const TextStyle(
-                          fontSize: 14.5,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.darkSlate,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         contact.agencyOrRelationship,
                         style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade700,
+                            fontSize: 14,
+                            color: subColor,
                             fontWeight: FontWeight.w500),
                       ),
                       if (contact.description.isNotEmpty) ...[
                         const SizedBox(height: 4),
                         Text(
                           contact.description,
-                          style: TextStyle(
-                              fontSize: 11, color: Colors.grey.shade600),
+                          style: TextStyle(fontSize: 13.5, color: subColor),
                         ),
                       ],
                     ],
@@ -284,7 +304,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 if (!contact.isDefault)
                   IconButton(
                     icon: const Icon(Icons.delete_outline,
-                        size: 20, color: Colors.red),
+                        size: 22, color: AppTheme.dangerRed),
                     tooltip: 'Remove Contact',
                     onPressed: () =>
                         emergency.removePersonalContact(contact.id),
@@ -292,20 +312,25 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
               ],
             ),
             const Divider(height: 20),
-
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: badgeColor,
-                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      backgroundColor: contact.category ==
+                                  ContactCategory.nationalHotline ||
+                              contact.category ==
+                                  ContactCategory.medicalAndRedCross
+                          ? AppTheme.dangerRed
+                          : AppTheme.primaryNavy,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(48, 48),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.call, size: 16),
+                    icon: const Icon(Icons.call, size: 18),
                     label: Text(
                       'Call: ${contact.phoneNumber}',
-                      style: const TextStyle(fontSize: 12.5),
+                      style: const TextStyle(fontSize: 14),
                     ),
                     onPressed: () => ActionFeedback.callWithFeedback(
                       context,
@@ -318,15 +343,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: badgeColor,
-                    side: BorderSide(color: badgeColor),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10)),
+                    minimumSize: const Size(48, 48),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                   ),
-                  icon: const Icon(Icons.sms, size: 16),
-                  label: const Text('SMS', style: TextStyle(fontSize: 12.5)),
+                  icon: const Icon(Icons.sms, size: 18),
+                  label: const Text('SMS', style: TextStyle(fontSize: 14)),
                   onPressed: () => ActionFeedback.smsWithFeedback(
                     context,
                     emergency,

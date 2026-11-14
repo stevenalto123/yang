@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/kit_item.dart';
 import '../providers/kit_provider.dart';
+import '../providers/settings_provider.dart';
+import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
 
 class SelfAssessmentScreen extends StatefulWidget {
@@ -46,7 +48,7 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
     } catch (_) {}
   }
 
-  Future<void> _saveSurvey() async {
+  Future<void> _saveSurvey(bool isFil) async {
     setState(() => _surveySubmitted = true);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -64,15 +66,19 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
     } catch (_) {}
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           backgroundColor: AppTheme.safeGreen,
-          content: Text('ISO/IEC 25010 Usability Evaluation recorded!'),
+          content: Text(
+            isFil
+                ? 'Nai-save na ang ISO/IEC 25010 evaluation!'
+                : 'ISO/IEC 25010 Usability Evaluation recorded!',
+          ),
         ),
       );
     }
   }
 
-  void _copyFullReport(KitProvider kit) {
+  void _copyFullReport(KitProvider kit, bool isFil) {
     final meanScore = (_functionalityScore +
             _usabilityScore +
             _offlineReliabilityScore +
@@ -84,9 +90,11 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
     buf.writeln('--------------------------------------------------');
     buf.writeln('1. KIT COMPLETENESS SELF-CHECKLIST');
     buf.writeln(
-        'Readiness Score: ${kit.readinessPercentage.toStringAsFixed(1)}% (${kit.readinessStatus})');
+      'Weighted Survival Score: ${kit.readinessPercentage.toStringAsFixed(1)}% (${kit.readinessStatus})',
+    );
     buf.writeln(
-        'Packed Supplies: ${kit.packedItemsCount} / ${kit.totalItemsCount}');
+      'Raw Item Completion: ${kit.rawCompletionPercentage.toStringAsFixed(1)}% (${kit.packedItemsCount} / ${kit.totalItemsCount})',
+    );
     buf.writeln('Missing / Incomplete: ${kit.missingItemsCount}');
     buf.writeln('Expired Items: ${kit.expiredItemsCount}');
     buf.writeln('Expiring Soon: ${kit.expiringSoonItemsCount}');
@@ -96,46 +104,61 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
     buf.writeln('Q2. Usability & Ease of Use (RQ3): $_usabilityScore / 5');
     buf.writeln('Q3. Offline Reliability (Non, 2026): $_offlineReliabilityScore / 5');
     buf.writeln(
-        'Q4. Household Preparedness Effectiveness (RQ4): $_preparednessImpactScore / 5');
+      'Q4. Household Preparedness Effectiveness (RQ4): $_preparednessImpactScore / 5',
+    );
     buf.writeln('Overall Weighted Mean: ${meanScore.toStringAsFixed(2)} / 5.00');
 
     Clipboard.setData(ClipboardData(text: buf.toString()));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Full Readiness & Survey Report copied to clipboard!')),
+      SnackBar(
+        content: Text(
+          isFil
+              ? 'Nakopya na ang ulat ng kahandaan!'
+              : 'Full Readiness & Survey Report copied to clipboard!',
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final kit = context.watch<KitProvider>();
+    final settings = context.watch<SettingsProvider>();
+    final isDark = settings.isDarkMode;
+    final isFil = settings.isFilipino;
+    final s = AppStrings(isFil);
 
     final total = kit.totalItemsCount;
     final packed = kit.packedItemsCount;
     final expired = kit.expiredItemsCount;
     final expiringSoon = kit.expiringSoonItemsCount;
-    final score = kit.readinessPercentage;
+    final weightedScore = kit.readinessPercentage;
+    final rawScore = kit.rawCompletionPercentage;
+
+    final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
+    final subtleText = isDark ? Colors.white70 : Colors.grey.shade700;
+    final accentNavy = isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Readiness Self-Assessment'),
+        title: Text(s.readinessAudit),
         actions: [
           IconButton(
             icon: const Icon(Icons.assignment_returned_outlined),
-            tooltip: 'Copy Assessment Report',
-            onPressed: () => _copyFullReport(kit),
+            tooltip: isFil ? 'Kopyahin ang Ulat' : 'Copy Assessment Report',
+            onPressed: () => _copyFullReport(kit, isFil),
           ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          // Header Card
+          // Header Card showing BOTH Weighted Survival Score and Raw Completion %
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF1E293B), Color(0xFF334155)],
+                colors: [AppTheme.primaryNavy, AppTheme.primaryNavyDark],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -144,68 +167,111 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.assignment_turned_in,
-                        color: Colors.white, size: 24),
-                    SizedBox(width: 10),
-                    Text(
-                      'Household Preparedness Audit',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    const Icon(
+                      Icons.assignment_turned_in,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        isFil
+                            ? 'Pagsusuri ng Kahandaan ng Sambahayan'
+                            : 'Household Preparedness Audit',
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Based on Philippine DRRM 72-Hour Survival Go-Bag standards. Measures emergency kit completeness and system effectiveness (Slide 6 Instrumentation).',
+                  isFil
+                      ? 'Batay sa Philippine DRRM 72-Hour Go-Bag standards. Mas mataas ang bigat ng Tubig, Pagkain, at Medikal (3×).'
+                      : 'Based on Philippine DRRM 72-Hour Survival Go-Bag standards. Essential survival items (Water, Food, Medical) carry 3× weight.',
                   style: TextStyle(
-                      fontSize: 12, color: Colors.grey.shade300, height: 1.35),
+                    fontSize: 14,
+                    color: Colors.grey.shade200,
+                    height: 1.35,
+                  ),
                 ),
                 const SizedBox(height: 14),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${score.toStringAsFixed(1)}%',
-                          style: const TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.weightedScoreLabel,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Colors.white70,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                        Text(
-                          kit.readinessStatus.toUpperCase(),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.amberAccent,
-                            letterSpacing: 0.5,
+                          const SizedBox(height: 2),
+                          Text(
+                            '${weightedScore.toStringAsFixed(1)}%',
+                            style: const TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          Text(
+                            s.readinessStatus(weightedScore).toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.amberAccent,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(26),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '${isFil ? 'Raw' : 'Raw Items'}: ${rawScore.toStringAsFixed(0)}%',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              Text(
+                                '$packed / $total ${isFil ? 'Kumpleto' : 'Packed'}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white70,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(26),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$packed / $total Supplies Ready',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -215,12 +281,13 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
           const SizedBox(height: 16),
 
           // Category Breakdown Progress Bars
-          const Text(
-            'Completeness by Category',
+          Text(
+            isFil ? 'Kumpleto bawat Kategorya' : 'Completeness by Category',
             style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkSlate),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: headingColor,
+            ),
           ),
           const SizedBox(height: 10),
 
@@ -238,41 +305,49 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          category.displayName,
-                          style: const TextStyle(
-                              fontSize: 13, fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            '${s.categoryName(category)} (${category.priorityWeight}×)',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: headingColor,
+                            ),
+                          ),
                         ),
                         Text(
                           '$catPacked / ${categoryItems.length} (${(catProgress * 100).toStringAsFixed(0)}%)',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: catProgress >= 0.8
-                                ? AppTheme.safeGreen
-                                : Colors.grey.shade700,
+                                ? (isDark
+                                    ? Colors.green.shade300
+                                    : AppTheme.safeGreen)
+                                : subtleText,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: catProgress,
-                        backgroundColor: Colors.grey.shade200,
+                        backgroundColor:
+                            isDark ? AppTheme.darkBg : Colors.grey.shade200,
                         color: catProgress >= 0.8
                             ? AppTheme.safeGreen
                             : (catProgress >= 0.4
                                 ? AppTheme.warningAmber
-                                : AppTheme.accentAlert),
+                                : AppTheme.dangerRed),
                         minHeight: 8,
                       ),
                     ),
@@ -285,32 +360,41 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
           const SizedBox(height: 16),
 
           // Audit Checklist Observations
-          const Text(
-            'Kit Readiness Findings',
+          Text(
+            isFil ? 'Mga Natuklasan sa Kit' : 'Kit Readiness Findings',
             style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.darkSlate),
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: headingColor,
+            ),
           ),
           const SizedBox(height: 10),
 
           _buildAuditFinding(
+            isDark: isDark,
             icon: expired == 0 ? Icons.check_circle : Icons.cancel,
-            color: expired == 0 ? AppTheme.safeGreen : AppTheme.accentAlert,
+            color: expired == 0
+                ? (isDark ? Colors.green.shade300 : AppTheme.safeGreen)
+                : (isDark ? Colors.red.shade300 : AppTheme.dangerRed),
             title: expired == 0
-                ? 'Zero Expired Supplies'
+                ? (isFil ? 'Walang Pasong Gamit' : 'Zero Expired Supplies')
                 : '$expired Expired Supply Item(s) Detected',
             subtitle: expired == 0
                 ? 'All emergency medicines and food rations are within valid safety shelf-life.'
                 : 'Replace expired medications and consumables immediately before disaster strikes.',
           ),
           _buildAuditFinding(
+            isDark: isDark,
             icon: expiringSoon == 0
                 ? Icons.check_circle
                 : Icons.warning_amber_rounded,
-            color: expiringSoon == 0 ? AppTheme.safeGreen : AppTheme.warningAmber,
+            color: expiringSoon == 0
+                ? (isDark ? Colors.green.shade300 : AppTheme.safeGreen)
+                : (isDark ? Colors.amber.shade300 : AppTheme.warningAmber),
             title: expiringSoon == 0
-                ? 'No Immediate Expiring Items'
+                ? (isFil
+                    ? 'Walang Malapit Ma-expire'
+                    : 'No Immediate Expiring Items')
                 : '$expiringSoon Item(s) Expiring within ${kit.expiryAlertDays} Days',
             subtitle: expiringSoon == 0
                 ? 'No items require near-term replenishment.'
@@ -323,7 +407,9 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
           Card(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
-              side: BorderSide(color: Colors.blue.shade200),
+              side: BorderSide(
+                color: isDark ? AppTheme.darkBorder : Colors.blue.shade200,
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(14),
@@ -332,43 +418,50 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.poll_outlined,
-                          color: Colors.blue.shade800, size: 22),
+                      Icon(Icons.poll_outlined, color: accentNavy, size: 22),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           'Structured Evaluation Survey (ISO/IEC 25010)',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: Colors.blue.shade900,
+                            color: accentNavy,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
-                    'Slide 6 Instrument: Rate the application from 1 (Strongly Disagree) to 5 (Strongly Agree).',
-                    style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700),
+                    'Rate the application from 1 (Strongly Disagree) to 5 (Strongly Agree).',
+                    style: TextStyle(fontSize: 14, color: subtleText),
                   ),
-                  const Divider(height: 18),
+                  const Divider(height: 20),
                   _buildLikertSlider(
+                    isDark,
+                    accentNavy,
                     '1. Functionality: Kit checklist, expiry tracking & emergency guides work accurately.',
                     _functionalityScore,
                     (v) => setState(() => _functionalityScore = v),
                   ),
                   _buildLikertSlider(
+                    isDark,
+                    accentNavy,
                     '2. Usability: Interface is clear, responsive, and easy to navigate.',
                     _usabilityScore,
                     (v) => setState(() => _usabilityScore = v),
                   ),
                   _buildLikertSlider(
+                    isDark,
+                    accentNavy,
                     '3. Offline Reliability: Essential data remains accessible with no internet.',
                     _offlineReliabilityScore,
                     (v) => setState(() => _offlineReliabilityScore = v),
                   ),
                   _buildLikertSlider(
+                    isDark,
+                    accentNavy,
                     '4. Effectiveness: Improves household disaster preparedness and readiness.',
                     _preparednessImpactScore,
                     (v) => setState(() => _preparednessImpactScore = v),
@@ -379,20 +472,30 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                       Expanded(
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade800),
-                          icon: Icon(
-                              _surveySubmitted ? Icons.check : Icons.save),
-                          label: Text(_surveySubmitted
-                              ? 'Evaluation Saved (Update)'
-                              : 'Submit Evaluation'),
-                          onPressed: _saveSurvey,
+                            backgroundColor: AppTheme.primaryNavy,
+                            foregroundColor: Colors.white,
+                            minimumSize: const Size(0, 48),
+                          ),
+                          icon: Icon(_surveySubmitted ? Icons.check : Icons.save),
+                          label: Text(
+                            _surveySubmitted
+                                ? (isFil
+                                    ? 'Nai-save (I-update)'
+                                    : 'Evaluation Saved (Update)')
+                                : (isFil ? 'I-submit' : 'Submit Evaluation'),
+                          ),
+                          onPressed: () => _saveSurvey(isFil),
                         ),
                       ),
                       const SizedBox(width: 8),
                       OutlinedButton.icon(
-                        icon: const Icon(Icons.copy, size: 16),
-                        label: const Text('Export'),
-                        onPressed: () => _copyFullReport(kit),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(0, 48),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                        ),
+                        icon: const Icon(Icons.copy, size: 18),
+                        label: Text(isFil ? 'Kopya' : 'Export'),
+                        onPressed: () => _copyFullReport(kit, isFil),
                       ),
                     ],
                   ),
@@ -407,32 +510,45 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
   }
 
   Widget _buildLikertSlider(
-      String label, int score, ValueChanged<int> onChanged) {
+    bool isDark,
+    Color accentNavy,
+    String label,
+    int score,
+    ValueChanged<int> onChanged,
+  ) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: Text(label,
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600)),
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : AppTheme.darkSlate,
+                  ),
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
+                  color: isDark
+                      ? AppTheme.primaryNavy.withAlpha(110)
+                      : Colors.blue.shade50,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   '$score / 5',
                   style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                      color: Colors.blue.shade900),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: accentNavy,
+                  ),
                 ),
               ),
             ],
@@ -443,7 +559,7 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
             max: 5,
             divisions: 4,
             label: '$score',
-            activeColor: Colors.blue.shade800,
+            activeColor: AppTheme.primaryNavy,
             onChanged: (v) => onChanged(v.round()),
           ),
         ],
@@ -452,6 +568,7 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
   }
 
   Widget _buildAuditFinding({
+    required bool isDark,
     required IconData icon,
     required Color color,
     required String title,
@@ -460,11 +577,11 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, color: color, size: 22),
+            Icon(icon, color: color, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -473,17 +590,19 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                   Text(
                     title,
                     style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: color),
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(
                     subtitle,
                     style: TextStyle(
-                        fontSize: 11.5,
-                        color: Colors.grey.shade700,
-                        height: 1.3),
+                      fontSize: 14,
+                      color: isDark ? Colors.white70 : Colors.grey.shade700,
+                      height: 1.35,
+                    ),
                   ),
                 ],
               ),
