@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/disaster_protocol.dart';
 import '../data/disaster_data.dart';
+import '../providers/settings_provider.dart';
+import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
 
 class DisasterGuideScreen extends StatefulWidget {
@@ -25,7 +28,11 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
   @override
   Widget build(BuildContext context) {
     final activeGuide = _guides[_selectedGuideIndex];
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final settings = context.watch<SettingsProvider>();
+    final isDark = settings.isDarkMode;
+    final isFil = settings.isFilipino;
+    final s = AppStrings(isFil);
+
     final subTextColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
 
     final bodyContent = Column(
@@ -158,8 +165,12 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
 
               _buildPhaseCard(
                 context,
-                title: '1. BEFORE THE DISASTER (Paghandaan)',
-                subtitle: 'Mitigation, pre-planning, and kit preparation',
+                title: isFil
+                    ? '1. BAGO ANG SAKUNA (Paghandaan)'
+                    : '1. BEFORE THE DISASTER (Paghandaan)',
+                subtitle: isFil
+                    ? 'Paghahanda at pag-iimpake ng emergency kit'
+                    : 'Mitigation, pre-planning, and kit preparation',
                 icon: Icons.shield_outlined,
                 color: isDark ? Colors.lightBlueAccent : Colors.blue.shade700,
                 steps: activeGuide.beforeSteps,
@@ -169,8 +180,12 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
 
               _buildPhaseCard(
                 context,
-                title: '2. DURING THE DISASTER (Aksyon)',
-                subtitle: 'Immediate safety protocols & survival reactions',
+                title: isFil
+                    ? '2. HABANG MAY SAKUNA (Aksyon)'
+                    : '2. DURING THE DISASTER (Aksyon)',
+                subtitle: isFil
+                    ? 'Mabilisang aksyon at ligtas na pagkilos'
+                    : 'Immediate safety protocols & survival reactions',
                 icon: Icons.warning_amber_rounded,
                 color: AppTheme.dangerRed,
                 steps: activeGuide.duringSteps,
@@ -180,8 +195,12 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
 
               _buildPhaseCard(
                 context,
-                title: '3. AFTER THE DISASTER (Tugon at Pagbangon)',
-                subtitle: 'Damage inspection, first-aid, and safe recovery',
+                title: isFil
+                    ? '3. PAGKATAPOS NG SAKUNA (Tugon at Pagbangon)'
+                    : '3. AFTER THE DISASTER (Tugon at Pagbangon)',
+                subtitle: isFil
+                    ? 'Pagsusuri sa pinsala at ligtas na pagbawi'
+                    : 'Damage inspection, first-aid, and safe recovery',
                 icon: Icons.health_and_safety_outlined,
                 color: isDark ? const Color(0xFF4ADE80) : AppTheme.safeGreen,
                 steps: activeGuide.afterSteps,
@@ -218,7 +237,9 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
-                              'Priority Supplies for ${activeGuide.type.shortName}',
+                              isFil
+                                  ? 'Mga Kailangang Gamit para sa ${activeGuide.type.shortName}'
+                                  : 'Priority Supplies for ${activeGuide.type.shortName}',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
@@ -267,7 +288,7 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Disaster Preparedness Guides'),
+        title: Text(s.disasterGuides),
       ),
       body: bodyContent,
     );

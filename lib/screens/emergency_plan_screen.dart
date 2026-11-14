@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/emergency_plan.dart';
 import '../providers/emergency_provider.dart';
+import '../providers/settings_provider.dart';
+import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
 
 class EmergencyPlanScreen extends StatefulWidget {
@@ -111,7 +113,11 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final settings = context.watch<SettingsProvider>();
+    final isDark = settings.isDarkMode;
+    final isFil = settings.isFilipino;
+    final s = AppStrings(isFil);
+
     final subColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
 
     final bodyContent = ListView(
@@ -132,7 +138,9 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'Pre-plan your family meeting points, utility shutoffs, and medical profiles. Stored 100% offline.',
+                  isFil
+                      ? 'Iplano ang tagpuan ng pamilya, mga shutoff ng kuryente at tubig, at medikal na profile. Naka-save 100% offline.'
+                      : 'Pre-plan your family meeting points, utility shutoffs, and medical profiles. Stored 100% offline.',
                   style: TextStyle(
                       fontSize: 14,
                       color: isDark ? Colors.grey.shade200 : Colors.blue.shade900),
@@ -140,7 +148,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.copy),
-                tooltip: 'Copy Plan Summary',
+                tooltip: isFil ? 'Kopyahin ang Plano' : 'Copy Plan Summary',
                 onPressed: _copyPlanToClipboard,
               ),
             ],
@@ -148,7 +156,9 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
         ),
         const SizedBox(height: 16),
 
-        _buildSectionHeader('1. Household & Evacuation Assembly Points'),
+        _buildSectionHeader(isFil
+            ? '1. Pamilya at Tagpuan sa Evacuation'
+            : '1. Household & Evacuation Assembly Points'),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -156,41 +166,41 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
               children: [
                 TextField(
                   controller: _householdCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Household / Family Name',
-                    prefixIcon: Icon(Icons.home_outlined),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Pangalan ng Pamilya / Household' : 'Household / Family Name',
+                    prefixIcon: const Icon(Icons.home_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _addressCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Home Address / Barangay',
-                    prefixIcon: Icon(Icons.location_on_outlined),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Tirahan / Barangay' : 'Home Address / Barangay',
+                    prefixIcon: const Icon(Icons.location_on_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _primaryMeetCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Primary Meeting Point (Outside Home)',
-                    prefixIcon: Icon(Icons.flag_outlined),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Pangunahing Tagpuan (Labas ng Bahay)' : 'Primary Meeting Point (Outside Home)',
+                    prefixIcon: const Icon(Icons.flag_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _secondarySiteCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Secondary Evacuation Center',
-                    prefixIcon: Icon(Icons.roofing),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Pangalawang Evacuation Center' : 'Secondary Evacuation Center',
+                    prefixIcon: const Icon(Icons.roofing),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _goBagLocCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Where Go-Bag is Stored',
-                    prefixIcon: Icon(Icons.backpack_outlined),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Saan Nakatabi ang Go-Bag' : 'Where Go-Bag is Stored',
+                    prefixIcon: const Icon(Icons.backpack_outlined),
                   ),
                 ),
               ],
@@ -199,7 +209,9 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
         ),
         const SizedBox(height: 16),
 
-        _buildSectionHeader('2. Utility Shutoff Locations'),
+        _buildSectionHeader(isFil
+            ? '2. Lokasyon ng mga Valve at Breaker'
+            : '2. Utility Shutoff Locations'),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -207,25 +219,25 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
               children: [
                 TextField(
                   controller: _breakerCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Main Electrical Breaker Location',
-                    prefixIcon: Icon(Icons.electric_bolt),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Pangunahing Breaker ng Kuryente' : 'Main Electrical Breaker Location',
+                    prefixIcon: const Icon(Icons.electric_bolt),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _lpgCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'LPG Tank / Gas Shutoff Valve',
-                    prefixIcon: Icon(Icons.propane_tank_outlined),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'LPG Tank / Gas Shutoff Valve' : 'LPG Tank / Gas Shutoff Valve',
+                    prefixIcon: const Icon(Icons.propane_tank_outlined),
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: _waterCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Main Water Valve Location',
-                    prefixIcon: Icon(Icons.water_damage_outlined),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Pangunahing Valve ng Tubig' : 'Main Water Valve Location',
+                    prefixIcon: const Icon(Icons.water_damage_outlined),
                   ),
                 ),
               ],
@@ -237,11 +249,13 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _buildSectionHeader('3. Family Medical & Blood Profiles'),
+            _buildSectionHeader(isFil
+                ? '3. Medikal at Blood Profile ng Pamilya'
+                : '3. Family Medical & Blood Profiles'),
             TextButton.icon(
               icon: const Icon(Icons.person_add, size: 18),
-              label: const Text('Add Member'),
-              onPressed: _showAddMemberDialog,
+              label: Text(isFil ? 'Magdagdag' : 'Add Member'),
+              onPressed: () => _showAddMemberDialog(isFil),
             ),
           ],
         ),
@@ -250,7 +264,9 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
             child: Padding(
               padding: const EdgeInsets.all(14),
               child: Text(
-                'No household members added yet. Add blood types and allergies for emergency responders.',
+                isFil
+                    ? 'Wala pang miyembro na naidagdag. Magtala ng blood type at allergy para sa emergency responders.'
+                    : 'No household members added yet. Add blood types and allergies for emergency responders.',
                 style: TextStyle(fontSize: 14, color: subColor),
               ),
             ),
@@ -275,8 +291,10 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                   title: Text('${m.name} (${m.roleOrAge})',
                       style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 15)),
-                  subtitle: Text('Medical/Allergies: ${m.medicalConditions}',
-                      style: const TextStyle(fontSize: 14)),
+                  subtitle: Text(
+                    '${isFil ? 'Medikal/Allergy' : 'Medical/Allergies'}: ${m.medicalConditions}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline,
                         color: AppTheme.dangerRed),
@@ -292,8 +310,13 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
 
         const SizedBox(height: 18),
         ElevatedButton.icon(
+          style: ElevatedButton.styleFrom(minimumSize: const Size(0, 48)),
           icon: const Icon(Icons.save),
-          label: const Text('Save Emergency Plan Offline'),
+          label: Text(
+            isFil
+                ? 'I-save ang Plano Offline'
+                : 'Save Emergency Plan Offline',
+          ),
           onPressed: _savePlan,
         ),
       ],
@@ -305,16 +328,16 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Household Emergency Plan'),
+        title: Text(s.householdPlan),
         actions: [
           IconButton(
             icon: const Icon(Icons.copy),
-            tooltip: 'Copy Plan Summary',
+            tooltip: isFil ? 'Kopyahin ang Plano' : 'Copy Plan Summary',
             onPressed: _copyPlanToClipboard,
           ),
           IconButton(
             icon: const Icon(Icons.save),
-            tooltip: 'Save Plan',
+            tooltip: isFil ? 'I-save ang Plano' : 'Save Plan',
             onPressed: _savePlan,
           ),
         ],
@@ -336,7 +359,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
     );
   }
 
-  void _showAddMemberDialog() {
+  void _showAddMemberDialog(bool isFil) {
     final nameCtrl = TextEditingController();
     final roleCtrl = TextEditingController();
     final medCtrl = TextEditingController();
@@ -346,26 +369,30 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Add Household Member'),
+          title: Text(isFil ? 'Magdagdag ng Miyembro ng Pamilya' : 'Add Household Member'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
                   controller: nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Full Name *'),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Buong Pangalan *' : 'Full Name *',
+                  ),
                 ),
                 const SizedBox(height: 10),
                 TextField(
                   controller: roleCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Role / Age (e.g. Mother, 45)',
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Tungkulin / Edad (hal. Nanay, 45)' : 'Role / Age (e.g. Mother, 45)',
                   ),
                 ),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   initialValue: bloodType,
-                  decoration: const InputDecoration(labelText: 'Blood Type'),
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Uri ng Dugo (Blood Type)' : 'Blood Type',
+                  ),
                   items: [
                     'A+',
                     'A-',
@@ -386,9 +413,9 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                 const SizedBox(height: 10),
                 TextField(
                   controller: medCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Allergies / Maintenance Meds',
-                    hintText: 'e.g. Asthma inhaler, Penicillin allergy',
+                  decoration: InputDecoration(
+                    labelText: isFil ? 'Allergy / Maintenance na Gamot' : 'Allergies / Maintenance Meds',
+                    hintText: isFil ? 'hal. Asthma inhaler, Penicillin allergy' : 'e.g. Asthma inhaler, Penicillin allergy',
                   ),
                 ),
               ],
@@ -397,7 +424,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
+              child: Text(isFil ? 'Kanselahin' : 'Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
@@ -407,18 +434,18 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                     id: const Uuid().v4(),
                     name: nameCtrl.text.trim(),
                     roleOrAge: roleCtrl.text.trim().isEmpty
-                        ? 'Member'
+                        ? (isFil ? 'Miyembro' : 'Member')
                         : roleCtrl.text.trim(),
                     bloodType: bloodType,
                     medicalConditions: medCtrl.text.trim().isEmpty
-                        ? 'None'
+                        ? (isFil ? 'Wala' : 'None')
                         : medCtrl.text.trim(),
                   ));
                 });
                 Navigator.pop(ctx);
                 _savePlan();
               },
-              child: const Text('Add'),
+              child: Text(isFil ? 'Idagdag' : 'Add'),
             ),
           ],
         ),

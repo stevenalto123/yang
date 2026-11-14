@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/emergency_contact.dart';
 import '../providers/emergency_provider.dart';
+import '../providers/settings_provider.dart';
 import '../utils/action_feedback.dart';
+import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
 import 'emergency_plan_screen.dart';
 
@@ -23,7 +25,11 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   @override
   Widget build(BuildContext context) {
     final emergency = context.watch<EmergencyProvider>();
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final settings = context.watch<SettingsProvider>();
+    final isDark = settings.isDarkMode;
+    final isFil = settings.isFilipino;
+    final s = AppStrings(isFil);
+
     final subColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
 
     final filtered = _selectedCategory == null
@@ -50,7 +56,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Direct Offline Cellular Dialing • No Internet Required',
+                  isFil
+                      ? 'Direktang Cellular Dialing • Walang Internet na Kailangan'
+                      : 'Direct Offline Cellular Dialing • No Internet Required',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -63,9 +71,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
               TextButton.icon(
                 style: TextButton.styleFrom(minimumSize: const Size(48, 40)),
                 icon: const Icon(Icons.person_add_alt_1, size: 18),
-                label: const Text('Add ICE', style: TextStyle(fontSize: 13)),
+                label: Text(
+                  isFil ? 'Magdagdag ng ICE' : 'Add ICE',
+                  style: const TextStyle(fontSize: 13),
+                ),
                 onPressed: () =>
-                    _showAddPersonalContactDialog(context, emergency),
+                    _showAddPersonalContactDialog(context, emergency, isFil),
               ),
             ],
           ),
@@ -136,7 +147,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           child: Row(
             children: [
               ChoiceChip(
-                label: const Text('All Contacts'),
+                label: Text(isFil ? 'Lahat ng Contact' : 'All Contacts'),
                 selected: _selectedCategory == null,
                 selectedColor: AppTheme.primaryNavy,
                 labelStyle: TextStyle(
@@ -196,7 +207,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emergency Contacts'),
+        title: Text(isFil ? 'Mga Hotline at Emergency Contacts' : 'Emergency Contacts'),
         actions: [
           IconButton(
             icon: const Icon(Icons.assignment_ind_outlined),
@@ -364,7 +375,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   }
 
   void _showAddPersonalContactDialog(
-      BuildContext context, EmergencyProvider emergency) {
+      BuildContext context, EmergencyProvider emergency, bool isFil) {
     final nameCtrl = TextEditingController();
     final relationCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
@@ -372,32 +383,32 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Add Family / ICE Contact'),
+        title: Text(isFil ? 'Magdagdag ng Pamilya / ICE Contact' : 'Add Family / ICE Contact'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Contact Name *',
-                  hintText: 'e.g. Papa, Mama, Kuya, Barangay Kagawad',
+                decoration: InputDecoration(
+                  labelText: isFil ? 'Pangalan ng Contact *' : 'Contact Name *',
+                  hintText: isFil ? 'hal. Tatay, Nanay, Kuya, Kagawad' : 'e.g. Papa, Mama, Kuya, Barangay Kagawad',
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: relationCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Relationship / Role',
-                  hintText: 'e.g. Parent, Sibling, Neighbor',
+                decoration: InputDecoration(
+                  labelText: isFil ? 'Relasyon / Tungkulin' : 'Relationship / Role',
+                  hintText: isFil ? 'hal. Magulang, Kapatid, Kapitbahay' : 'e.g. Parent, Sibling, Neighbor',
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Mobile Number *',
+                decoration: InputDecoration(
+                  labelText: isFil ? 'Numero ng Telepono / Mobile *' : 'Mobile Number *',
                   hintText: 'e.g. 09171234567',
                 ),
               ),
@@ -407,7 +418,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
+            child: Text(isFil ? 'Kanselahin' : 'Cancel'),
           ),
           ElevatedButton(
             onPressed: () {
@@ -420,18 +431,19 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   id: const Uuid().v4(),
                   name: name,
                   agencyOrRelationship: relationCtrl.text.trim().isEmpty
-                      ? 'Family'
+                      ? (isFil ? 'Pamilya' : 'Family')
                       : relationCtrl.text.trim(),
                   phoneNumber: phone,
                   category: ContactCategory.familyAndPersonal,
                   isDefault: false,
-                  description:
-                      'Emergency ICE (In Case of Emergency) Family Contact',
+                  description: isFil
+                      ? 'Emergency ICE (In Case of Emergency) Contact ng Pamilya'
+                      : 'Emergency ICE (In Case of Emergency) Family Contact',
                 ),
               );
               Navigator.pop(ctx);
             },
-            child: const Text('Save Contact'),
+            child: Text(isFil ? 'I-save ang Contact' : 'Save Contact'),
           ),
         ],
       ),
