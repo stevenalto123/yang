@@ -1,5 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/evacuation_center.dart';
@@ -10,8 +11,38 @@ import '../utils/app_theme.dart';
 import '../utils/location_service.dart';
 import '../widgets/responsive_container.dart';
 
-class EvacuationMapScreen extends StatelessWidget {
+class EvacuationMapScreen extends StatefulWidget {
   const EvacuationMapScreen({super.key});
+
+  @override
+  State<EvacuationMapScreen> createState() => _EvacuationMapScreenState();
+}
+
+class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
+  static const LatLng _metroManilaCenter = LatLng(14.5822, 120.9882);
+
+  final MapController _mapController = MapController();
+  EvacuationCenter? _selectedCenter;
+
+  void _safeMove(LatLng target, double zoom) {
+    try {
+      _mapController.move(target, zoom.clamp(5.0, 18.0));
+    } catch (_) {
+      // MapController may not be attached yet before first frame
+    }
+  }
+
+  void _zoomBy(double delta) {
+    try {
+      final cam = _mapController.camera;
+      _mapController.move(cam.center, (cam.zoom + delta).clamp(5.0, 18.0));
+    } catch (_) {}
+  }
+
+  void _focusCenter(EvacuationCenter center) {
+    setState(() => _selectedCenter = center);
+    _safeMove(LatLng(center.latitude, center.longitude), 15.2);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,10 +56,18 @@ class EvacuationMapScreen extends StatelessWidget {
     final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
     final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
 
+    final distFromManilaKm = LocationService.distanceInKm(
+      emergency.userLat,
+      emergency.userLng,
+      _metroManilaCenter.latitude,
+      _metroManilaCenter.longitude,
+    );
+    final isFarFromManila = distFromManilaKm > 50.0;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isFil ? 'Malapit na Tulong at Shelter' : 'Nearby Help & Shelters',
+          isFil ? 'Mapa ng Tulong at Shelter' : 'Nearby Map & Shelters',
         ),
         actions: [
           IconButton(
@@ -42,12 +81,12 @@ class EvacuationMapScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Clean GPS Location Bar
+          // Clean GPS + Filter Header
           Container(
             color: isDark ? AppTheme.darkCard : Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: ResponsiveContainer(
-              maxWidth: 1120,
+              maxWidth: 1160,
               child: Column(
                 children: [
                   Row(
@@ -79,8 +118,8 @@ class EvacuationMapScreen extends StatelessWidget {
                                       ? 'Aktibo ang GPS (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)'
                                       : 'Live GPS Active (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)')
                                   : (isFil
-                                      ? 'Malapit sa Paco, Manila (Offline Ready)'
-                                      : 'Near Paco, Manila (Offline Ready)'),
+                                      ? 'Metro Manila • Paco, Manila'
+                                      : 'Metro Manila • Paco, Manila'),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -89,12 +128,35 @@ class EvacuationMapScreen extends StatelessWidget {
                             ),
                             Text(
                               '${emergency.userLat.toStringAsFixed(4)}, ${emergency.userLng.toStringAsFixed(4)}',
-                              style: TextStyle(fontSize: 12.5, color: subtleText),
+                              style:
+                                  TextStyle(fontSize: 12.5, color: subtleText),
                             ),
                           ],
                         ),
                       ),
                       const SizedBox(width: 8),
+                      if (isFarFromManila) ...[
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 42),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          icon: const Icon(Icons.location_city_rounded, size: 17),
+                          label: Text(
+                            isFil ? 'Metro Manila' : 'Metro Manila',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                          onPressed: () {
+                            emergency.setManualLocation(
+                              _metroManilaCenter.latitude,
+                              _metroManilaCenter.longitude,
+                            );
+                            setState(() => _selectedCenter = null);
+                            _safeMove(_metroManilaCenter, 13.0);
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       FilledButton.icon(
                         style: FilledButton.styleFrom(
                           backgroundColor: Colors.teal.shade700,
@@ -115,24 +177,32 @@ class EvacuationMapScreen extends StatelessWidget {
                         label: Text(
                           emergency.isLocating
                               ? (isFil ? 'Hinahanap...' : 'Locating...')
-                              : (isFil ? 'GPS Ko' : 'Update GPS'),
+                              : (isFil ? 'GPS Ko' : 'My GPS'),
                           style: const TextStyle(fontSize: 13.5),
                         ),
                         onPressed: emergency.isLocating
                             ? null
                             : () async {
                                 final ok = await emergency.detectLiveGps();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        ok
-                                            ? 'Location updated! Showing nearest help first.'
-                                            : 'GPS unavailable. Showing Metro Manila reference.',
-                                      ),
+                                if (!context.mounted) return;
+                                if (ok) {
+                                  _safeMove(
+                                    LatLng(
+                                      emergency.userLat,
+                                      emergency.userLng,
                                     ),
+                                    14.0,
                                   );
                                 }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      ok
+                                          ? 'Location updated on map!'
+                                          : 'GPS unavailable. Showing Metro Manila map.',
+                                    ),
+                                  ),
+                                );
                               },
                       ),
                     ],
@@ -232,7 +302,14 @@ class EvacuationMapScreen extends StatelessWidget {
                                   : FontWeight.w500,
                               fontSize: 13,
                             ),
-                            onSelected: (_) => emergency.setSelectedCity(city),
+                            onSelected: (_) {
+                              emergency.setSelectedCity(city);
+                              if (city == 'Quezon City') {
+                                _safeMove(const LatLng(14.6301, 121.0267), 13.5);
+                              } else {
+                                _safeMove(_metroManilaCenter, 13.0);
+                              }
+                            },
                           ),
                         );
                       }).toList(),
@@ -244,71 +321,18 @@ class EvacuationMapScreen extends StatelessWidget {
           ),
           const Divider(height: 1),
 
-          // Radar + Sorted Nearby List
+          // Real Interactive Street Map + Nearby Places List
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isSplit = constraints.maxWidth >= 820;
-                final radarCard = Card(
-                  color: const Color(0xFF0F172A),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              isFil
-                                  ? 'OFFLINE NA RADAR'
-                                  : 'OFFLINE NEARBY RADAR',
-                              style: const TextStyle(
-                                color: Colors.tealAccent,
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.7,
-                              ),
-                            ),
-                            Text(
-                              isFil ? 'Pinakamalapit una' : 'Nearest first',
-                              style: TextStyle(
-                                color: Colors.grey.shade300,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: isSplit ? 270 : 185,
-                          width: double.infinity,
-                          child: CustomPaint(
-                            painter: _OfflineShelterRadarPainter(
-                              userLat: emergency.userLat,
-                              userLng: emergency.userLng,
-                              centers: centers,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          isFil
-                              ? 'Asul = Ikaw • Berde/Dilaw = Shelter • Pula = Ospital • Lila = Pulis/Bumbero'
-                              : 'Blue = You • Teal/Amber = Shelters • Red = Hospitals • Indigo = Police & Fire',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blueGrey.shade200,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                final isSplit = constraints.maxWidth >= 860;
+                final mapWidget = _buildInteractiveMap(
+                  context: context,
+                  emergency: emergency,
+                  centers: centers,
+                  isDark: isDark,
+                  isFil: isFil,
+                  isFarFromManila: isFarFromManila,
                 );
 
                 final shelterWidgets = centers.isEmpty
@@ -338,14 +362,31 @@ class EvacuationMapScreen extends StatelessWidget {
 
                 if (isSplit) {
                   return ResponsiveContainer(
-                    maxWidth: 1120,
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                    maxWidth: 1160,
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SizedBox(width: 350, child: radarCard),
-                        const SizedBox(width: 18),
                         Expanded(
+                          flex: 11,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(18),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder,
+                                ),
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: mapWidget,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 10,
                           child: ListView(
                             padding: const EdgeInsets.only(bottom: 36),
                             children: shelterWidgets,
@@ -356,11 +397,28 @@ class EvacuationMapScreen extends StatelessWidget {
                   );
                 }
 
+                // Mobile Stacked View: Real Street Map on top + Scrollable list below
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                   children: [
-                    radarCard,
-                    const SizedBox(height: 12),
+                    SizedBox(
+                      height: 310,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: isDark
+                                  ? AppTheme.darkBorder
+                                  : AppTheme.lightBorder,
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: mapWidget,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     ...shelterWidgets,
                   ],
                 );
@@ -368,6 +426,411 @@ class EvacuationMapScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildInteractiveMap({
+    required BuildContext context,
+    required EmergencyProvider emergency,
+    required List<EvacuationCenter> centers,
+    required bool isDark,
+    required bool isFil,
+    required bool isFarFromManila,
+  }) {
+    final userPoint = LatLng(emergency.userLat, emergency.userLng);
+    final initialFocus =
+        isFarFromManila ? _metroManilaCenter : userPoint;
+
+    final markers = <Marker>[
+      // Facility Pins
+      ...centers.map((center) {
+        final isSelected = _selectedCenter?.id == center.id;
+        final isHospital = center.facilityType == FacilityType.hospital;
+        final isPoliceFire = center.facilityType == FacilityType.policeFire;
+        final Color pinColor = isHospital
+            ? AppTheme.dangerRed
+            : (isPoliceFire ? Colors.indigo.shade600 : Colors.teal.shade700);
+        final IconData pinIcon = isHospital
+            ? Icons.local_hospital_rounded
+            : (isPoliceFire
+                ? Icons.local_police_rounded
+                : Icons.roofing_rounded);
+
+        return Marker(
+          point: LatLng(center.latitude, center.longitude),
+          width: isSelected ? 48 : 38,
+          height: isSelected ? 48 : 38,
+          child: GestureDetector(
+            onTap: () => _focusCenter(center),
+            child: Tooltip(
+              message: center.name,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                decoration: BoxDecoration(
+                  color: pinColor,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white,
+                    width: isSelected ? 3 : 2.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(80),
+                      blurRadius: isSelected ? 10 : 5,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  pinIcon,
+                  color: Colors.white,
+                  size: isSelected ? 22 : 18,
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+      // User Location Blue Dot
+      Marker(
+        point: userPoint,
+        width: 32,
+        height: 32,
+        child: Tooltip(
+          message: isFil ? 'Iyong Lokasyon' : 'Your Location',
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB).withAlpha(55),
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Container(
+              width: 16,
+              height: 16,
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2.5),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ];
+
+    return Stack(
+      children: [
+        FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: initialFocus,
+            initialZoom: 13.0,
+            minZoom: 5.0,
+            maxZoom: 18.0,
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            ),
+            onTap: (_, __) {
+              if (_selectedCenter != null) {
+                setState(() => _selectedCenter = null);
+              }
+            },
+          ),
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.eac.lifecheckpoint',
+            ),
+            MarkerLayer(markers: markers),
+          ],
+        ),
+
+        // Top-right Map Controls (+, -, My Location, Metro Manila)
+        Positioned(
+          top: 12,
+          right: 12,
+          child: Column(
+            children: [
+              _mapControlButton(
+                icon: Icons.add_rounded,
+                tooltip: 'Zoom In',
+                isDark: isDark,
+                onTap: () => _zoomBy(1.0),
+              ),
+              const SizedBox(height: 6),
+              _mapControlButton(
+                icon: Icons.remove_rounded,
+                tooltip: 'Zoom Out',
+                isDark: isDark,
+                onTap: () => _zoomBy(-1.0),
+              ),
+              const SizedBox(height: 6),
+              _mapControlButton(
+                icon: Icons.my_location_rounded,
+                tooltip: isFil ? 'Punta sa GPS Ko' : 'Center on Me',
+                isDark: isDark,
+                onTap: () => _safeMove(userPoint, 14.5),
+              ),
+              const SizedBox(height: 6),
+              _mapControlButton(
+                icon: Icons.location_city_rounded,
+                tooltip: 'Center on Metro Manila',
+                isDark: isDark,
+                onTap: () => _safeMove(_metroManilaCenter, 13.0),
+              ),
+            ],
+          ),
+        ),
+
+        // Bottom-left Compact Legend + OpenStreetMap Attribution
+        if (_selectedCenter == null)
+          Positioned(
+            left: 10,
+            bottom: 10,
+            right: 10,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isDark ? AppTheme.darkCard : Colors.white)
+                        .withAlpha(235),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color:
+                          isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                    ),
+                  ),
+                  child: Wrap(
+                    spacing: 10,
+                    runSpacing: 4,
+                    children: [
+                      _legendDot(
+                        const Color(0xFF2563EB),
+                        isFil ? 'Ikaw' : 'You',
+                        isDark,
+                      ),
+                      _legendDot(
+                        Colors.teal.shade700,
+                        'Shelter',
+                        isDark,
+                      ),
+                      _legendDot(
+                        AppTheme.dangerRed,
+                        isFil ? 'Ospital' : 'Hospital',
+                        isDark,
+                      ),
+                      _legendDot(
+                        Colors.indigo.shade600,
+                        isFil ? 'Pulis/Bumbero' : 'Police/Fire',
+                        isDark,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isDark ? AppTheme.darkCard : Colors.white)
+                        .withAlpha(220),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '© OpenStreetMap',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? Colors.white70 : AppTheme.mutedSlate,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Selected Facility Floating Popup Card on Map
+        if (_selectedCenter != null)
+          Positioned(
+            left: 12,
+            right: 12,
+            bottom: 12,
+            child: _buildMapPopupCard(
+              context,
+              _selectedCenter!,
+              emergency,
+              isDark,
+              isFil,
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _mapControlButton({
+    required IconData icon,
+    required String tooltip,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: (isDark ? AppTheme.darkCard : Colors.white).withAlpha(240),
+      elevation: 2,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Tooltip(
+          message: tooltip,
+          child: SizedBox(
+            width: 38,
+            height: 38,
+            child: Icon(
+              icon,
+              size: 20,
+              color: isDark ? Colors.white : AppTheme.darkSlate,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color, String label, bool isDark) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 9,
+          height: 9,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: isDark ? Colors.white : AppTheme.darkSlate,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMapPopupCard(
+    BuildContext context,
+    EvacuationCenter center,
+    EmergencyProvider emergency,
+    bool isDark,
+    bool isFil,
+  ) {
+    final distKm = emergency.distanceToCenterKm(center);
+    final titleColor = isDark ? Colors.white : AppTheme.darkSlate;
+    final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
+
+    return Card(
+      elevation: 4,
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    center.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: titleColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  '${distKm.toStringAsFixed(1)} km',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.teal.shade700,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                InkWell(
+                  onTap: () => setState(() => _selectedCenter = null),
+                  child: Icon(Icons.close_rounded, size: 19, color: subtleText),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              center.address,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12.5, color: subtleText),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.teal.shade700,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(0, 38),
+                    ),
+                    icon: const Icon(Icons.directions_rounded, size: 16),
+                    label: Text(
+                      isFil ? 'Direksyon' : 'Directions',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    onPressed: () => ActionFeedback.openMapWithFeedback(
+                      context,
+                      emergency,
+                      center.latitude,
+                      center.longitude,
+                      center.name,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 38),
+                    ),
+                    icon: const Icon(Icons.call_rounded, size: 16),
+                    label: Text(
+                      isFil ? 'Tumawag' : 'Call',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    onPressed: () => ActionFeedback.callWithFeedback(
+                      context,
+                      emergency,
+                      center.contactNumber,
+                      center.contactPerson,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -417,6 +880,7 @@ class EvacuationMapScreen extends StatelessWidget {
   ) {
     final distKm = emergency.distanceToCenterKm(center);
     final cardinal = emergency.bearingToCenter(center);
+    final isSelected = _selectedCenter?.id == center.id;
 
     final isHospital = center.facilityType == FacilityType.hospital;
     final isPoliceFire = center.facilityType == FacilityType.policeFire;
@@ -433,7 +897,7 @@ class EvacuationMapScreen extends StatelessWidget {
         ? (isFil ? 'Ospital' : 'Hospital')
         : (isPoliceFire
             ? (isFil ? 'Pulis at Bumbero' : 'Police & Fire')
-            : (isFil ? 'Evacuation Shelter' : 'Evacuation Shelter'));
+            : 'Evacuation Shelter');
 
     final titleColor = isDark ? Colors.white : AppTheme.darkSlate;
     final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
@@ -442,183 +906,185 @@ class EvacuationMapScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: isNearest
-            ? BorderSide(color: facilityAccent.withAlpha(180), width: 1.5)
+        side: isSelected || isNearest
+            ? BorderSide(
+                color: facilityAccent.withAlpha(isSelected ? 230 : 150),
+                width: isSelected ? 2 : 1.3,
+              )
             : BorderSide(
                 color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
               ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Clean single-row header: Type pill + Nearest + Distance
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: facilityAccent.withAlpha(isDark ? 45 : 20),
-                    borderRadius: BorderRadius.circular(7),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        facilityIcon,
-                        size: 13,
-                        color: isDark ? Colors.white : facilityAccent,
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        typeLabel,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: isDark ? Colors.white : facilityAccent,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isNearest) ...[
-                  const SizedBox(width: 6),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => _focusCenter(center),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: facilityAccent,
+                      color: facilityAccent.withAlpha(isDark ? 45 : 20),
                       borderRadius: BorderRadius.circular(7),
                     ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          facilityIcon,
+                          size: 13,
+                          color: isDark ? Colors.white : facilityAccent,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          typeLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: isDark ? Colors.white : facilityAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (isNearest) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: facilityAccent,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        isFil ? 'Pinakamalapit' : 'Nearest',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const Spacer(),
+                  Text(
+                    '${distKm.toStringAsFixed(1)} km • $cardinal',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: isDark ? Colors.tealAccent : Colors.teal.shade800,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
                     child: Text(
-                      isFil ? 'Pinakamalapit' : 'Nearest',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
+                      center.name,
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: titleColor,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: center.isOpen
+                              ? AppTheme.safeGreen
+                              : AppTheme.dangerRed,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        center.isOpen
+                            ? (isFil ? 'Bukas' : 'Open')
+                            : 'Standby',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: center.isOpen
+                              ? AppTheme.safeGreen
+                              : AppTheme.dangerRed,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${center.address} (${center.city})',
+                style: TextStyle(fontSize: 13.5, color: subtleText),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${center.facilities}${center.capacityPeople > 0 ? ' • ${isFil ? 'Kapasidad' : 'Capacity'}: ${center.capacityPeople}' : ''}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: subtleText.withAlpha(210),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Colors.teal.shade700,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(0, 44),
+                      ),
+                      icon: const Icon(Icons.directions_rounded, size: 18),
+                      label: Text(isFil ? 'Direksyon' : 'Directions'),
+                      onPressed: () => ActionFeedback.openMapWithFeedback(
+                        context,
+                        emergency,
+                        center.latitude,
+                        center.longitude,
+                        center.name,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(0, 44),
+                      ),
+                      icon: const Icon(Icons.call_rounded, size: 18),
+                      label: Text(isFil ? 'Tumawag' : 'Call'),
+                      onPressed: () => ActionFeedback.callWithFeedback(
+                        context,
+                        emergency,
+                        center.contactNumber,
+                        center.contactPerson,
                       ),
                     ),
                   ),
                 ],
-                const Spacer(),
-                Text(
-                  '${distKm.toStringAsFixed(1)} km • $cardinal',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: isDark ? Colors.tealAccent : Colors.teal.shade800,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            // Title + Open status
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    center.name,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: titleColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: center.isOpen
-                            ? AppTheme.safeGreen
-                            : AppTheme.dangerRed,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      center.isOpen
-                          ? (isFil ? 'Bukas' : 'Open')
-                          : (isFil ? 'Standby' : 'Standby'),
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: center.isOpen
-                            ? AppTheme.safeGreen
-                            : AppTheme.dangerRed,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${center.address} (${center.city})',
-              style: TextStyle(fontSize: 13.5, color: subtleText),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              '${center.facilities}${center.capacityPeople > 0 ? ' • ${isFil ? 'Kapasidad' : 'Capacity'}: ${center.capacityPeople}' : ''}',
-              style: TextStyle(
-                fontSize: 13,
-                color: subtleText.withAlpha(210),
               ),
-            ),
-            const SizedBox(height: 14),
-
-            // 2 Clean Equal Action Buttons
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.teal.shade700,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 44),
-                    ),
-                    icon: const Icon(Icons.directions_rounded, size: 18),
-                    label: Text(isFil ? 'Direksyon' : 'Directions'),
-                    onPressed: () => ActionFeedback.openMapWithFeedback(
-                      context,
-                      emergency,
-                      center.latitude,
-                      center.longitude,
-                      center.name,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 44),
-                    ),
-                    icon: const Icon(Icons.call_rounded, size: 18),
-                    label: Text(isFil ? 'Tumawag' : 'Call'),
-                    onPressed: () => ActionFeedback.callWithFeedback(
-                      context,
-                      emergency,
-                      center.contactNumber,
-                      center.contactPerson,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -685,24 +1151,24 @@ class EvacuationMapScreen extends StatelessWidget {
           FilledButton(
             onPressed: () {
               if (nameCtrl.text.trim().isEmpty) return;
-              emergency.addCustomEvacuationCenter(
-                EvacuationCenter(
-                  id: const Uuid().v4(),
-                  name: nameCtrl.text.trim(),
-                  address: addrCtrl.text.trim().isEmpty
-                      ? 'Local Barangay Site'
-                      : addrCtrl.text.trim(),
-                  city: cityCtrl.text.trim().isEmpty
-                      ? 'Local'
-                      : cityCtrl.text.trim(),
-                  latitude: emergency.userLat + 0.004,
-                  longitude: emergency.userLng + 0.003,
-                  contactPerson: 'Barangay DRRM Officer',
-                  contactNumber: contactCtrl.text.trim(),
-                  capacityPeople: 400,
-                  facilities: 'Saved Local Shelter',
-                ),
+              final newCenter = EvacuationCenter(
+                id: const Uuid().v4(),
+                name: nameCtrl.text.trim(),
+                address: addrCtrl.text.trim().isEmpty
+                    ? 'Local Barangay Site'
+                    : addrCtrl.text.trim(),
+                city: cityCtrl.text.trim().isEmpty
+                    ? 'Local'
+                    : cityCtrl.text.trim(),
+                latitude: emergency.userLat + 0.004,
+                longitude: emergency.userLng + 0.003,
+                contactPerson: 'Barangay DRRM Officer',
+                contactNumber: contactCtrl.text.trim(),
+                capacityPeople: 400,
+                facilities: 'Saved Local Shelter',
               );
+              emergency.addCustomEvacuationCenter(newCenter);
+              _focusCenter(newCenter);
               Navigator.pop(ctx);
             },
             child: Text(isFil ? 'I-save' : 'Save Offline'),
@@ -710,147 +1176,5 @@ class EvacuationMapScreen extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-class _OfflineShelterRadarPainter extends CustomPainter {
-  final double userLat;
-  final double userLng;
-  final List<EvacuationCenter> centers;
-
-  _OfflineShelterRadarPainter({
-    required this.userLat,
-    required this.userLng,
-    required this.centers,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = math.min(size.width, size.height) / 2 - 14;
-
-    final ringPaint = Paint()
-      ..color = Colors.tealAccent.withAlpha(45)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    for (final factor in [0.33, 0.66, 1.0]) {
-      canvas.drawCircle(center, maxRadius * factor, ringPaint);
-    }
-
-    canvas.drawLine(
-      Offset(center.dx - maxRadius, center.dy),
-      Offset(center.dx + maxRadius, center.dy),
-      ringPaint,
-    );
-    canvas.drawLine(
-      Offset(center.dx, center.dy - maxRadius),
-      Offset(center.dx, center.dy + maxRadius),
-      ringPaint,
-    );
-
-    const labelStyle = TextStyle(
-      color: Colors.white54,
-      fontSize: 11,
-      fontWeight: FontWeight.bold,
-    );
-    _drawText(
-      canvas,
-      'N',
-      Offset(center.dx - 4, center.dy - maxRadius - 12),
-      labelStyle,
-    );
-    _drawText(
-      canvas,
-      'S',
-      Offset(center.dx - 3, center.dy + maxRadius + 1),
-      labelStyle,
-    );
-    _drawText(
-      canvas,
-      'E',
-      Offset(center.dx + maxRadius + 4, center.dy - 6),
-      labelStyle,
-    );
-    _drawText(
-      canvas,
-      'W',
-      Offset(center.dx - maxRadius - 14, center.dy - 6),
-      labelStyle,
-    );
-
-    double maxDist = 10.0;
-    for (final c in centers) {
-      final d = LocationService.distanceInKm(
-        userLat,
-        userLng,
-        c.latitude,
-        c.longitude,
-      );
-      if (d > maxDist) maxDist = d;
-    }
-
-    for (int i = 0; i < centers.length; i++) {
-      final c = centers[i];
-      final d = LocationService.distanceInKm(
-        userLat,
-        userLng,
-        c.latitude,
-        c.longitude,
-      );
-      final bearing = LocationService.bearingTo(
-        userLat,
-        userLng,
-        c.latitude,
-        c.longitude,
-      ).degrees;
-      final rad = (bearing - 90) * (math.pi / 180.0);
-      final normDist = (d / maxDist).clamp(0.12, 0.95);
-      final px = center.dx + math.cos(rad) * maxRadius * normDist;
-      final py = center.dy + math.sin(rad) * maxRadius * normDist;
-
-      final Color pinColor = c.facilityType == FacilityType.hospital
-          ? Colors.redAccent
-          : (c.facilityType == FacilityType.policeFire
-              ? Colors.indigoAccent.shade100
-              : (i == 0 ? Colors.tealAccent : Colors.amberAccent));
-      canvas.drawCircle(
-        Offset(px, py),
-        i == 0 ? 6 : 4.5,
-        Paint()..color = pinColor,
-      );
-      _drawText(
-        canvas,
-        '${d.toStringAsFixed(1)}km',
-        Offset(px + 7, py - 6),
-        TextStyle(color: pinColor, fontSize: 11, fontWeight: FontWeight.bold),
-      );
-    }
-
-    canvas.drawCircle(
-      center,
-      10,
-      Paint()..color = Colors.blueAccent.withAlpha(70),
-    );
-    canvas.drawCircle(
-      center,
-      5,
-      Paint()..color = Colors.lightBlueAccent,
-    );
-  }
-
-  void _drawText(Canvas canvas, String text, Offset offset, TextStyle style) {
-    final tp = TextPainter(
-      text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, offset);
-  }
-
-  @override
-  bool shouldRepaint(covariant _OfflineShelterRadarPainter oldDelegate) {
-    return oldDelegate.userLat != userLat ||
-        oldDelegate.userLng != userLng ||
-        oldDelegate.centers.length != centers.length;
   }
 }

@@ -22,7 +22,7 @@ echo [3/4] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Fix Supabase Transaction Pooler timeout on Admin Portal and speed up API cold starts"
+git commit -m "Replace radar with real interactive OpenStreetMap street map and offline tile caching"
 
 echo [4/4] Pushing to GitHub (master)...
 git push origin master

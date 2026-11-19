@@ -41,6 +41,8 @@ dependencies:
   uuid: ^4.6.0
   http: ^1.6.0
   web: ^1.1.1
+  flutter_map: ^8.0.0
+  latlong2: ">=0.9.1 <1.0.0"
 
 dev_dependencies:
   flutter_test:
