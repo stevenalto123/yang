@@ -36,6 +36,7 @@ class EmergencyProvider extends ChangeNotifier {
 
   void Function(Map<String, dynamic> planMap)? onPlanSaved;
   void Function(Map<String, dynamic> shelterMap)? onShelterAdded;
+  void Function(String shelterId)? onShelterDeleted;
 
   EmergencyProvider() {
     _defaultContacts = getDefaultEmergencyContacts();
@@ -197,6 +198,37 @@ class EmergencyProvider extends ChangeNotifier {
       } catch (_) {}
       notifyListeners();
     }
+  }
+
+  bool isCustomCenter(String id) => _customCenters.any((c) => c.id == id);
+
+  Future<void> removeCustomEvacuationCenter(String id) async {
+    final removed = _customCenters.any((c) => c.id == id);
+    if (!removed) return;
+    _customCenters.removeWhere((c) => c.id == id);
+    notifyListeners();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _customCenters
+          .map((c) => {
+                'id': c.id,
+                'name': c.name,
+                'address': c.address,
+                'city': c.city,
+                'latitude': c.latitude,
+                'longitude': c.longitude,
+                'contactPerson': c.contactPerson,
+                'contactNumber': c.contactNumber,
+                'capacityPeople': c.capacityPeople,
+                'isOpen': c.isOpen,
+                'facilities': c.facilities,
+              })
+          .toList();
+      await prefs.setString(_customSheltersKey, json.encode(list));
+    } catch (e) {
+      debugPrint('Error removing custom shelter: $e');
+    }
+    onShelterDeleted?.call(id);
   }
 
   Future<void> addCustomEvacuationCenter(EvacuationCenter center) async {

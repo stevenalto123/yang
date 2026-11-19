@@ -496,6 +496,22 @@ export async function handleApiRequest(
       return json({ shelter: saved }, 201);
     }
 
+    if (method === 'DELETE' && path.startsWith('/shelters/')) {
+      const claims = getBearerClaims(req);
+      if (!claims) return json({ error: 'Unauthorized' }, 401);
+
+      const id = decodeURIComponent(path.slice('/shelters/'.length)).trim();
+      if (!id) return json({ error: 'Shelter id is required.' }, 400);
+      const deleted = await store.deleteHouseholdShelter(claims.householdId, id);
+      if (!deleted) {
+        return json(
+          { error: 'Custom household shelter not found or cannot delete official shelter.' },
+          404,
+        );
+      }
+      return json({ deleted: true, id });
+    }
+
     if (method === 'PATCH' && path.startsWith('/shelters/')) {
       const claims = getBearerClaims(req);
       if (!isAdminAuthorized(req, claims)) {

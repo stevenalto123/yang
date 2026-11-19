@@ -182,6 +182,36 @@ test('shelter RBAC and ISO 25010 evaluations summary & CSV export', async () => 
   });
   assert.equal(forbiddenPatch.status, 403);
 
+  // Household user can save and delete their own custom shelter, but cannot delete official shelters
+  const customShelter = await callApi(store, '/shelters', {
+    method: 'POST',
+    token: hhUser.json.token,
+    body: {
+      name: 'Brgy 672 Covered Court',
+      address: 'Paco, Manila',
+      city: 'Manila',
+      latitude: 14.5815,
+      longitude: 120.9901,
+    },
+  });
+  assert.equal(customShelter.status, 201);
+  assert.equal(customShelter.json.shelter.isOfficial, false);
+
+  const cantDeleteOfficial = await callApi(
+    store,
+    '/shelters/eac_campus_reference',
+    { method: 'DELETE', token: hhUser.json.token },
+  );
+  assert.equal(cantDeleteOfficial.status, 404);
+
+  const canDeleteOwn = await callApi(
+    store,
+    `/shelters/${encodeURIComponent(customShelter.json.shelter.id)}`,
+    { method: 'DELETE', token: hhUser.json.token },
+  );
+  assert.equal(canDeleteOwn.status, 200);
+  assert.equal(canDeleteOwn.json.deleted, true);
+
   // Admin can update shelter status
   const okPatch = await callApi(store, '/shelters/eac_campus_reference', {
     method: 'PATCH',

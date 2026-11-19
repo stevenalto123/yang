@@ -22,7 +22,7 @@ echo [3/4] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Fix double SOS icon, add password visibility toggle, and fix Nearby mobile scrolling"
+git commit -m "Upgrade Save Barangay Shelter with map pin picker & delete, fix Nearby scroll, SOS icon & password eye"
 
 echo [4/4] Pushing to GitHub (master)...
 git push origin master

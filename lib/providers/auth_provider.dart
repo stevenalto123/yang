@@ -305,6 +305,14 @@ class AuthProvider extends ChangeNotifier {
       case 'add_shelter':
         res = await _api.request('POST', '/shelters', token: _token, body: m.payload);
         break;
+      case 'delete_shelter':
+        final sid = (m.payload['id'] ?? '').toString();
+        res = await _api.request(
+          'DELETE',
+          '/shelters/${Uri.encodeComponent(sid)}',
+          token: _token,
+        );
+        break;
       case 'submit_evaluation':
         res = await _api.request(
           'POST',

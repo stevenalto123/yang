@@ -104,6 +104,7 @@ export interface DataStore {
     },
   ): Promise<EvacuationCenterRecord | null>;
   deleteShelter(id: string): Promise<boolean>;
+  deleteHouseholdShelter(householdId: string, id: string): Promise<boolean>;
 
   getAdvisories(activeOnly?: boolean): Promise<DrrmAdvisoryRecord[]>;
   createAdvisory(input: {
@@ -647,6 +648,18 @@ export class PostgresStore implements DataStore {
     const sql = await ensureSchema();
     const rows = await sql`
       DELETE FROM evacuation_centers WHERE id = ${id} RETURNING id
+    `;
+    return rows.length > 0;
+  }
+
+  async deleteHouseholdShelter(householdId: string, id: string): Promise<boolean> {
+    const sql = await ensureSchema();
+    const rows = await sql`
+      DELETE FROM evacuation_centers
+      WHERE id = ${id}
+        AND is_official = FALSE
+        AND created_by_household_id = ${householdId}
+      RETURNING id
     `;
     return rows.length > 0;
   }
@@ -1206,6 +1219,14 @@ export class InMemoryStore implements DataStore {
   }
 
   async deleteShelter(id: string): Promise<boolean> {
+    return this.shelters.delete(id);
+  }
+
+  async deleteHouseholdShelter(householdId: string, id: string): Promise<boolean> {
+    const existing = this.shelters.get(id);
+    if (!existing || existing.isOfficial || existing.createdByHouseholdId !== householdId) {
+      return false;
+    }
     return this.shelters.delete(id);
   }
 

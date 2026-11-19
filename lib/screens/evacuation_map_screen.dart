@@ -75,8 +75,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
           IconButton(
             icon: const Icon(Icons.add_location_alt_outlined),
             tooltip: isFil
-                ? 'Magdagdag ng Barangay Shelter'
-                : 'Add Local Shelter',
+                ? 'I-save ang Barangay / Family Shelter'
+                : 'Save Barangay / Family Shelter',
             onPressed: () => _showAddShelterDialog(context, emergency, isFil),
           ),
         ],
@@ -1128,6 +1128,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     final distKm = emergency.distanceToCenterKm(center);
     final cardinal = emergency.bearingToCenter(center);
     final isSelected = _selectedCenter?.id == center.id;
+    final isFamilySaved = emergency.isCustomCenter(center.id);
 
     final isHospital = center.facilityType == FacilityType.hospital;
     final isPoliceFire = center.facilityType == FacilityType.policeFire;
@@ -1201,6 +1202,29 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                       ],
                     ),
                   ),
+                  if (isFamilySaved) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.warningAmber.withAlpha(isDark ? 55 : 26),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Text(
+                        isFil ? 'Pamilya' : 'Family Saved',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: isDark
+                              ? Colors.amber.shade200
+                              : const Color(0xFFB45309),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
                   if (isNearest) ...[
                     const SizedBox(width: 6),
                     Container(
@@ -1312,7 +1336,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
@@ -1328,6 +1352,24 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                       ),
                     ),
                   ),
+                  if (isFamilySaved) ...[
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: AppTheme.dangerRed,
+                      ),
+                      tooltip: isFil
+                          ? 'Burahin ang Naka-save na Shelter'
+                          : 'Delete Family Shelter',
+                      onPressed: () => _confirmDeleteFamilyShelter(
+                        context,
+                        emergency,
+                        center,
+                        isFil,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ],
@@ -1337,91 +1379,302 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     );
   }
 
-  void _showAddShelterDialog(
+  Future<void> _confirmDeleteFamilyShelter(
     BuildContext context,
     EmergencyProvider emergency,
+    EvacuationCenter center,
     bool isFil,
-  ) {
-    final nameCtrl = TextEditingController();
-    final addrCtrl = TextEditingController();
-    final cityCtrl = TextEditingController(text: 'Manila');
-    final contactCtrl = TextEditingController(text: '911');
-
-    showDialog(
+  ) async {
+    final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isFil ? 'Magdagdag ng Barangay Shelter' : 'Add Local Barangay Shelter',
+          isFil ? 'Burahin ang Shelter ng Pamilya?' : 'Remove Family Shelter?',
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: InputDecoration(
-                  labelText: isFil
-                      ? 'Pangalan ng Shelter / Covered Court *'
-                      : 'Shelter / Covered Court Name *',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: addrCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Address *',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: cityCtrl,
-                decoration: InputDecoration(
-                  labelText:
-                      isFil ? 'Lungsod / Munisipyo' : 'City / Municipality',
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: contactCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Barangay Hotline',
-                ),
-              ),
-            ],
-          ),
+        content: Text(
+          isFil
+              ? 'Aalisin ang "${center.name}" sa naka-save na listahan ng iyong pamilya.'
+              : 'Remove "${center.name}" from your family\'s saved shelter list?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () => Navigator.pop(ctx, false),
             child: Text(isFil ? 'Kanselahin' : 'Cancel'),
           ),
           FilledButton(
-            onPressed: () {
-              if (nameCtrl.text.trim().isEmpty) return;
-              final newCenter = EvacuationCenter(
-                id: const Uuid().v4(),
-                name: nameCtrl.text.trim(),
-                address: addrCtrl.text.trim().isEmpty
-                    ? 'Local Barangay Site'
-                    : addrCtrl.text.trim(),
-                city: cityCtrl.text.trim().isEmpty
-                    ? 'Local'
-                    : cityCtrl.text.trim(),
-                latitude: emergency.userLat + 0.004,
-                longitude: emergency.userLng + 0.003,
-                contactPerson: 'Barangay DRRM Officer',
-                contactNumber: contactCtrl.text.trim(),
-                capacityPeople: 400,
-                facilities: 'Saved Local Shelter',
-              );
-              emergency.addCustomEvacuationCenter(newCenter);
-              _focusCenter(newCenter);
-              Navigator.pop(ctx);
-            },
-            child: Text(isFil ? 'I-save' : 'Save Offline'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.dangerRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isFil ? 'Burahin' : 'Remove'),
           ),
         ],
       ),
     );
+    if (ok == true && mounted) {
+      if (_selectedCenter?.id == center.id) {
+        setState(() => _selectedCenter = null);
+      }
+      await emergency.removeCustomEvacuationCenter(center.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isFil
+                ? 'Nabura ang "${center.name}".'
+                : 'Removed "${center.name}".',
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _showAddShelterDialog(
+    BuildContext context,
+    EmergencyProvider emergency,
+    bool isFil,
+  ) async {
+    final nameCtrl = TextEditingController();
+    final addrCtrl = TextEditingController();
+    final cityCtrl = TextEditingController(text: 'Manila');
+    final contactCtrl = TextEditingController(text: '911');
+    final miniMapCtrl = MapController();
+
+    LatLng pickedPoint = LatLng(emergency.userLat, emergency.userLng);
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          void setPin(LatLng target, {double? zoom}) {
+            setDialogState(() => pickedPoint = target);
+            try {
+              miniMapCtrl.move(target, zoom ?? miniMapCtrl.camera.zoom);
+            } catch (_) {}
+          }
+
+          return AlertDialog(
+            title: Text(
+              isFil
+                  ? 'I-save ang Barangay / Family Shelter'
+                  : 'Save Barangay / Family Shelter',
+            ),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryAccent.withAlpha(20),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.lock_outline_rounded,
+                            size: 16,
+                            color: AppTheme.primaryAccent,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isFil
+                                  ? 'Pribado para sa iyong pamilya at naka-sync na kamag-anak — hindi binabago ang opisyal na LGU shelters.'
+                                  : 'Saved privately for your household & synced relatives — does not alter official LGU shelters.',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nameCtrl,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Pangalan ng Covered Court / Safe Place *'
+                            : 'Barangay Hall / Covered Court / Safe Place *',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: addrCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Address / Landmark *',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: cityCtrl,
+                            decoration: InputDecoration(
+                              labelText: isFil ? 'Lungsod' : 'City',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: contactCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Hotline / Contact',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            isFil
+                                ? 'I-tap ang mapa para ituro ang eksaktong lugar:'
+                                : 'Tap the map to pin exact location:',
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        TextButton.icon(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            minimumSize: const Size(0, 32),
+                          ),
+                          icon: const Icon(Icons.my_location_rounded, size: 15),
+                          label: Text(
+                            isFil ? 'GPS Ko' : 'Use My GPS',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          onPressed: () async {
+                            await emergency.detectLiveGps();
+                            setPin(
+                              LatLng(emergency.userLat, emergency.userLng),
+                              zoom: 15.0,
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        height: 185,
+                        child: FlutterMap(
+                          mapController: miniMapCtrl,
+                          options: MapOptions(
+                            initialCenter: pickedPoint,
+                            initialZoom: 14.0,
+                            minZoom: 5.0,
+                            maxZoom: 18.0,
+                            interactionOptions: const InteractionOptions(
+                              flags:
+                                  InteractiveFlag.all & ~InteractiveFlag.rotate,
+                            ),
+                            onTap: (_, latLng) => setPin(latLng),
+                          ),
+                          children: [
+                            TileLayer(
+                              urlTemplate:
+                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                              userAgentPackageName: 'com.eac.lifecheckpoint',
+                            ),
+                            MarkerLayer(
+                              markers: [
+                                Marker(
+                                  point: pickedPoint,
+                                  width: 40,
+                                  height: 40,
+                                  child: const Icon(
+                                    Icons.location_pin,
+                                    color: AppTheme.dangerRed,
+                                    size: 38,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Pinned GPS: ${pickedPoint.latitude.toStringAsFixed(5)}, ${pickedPoint.longitude.toStringAsFixed(5)}',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppTheme.mutedSlate,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(isFil ? 'Kanselahin' : 'Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  if (nameCtrl.text.trim().isEmpty) return;
+                  Navigator.pop(ctx, true);
+                },
+                child: Text(isFil ? 'I-save para sa Pamilya' : 'Save for Family'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    final name = nameCtrl.text.trim();
+    final addr = addrCtrl.text.trim();
+    final city = cityCtrl.text.trim();
+    final phone = contactCtrl.text.trim();
+
+    Future.delayed(const Duration(milliseconds: 400), () {
+      nameCtrl.dispose();
+      addrCtrl.dispose();
+      cityCtrl.dispose();
+      contactCtrl.dispose();
+    });
+
+    if (saved == true && mounted) {
+      final newCenter = EvacuationCenter(
+        id: const Uuid().v4(),
+        name: name,
+        address: addr.isEmpty ? 'Local Barangay Site' : addr,
+        city: city.isEmpty ? 'Manila' : city,
+        latitude: pickedPoint.latitude,
+        longitude: pickedPoint.longitude,
+        contactPerson: 'Barangay / Family Contact',
+        contactNumber: phone.isEmpty ? '911' : phone,
+        capacityPeople: 0,
+        facilities: 'Family-Saved Barangay Shelter / Safe Spot',
+      );
+      await emergency.addCustomEvacuationCenter(newCenter);
+      _focusCenter(newCenter);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppTheme.safeGreen,
+            content: Text(
+              isFil
+                  ? 'Nai-save ang "$name" para sa iyong pamilya!'
+                  : 'Saved "$name" privately for your family!',
+            ),
+          ),
+        );
+      }
+    }
   }
 }

@@ -105,6 +105,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           (planMap) => auth.enqueueMutation('save_plan', planMap);
       emergency.onShelterAdded =
           (shelterMap) => auth.enqueueMutation('add_shelter', shelterMap);
+      emergency.onShelterDeleted =
+          (id) => auth.enqueueMutation('delete_shelter', {'id': id});
       monitoring.telemetryProxyFetcher = auth.fetchTelemetryProxy;
       monitoring.advisoriesFetcher = auth.fetchPublicAdvisories;
       monitoring.onCheckinAdded =
