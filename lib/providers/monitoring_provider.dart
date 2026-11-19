@@ -107,6 +107,49 @@ extension DrillAlertModeExt on DrillAlertMode {
   }
 }
 
+class DrrmAdvisory {
+  final String id;
+  final String title;
+  final String message;
+  final String severity; // 'info' | 'warning' | 'critical'
+  final String area;
+  final String authorName;
+  final DateTime createdAt;
+
+  const DrrmAdvisory({
+    required this.id,
+    required this.title,
+    required this.message,
+    required this.severity,
+    required this.area,
+    required this.authorName,
+    required this.createdAt,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'title': title,
+        'message': message,
+        'severity': severity,
+        'area': area,
+        'authorName': authorName,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory DrrmAdvisory.fromMap(Map<String, dynamic> map) {
+    return DrrmAdvisory(
+      id: (map['id'] ?? '').toString(),
+      title: (map['title'] ?? 'DRRM Advisory').toString(),
+      message: (map['message'] ?? '').toString(),
+      severity: (map['severity'] ?? 'warning').toString().toLowerCase(),
+      area: (map['area'] ?? 'Metro Manila').toString(),
+      authorName: (map['authorName'] ?? 'DRRM Admin').toString(),
+      createdAt: DateTime.tryParse((map['createdAt'] ?? '').toString()) ??
+          DateTime.now(),
+    );
+  }
+}
+
 class MonitoringProvider extends ChangeNotifier {
   static const String _cacheKey = 'lifecheckpoint_monitoring_cache_v1';
   static const String _checkInLogKey = 'lifecheckpoint_safety_log_v1';
@@ -116,6 +159,7 @@ class MonitoringProvider extends ChangeNotifier {
   DateTime? _lastUpdated;
   WeatherSnapshot? _weather;
   List<SeismicEvent> _earthquakes = [];
+  List<DrrmAdvisory> _advisories = [];
   DrillAlertMode _drillMode = DrillAlertMode.liveNormal;
   List<Map<String, String>> _safetyLog = [];
   double _lastLat = 14.5822;
@@ -123,6 +167,7 @@ class MonitoringProvider extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> Function(double lat, double lng)?
       telemetryProxyFetcher;
+  Future<List<Map<String, dynamic>>> Function()? advisoriesFetcher;
   void Function(Map<String, dynamic> checkin)? onCheckinAdded;
 
   MonitoringProvider() {
@@ -134,11 +179,15 @@ class MonitoringProvider extends ChangeNotifier {
   DateTime? get lastUpdated => _lastUpdated;
   WeatherSnapshot? get weather => _weather;
   List<SeismicEvent> get earthquakes => List.unmodifiable(_earthquakes);
+  List<DrrmAdvisory> get advisories => List.unmodifiable(_advisories);
   DrillAlertMode get drillMode => _drillMode;
   List<Map<String, String>> get safetyLog => List.unmodifiable(_safetyLog);
 
   bool get isHazardActive {
     if (_drillMode != DrillAlertMode.liveNormal) return true;
+    if (_advisories.any((a) => a.severity == 'critical' || a.severity == 'warning')) {
+      return true;
+    }
     if (_weather != null &&
         (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
       return true;
@@ -156,6 +205,12 @@ class MonitoringProvider extends ChangeNotifier {
     }
     if (_drillMode == DrillAlertMode.floodRedWarning) {
       return isFil ? 'Practice: Red Flood Warning' : 'Practice: Red Flood Warning';
+    }
+    if (_advisories.any((a) => a.severity == 'critical')) {
+      return isFil ? 'Opisyal na Kritikal na Abiso (DRRM)' : 'Official Critical DRRM Advisory';
+    }
+    if (_advisories.any((a) => a.severity == 'warning')) {
+      return isFil ? 'Opisyal na Babala (DRRM)' : 'Official DRRM Warning';
     }
     if (_weather != null &&
         (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
@@ -201,6 +256,11 @@ class MonitoringProvider extends ChangeNotifier {
               .map((e) => SeismicEvent.fromMap(e))
               .toList();
         }
+        if (map['advisories'] is List) {
+          _advisories = (map['advisories'] as List<dynamic>)
+              .map((e) => DrrmAdvisory.fromMap(Map<String, dynamic>.from(e)))
+              .toList();
+        }
       }
 
       final logStr = prefs.getString(_checkInLogKey);
@@ -225,7 +285,10 @@ class MonitoringProvider extends ChangeNotifier {
 
     bool anySuccess = false;
 
-    // 0. Try low-bandwidth cached backend proxy first when configured
+    // 0. Fetch active official DRRM advisories immediately (never stale-cached)
+    await refreshAdvisoriesOnly(notify: false);
+
+    // 1. Try low-bandwidth cached backend proxy first when configured
     if (telemetryProxyFetcher != null) {
       try {
         final proxyData = await telemetryProxyFetcher!(_lastLat, _lastLng);
@@ -330,6 +393,16 @@ class MonitoringProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refreshAdvisoriesOnly({bool notify = true}) async {
+    if (advisoriesFetcher == null) return;
+    try {
+      final raw = await advisoriesFetcher!();
+      _advisories = raw.map(DrrmAdvisory.fromMap).toList();
+      await _saveCache();
+      if (notify) notifyListeners();
+    } catch (_) {}
+  }
+
   Future<void> _saveCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -337,6 +410,7 @@ class MonitoringProvider extends ChangeNotifier {
         'lastUpdated': _lastUpdated?.toIso8601String(),
         'weather': _weather?.toMap(),
         'earthquakes': _earthquakes.map((e) => e.toMap()).toList(),
+        'advisories': _advisories.map((a) => a.toMap()).toList(),
       });
       await prefs.setString(_cacheKey, payload);
     } catch (_) {}

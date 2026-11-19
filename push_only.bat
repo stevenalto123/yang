@@ -22,7 +22,7 @@ echo [3/4] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Exclude admin accounts from Synced Households list and clarify household size label"
+git commit -m "Upgrade Admin & DRRM Portal with all 8 UX & operations features"
 
 echo [4/4] Pushing to GitHub (master)...
 git push origin master

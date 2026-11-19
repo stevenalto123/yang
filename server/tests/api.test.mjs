@@ -270,7 +270,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
   assert.equal(okOverview.json.counts.checkinsNeedingHelp, 1);
   assert.equal(okOverview.json.recentCheckins.length, 1);
 
-  // Admin can publish and delete official shelter
+  // Admin can publish, edit, and delete official shelter
   const created = await callApi(store, '/admin/shelters', {
     method: 'POST',
     headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
@@ -283,6 +283,97 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
   });
   assert.equal(created.status, 201);
   assert.equal(created.json.shelter.isOfficial, true);
+
+  const edited = await callApi(
+    store,
+    `/shelters/${encodeURIComponent(created.json.shelter.id)}`,
+    {
+      method: 'PATCH',
+      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      body: {
+        name: 'Paco Covered Court & DRRM Hub',
+        capacityPeople: 750,
+        contactNumber: '(02) 8527-5174',
+        isOpen: false,
+      },
+    },
+  );
+  assert.equal(edited.status, 200);
+  assert.equal(edited.json.shelter.name, 'Paco Covered Court & DRRM Hub');
+  assert.equal(edited.json.shelter.capacityPeople, 750);
+  assert.equal(edited.json.shelter.isOpen, false);
+
+  // Admin can acknowledge SOS check-in -> drops active Need Help count to 0
+  const checkinId = okOverview.json.recentCheckins[0].id;
+  const acked = await callApi(
+    store,
+    `/admin/checkins/${encodeURIComponent(checkinId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      body: { acknowledged: true },
+    },
+  );
+  assert.equal(acked.status, 200);
+  assert.ok(acked.json.checkin.acknowledgedAt);
+
+  const overviewAfterAck = await callApi(store, '/admin/overview', {
+    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+  });
+  assert.equal(overviewAfterAck.status, 200);
+  assert.equal(overviewAfterAck.json.counts.checkinsNeedingHelp, 0);
+  assert.ok(overviewAfterAck.json.households[0].profile);
+
+  // Admin can broadcast, toggle, and delete DRRM advisory (household blocked)
+  const blockedAdv = await callApi(store, '/admin/advisories', {
+    method: 'POST',
+    token: hhUser.json.token,
+    body: { title: 'Test', message: 'Unauthorized' },
+  });
+  assert.equal(blockedAdv.status, 403);
+
+  const createdAdv = await callApi(store, '/admin/advisories', {
+    method: 'POST',
+    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    body: {
+      title: 'Paco Flood Watch',
+      message: 'Rizal Memorial Sports Complex is open for evacuees.',
+      severity: 'critical',
+      area: 'Manila',
+    },
+  });
+  assert.equal(createdAdv.status, 201);
+  assert.equal(createdAdv.json.advisory.severity, 'critical');
+
+  const publicAdvs = await callApi(store, '/advisories');
+  assert.equal(publicAdvs.status, 200);
+  assert.equal(publicAdvs.json.advisories.length, 1);
+
+  const resolvedAdv = await callApi(
+    store,
+    `/admin/advisories/${encodeURIComponent(createdAdv.json.advisory.id)}`,
+    {
+      method: 'PATCH',
+      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      body: { isActive: false },
+    },
+  );
+  assert.equal(resolvedAdv.status, 200);
+  assert.equal(resolvedAdv.json.advisory.isActive, false);
+
+  const publicAdvsAfterResolve = await callApi(store, '/advisories');
+  assert.equal(publicAdvsAfterResolve.json.advisories.length, 0);
+
+  const deletedAdv = await callApi(
+    store,
+    `/admin/advisories/${encodeURIComponent(createdAdv.json.advisory.id)}`,
+    {
+      method: 'DELETE',
+      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    },
+  );
+  assert.equal(deletedAdv.status, 200);
+  assert.equal(deletedAdv.json.deleted, true);
 
   const deleted = await callApi(
     store,

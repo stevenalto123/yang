@@ -517,6 +517,14 @@ class AuthProvider extends ChangeNotifier {
     required String id,
     bool? isOpen,
     int? capacityPeople,
+    String? name,
+    String? address,
+    String? city,
+    double? latitude,
+    double? longitude,
+    String? contactPerson,
+    String? contactNumber,
+    String? facilities,
     String? adminCode,
   }) async {
     final res = await _api.request(
@@ -529,6 +537,14 @@ class AuthProvider extends ChangeNotifier {
       body: {
         if (isOpen != null) 'isOpen': isOpen,
         if (capacityPeople != null) 'capacityPeople': capacityPeople,
+        if (name != null) 'name': name,
+        if (address != null) 'address': address,
+        if (city != null) 'city': city,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
+        if (contactPerson != null) 'contactPerson': contactPerson,
+        if (contactNumber != null) 'contactNumber': contactNumber,
+        if (facilities != null) 'facilities': facilities,
       },
     );
     if (res.ok && res.data?['shelter'] is Map) {
@@ -543,6 +559,129 @@ class AuthProvider extends ChangeNotifier {
       shelter: null,
       error: res.error ?? 'Could not update shelter.',
     );
+  }
+
+  Future<({bool ok, Map<String, dynamic>? checkin, String? error})>
+      acknowledgeCheckin({
+    required String id,
+    required bool acknowledged,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'PATCH',
+      '/admin/checkins/${Uri.encodeComponent(id)}',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+      body: {'acknowledged': acknowledged},
+    );
+    if (res.ok && res.data?['checkin'] is Map) {
+      return (
+        ok: true,
+        checkin: Map<String, dynamic>.from(res.data!['checkin']),
+        error: null,
+      );
+    }
+    return (
+      ok: false,
+      checkin: null,
+      error: res.error ?? 'Could not update check-in status.',
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPublicAdvisories() async {
+    if (!hasCloudEndpoint) return [];
+    final res = await _api.request('GET', '/advisories');
+    if (res.ok && res.data?['advisories'] is List) {
+      return (res.data!['advisories'] as List<dynamic>)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    }
+    return [];
+  }
+
+  Future<({bool ok, Map<String, dynamic>? advisory, String? error})>
+      createAdvisory({
+    required String title,
+    required String message,
+    required String severity,
+    required String area,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'POST',
+      '/admin/advisories',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+      body: {
+        'title': title.trim(),
+        'message': message.trim(),
+        'severity': severity,
+        'area': area.trim().isEmpty ? 'Metro Manila' : area.trim(),
+      },
+    );
+    if (res.ok && res.data?['advisory'] is Map) {
+      return (
+        ok: true,
+        advisory: Map<String, dynamic>.from(res.data!['advisory']),
+        error: null,
+      );
+    }
+    return (
+      ok: false,
+      advisory: null,
+      error: res.error ?? 'Could not publish advisory.',
+    );
+  }
+
+  Future<({bool ok, Map<String, dynamic>? advisory, String? error})>
+      updateAdvisory({
+    required String id,
+    bool? isActive,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'PATCH',
+      '/admin/advisories/${Uri.encodeComponent(id)}',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+      body: {
+        if (isActive != null) 'isActive': isActive,
+      },
+    );
+    if (res.ok && res.data?['advisory'] is Map) {
+      return (
+        ok: true,
+        advisory: Map<String, dynamic>.from(res.data!['advisory']),
+        error: null,
+      );
+    }
+    return (
+      ok: false,
+      advisory: null,
+      error: res.error ?? 'Could not update advisory.',
+    );
+  }
+
+  Future<({bool ok, String? error})> deleteAdvisory({
+    required String id,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'DELETE',
+      '/admin/advisories/${Uri.encodeComponent(id)}',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+    );
+    if (res.ok) return (ok: true, error: null);
+    return (ok: false, error: res.error ?? 'Could not delete advisory.');
   }
 
   Future<({bool ok, String? error})> deleteOfficialShelter({

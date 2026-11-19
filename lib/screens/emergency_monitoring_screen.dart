@@ -6,6 +6,7 @@ import '../providers/emergency_provider.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
+import '../widgets/advisory_banner.dart';
 import '../widgets/responsive_container.dart';
 import 'disaster_guide_screen.dart';
 
@@ -173,6 +174,17 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // Official DRRM Advisories (only shown when active)
+              if (mon.advisories.isNotEmpty) ...[
+                DrrmAdvisoryBannerList(
+                  advisories: mon.advisories,
+                  isDark: isDark,
+                  isFil: isFil,
+                  maxItems: 5,
+                ),
+                const SizedBox(height: 6),
+              ],
 
               // 2. 1-Tap Family Safety Check-In Card
               Card(

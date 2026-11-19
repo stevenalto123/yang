@@ -56,6 +56,22 @@ export interface SafetyCheckinRecord {
   latitude: number | null;
   longitude: number | null;
   timestamp: string;
+  acknowledgedAt: string | null;
+  acknowledgedBy: string | null;
+}
+
+export type AdvisorySeverity = 'info' | 'warning' | 'critical';
+
+export interface DrrmAdvisoryRecord {
+  id: string;
+  title: string;
+  message: string;
+  severity: AdvisorySeverity;
+  area: string;
+  authorName: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface EvacuationCenterRecord {
@@ -118,6 +134,9 @@ export interface AdminHouseholdSummary {
   packedCount: number;
   readinessPct: number;
   updatedAt: string;
+  profile: HouseholdProfileData;
+  primaryMeetingPoint: string;
+  secondaryMeetingPoint: string;
 }
 
 export interface AdminCheckinItem extends SafetyCheckinRecord {
@@ -133,8 +152,10 @@ export interface AdminOverviewData {
     checkinsTotal: number;
     checkinsNeedingHelp: number;
     evaluationsTotal: number;
+    activeAdvisories: number;
   };
   households: AdminHouseholdSummary[];
   recentCheckins: AdminCheckinItem[];
   shelters: EvacuationCenterRecord[];
+  advisories: DrrmAdvisoryRecord[];
 }

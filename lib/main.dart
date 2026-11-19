@@ -79,8 +79,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       emergency.onShelterAdded =
           (shelterMap) => auth.enqueueMutation('add_shelter', shelterMap);
       monitoring.telemetryProxyFetcher = auth.fetchTelemetryProxy;
+      monitoring.advisoriesFetcher = auth.fetchPublicAdvisories;
       monitoring.onCheckinAdded =
           (checkin) => auth.enqueueMutation('add_checkin', checkin);
+      monitoring.refreshAdvisoriesOnly();
 
       auth.attachSyncHandlers(
         kitPayloadReader: kit.exportSyncPayload,

@@ -4,6 +4,8 @@ import type {
   AdminCheckinItem,
   AdminHouseholdSummary,
   AdminOverviewData,
+  AdvisorySeverity,
+  DrrmAdvisoryRecord,
   EvacuationCenterRecord,
   HouseholdProfileData,
   HouseholdRecord,
@@ -75,6 +77,11 @@ export interface DataStore {
     longitude: number | null;
   }): Promise<SafetyCheckinRecord>;
   getCheckins(householdId: string, limit?: number): Promise<SafetyCheckinRecord[]>;
+  acknowledgeCheckin(
+    id: string,
+    acknowledgedBy: string,
+    acknowledged: boolean,
+  ): Promise<SafetyCheckinRecord | null>;
 
   getShelters(householdId?: string | null): Promise<EvacuationCenterRecord[]>;
   addShelter(
@@ -83,9 +90,40 @@ export interface DataStore {
   ): Promise<EvacuationCenterRecord>;
   updateShelterStatus(
     id: string,
-    patch: { isOpen?: boolean; capacityPeople?: number },
+    patch: {
+      isOpen?: boolean;
+      capacityPeople?: number;
+      name?: string;
+      address?: string;
+      city?: string;
+      latitude?: number;
+      longitude?: number;
+      contactPerson?: string;
+      contactNumber?: string;
+      facilities?: string;
+    },
   ): Promise<EvacuationCenterRecord | null>;
   deleteShelter(id: string): Promise<boolean>;
+
+  getAdvisories(activeOnly?: boolean): Promise<DrrmAdvisoryRecord[]>;
+  createAdvisory(input: {
+    title: string;
+    message: string;
+    severity: AdvisorySeverity;
+    area: string;
+    authorName: string;
+  }): Promise<DrrmAdvisoryRecord>;
+  updateAdvisory(
+    id: string,
+    patch: {
+      isActive?: boolean;
+      title?: string;
+      message?: string;
+      severity?: AdvisorySeverity;
+      area?: string;
+    },
+  ): Promise<DrrmAdvisoryRecord | null>;
+  deleteAdvisory(id: string): Promise<boolean>;
 
   getTelemetryCache(cacheKey: string): Promise<TelemetryCacheRecord | null>;
   setTelemetryCache(
@@ -186,6 +224,23 @@ function mapCheckinRow(row: Record<string, unknown>): SafetyCheckinRecord {
     latitude: row.latitude != null ? Number(row.latitude) : null,
     longitude: row.longitude != null ? Number(row.longitude) : null,
     timestamp: toIso(row.created_at),
+    acknowledgedAt: row.acknowledged_at ? toIso(row.acknowledged_at) : null,
+    acknowledgedBy: row.acknowledged_by ? String(row.acknowledged_by) : null,
+  };
+}
+
+function mapAdvisoryRow(row: Record<string, unknown>): DrrmAdvisoryRecord {
+  const sev = String(row.severity ?? 'warning').toLowerCase();
+  return {
+    id: String(row.id),
+    title: String(row.title ?? ''),
+    message: String(row.message ?? ''),
+    severity: sev === 'critical' || sev === 'info' ? sev : 'warning',
+    area: String(row.area ?? 'Metro Manila'),
+    authorName: String(row.author_name ?? 'DRRM Admin'),
+    isActive: Boolean(row.is_active ?? true),
+    createdAt: toIso(row.created_at),
+    updatedAt: toIso(row.updated_at),
   };
 }
 
@@ -471,6 +526,28 @@ export class PostgresStore implements DataStore {
     return rows.map(mapCheckinRow);
   }
 
+  async acknowledgeCheckin(
+    id: string,
+    acknowledgedBy: string,
+    acknowledged: boolean,
+  ): Promise<SafetyCheckinRecord | null> {
+    const sql = await ensureSchema();
+    const rows = acknowledged
+      ? await sql`
+          UPDATE safety_checkins
+          SET acknowledged_at = NOW(), acknowledged_by = ${acknowledgedBy}
+          WHERE id = ${id}
+          RETURNING *
+        `
+      : await sql`
+          UPDATE safety_checkins
+          SET acknowledged_at = NULL, acknowledged_by = NULL
+          WHERE id = ${id}
+          RETURNING *
+        `;
+    return rows.length > 0 ? mapCheckinRow(rows[0]) : null;
+  }
+
   async getShelters(householdId?: string | null): Promise<EvacuationCenterRecord[]> {
     const sql = await ensureSchema();
     const rows = householdId
@@ -532,7 +609,18 @@ export class PostgresStore implements DataStore {
 
   async updateShelterStatus(
     id: string,
-    patch: { isOpen?: boolean; capacityPeople?: number },
+    patch: {
+      isOpen?: boolean;
+      capacityPeople?: number;
+      name?: string;
+      address?: string;
+      city?: string;
+      latitude?: number;
+      longitude?: number;
+      contactPerson?: string;
+      contactNumber?: string;
+      facilities?: string;
+    },
   ): Promise<EvacuationCenterRecord | null> {
     const sql = await ensureSchema();
     const rows = await sql`
@@ -540,6 +628,14 @@ export class PostgresStore implements DataStore {
       SET
         is_open = COALESCE(${patch.isOpen ?? null}, is_open),
         capacity_people = COALESCE(${patch.capacityPeople ?? null}, capacity_people),
+        name = COALESCE(${patch.name ?? null}, name),
+        address = COALESCE(${patch.address ?? null}, address),
+        city = COALESCE(${patch.city ?? null}, city),
+        latitude = COALESCE(${patch.latitude ?? null}, latitude),
+        longitude = COALESCE(${patch.longitude ?? null}, longitude),
+        contact_person = COALESCE(${patch.contactPerson ?? null}, contact_person),
+        contact_number = COALESCE(${patch.contactNumber ?? null}, contact_number),
+        facilities = COALESCE(${patch.facilities ?? null}, facilities),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -551,6 +647,73 @@ export class PostgresStore implements DataStore {
     const sql = await ensureSchema();
     const rows = await sql`
       DELETE FROM evacuation_centers WHERE id = ${id} RETURNING id
+    `;
+    return rows.length > 0;
+  }
+
+  async getAdvisories(activeOnly = false): Promise<DrrmAdvisoryRecord[]> {
+    const sql = await ensureSchema();
+    const rows = activeOnly
+      ? await sql`
+          SELECT * FROM drrm_advisories
+          WHERE is_active = TRUE
+          ORDER BY created_at DESC
+          LIMIT 20
+        `
+      : await sql`
+          SELECT * FROM drrm_advisories
+          ORDER BY is_active DESC, created_at DESC
+          LIMIT 50
+        `;
+    return rows.map(mapAdvisoryRow);
+  }
+
+  async createAdvisory(input: {
+    title: string;
+    message: string;
+    severity: AdvisorySeverity;
+    area: string;
+    authorName: string;
+  }): Promise<DrrmAdvisoryRecord> {
+    const sql = await ensureSchema();
+    const rows = await sql`
+      INSERT INTO drrm_advisories (title, message, severity, area, author_name, is_active)
+      VALUES (${input.title}, ${input.message}, ${input.severity}, ${input.area}, ${input.authorName}, TRUE)
+      RETURNING *
+    `;
+    return mapAdvisoryRow(rows[0]);
+  }
+
+  async updateAdvisory(
+    id: string,
+    patch: {
+      isActive?: boolean;
+      title?: string;
+      message?: string;
+      severity?: AdvisorySeverity;
+      area?: string;
+    },
+  ): Promise<DrrmAdvisoryRecord | null> {
+    const sql = await ensureSchema();
+    const rows = await sql`
+      UPDATE drrm_advisories
+      SET
+        is_active = COALESCE(${patch.isActive ?? null}, is_active),
+        title = COALESCE(${patch.title ?? null}, title),
+        message = COALESCE(${patch.message ?? null}, message),
+        severity = COALESCE(${patch.severity ?? null}, severity),
+        area = COALESCE(${patch.area ?? null}, area),
+        updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    return rows.length > 0 ? mapAdvisoryRow(rows[0]) : null;
+  }
+
+  async deleteAdvisory(id: string): Promise<boolean> {
+    const sql = await ensureSchema();
+    const rows = await sql`
+      DELETE FROM drrm_advisories WHERE id = ${id} RETURNING id
     `;
     return rows.length > 0;
   }
@@ -630,8 +793,9 @@ export class PostgresStore implements DataStore {
         (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_open = TRUE) AS open_shelters,
         (SELECT COUNT(*)::int FROM evacuation_centers) AS total_shelters,
         (SELECT COUNT(*)::int FROM safety_checkins c LEFT JOIN users u ON u.id = c.user_id WHERE COALESCE(u.role, 'household') = 'household') AS checkins_total,
-        (SELECT COUNT(*)::int FROM safety_checkins c LEFT JOIN users u ON u.id = c.user_id WHERE COALESCE(u.role, 'household') = 'household' AND (UPPER(c.status) LIKE '%ASSIST%' OR UPPER(c.status) LIKE '%HELP%')) AS checkins_needing_help,
+        (SELECT COUNT(*)::int FROM safety_checkins c LEFT JOIN users u ON u.id = c.user_id WHERE COALESCE(u.role, 'household') = 'household' AND c.acknowledged_at IS NULL AND (UPPER(c.status) LIKE '%ASSIST%' OR UPPER(c.status) LIKE '%HELP%')) AS checkins_needing_help,
         (SELECT COUNT(*)::int FROM iso_evaluations) AS evaluations_total,
+        (SELECT COUNT(*)::int FROM drrm_advisories WHERE is_active = TRUE) AS active_advisories,
         COALESCE((
           SELECT json_agg(row_to_json(t))
           FROM (
@@ -640,6 +804,7 @@ export class PostgresStore implements DataStore {
               h.name,
               h.invite_code,
               h.profile_json,
+              h.plan_json,
               h.updated_at,
               COALESCE(u_cnt.account_count, 0)::int AS account_count,
               COALESCE(k.item_count, 0)::int AS item_count,
@@ -682,19 +847,29 @@ export class PostgresStore implements DataStore {
             SELECT * FROM evacuation_centers
             ORDER BY is_official DESC, city ASC, name ASC
           ) s_row
-        ), '[]'::json) AS shelters_json
+        ), '[]'::json) AS shelters_json,
+        COALESCE((
+          SELECT json_agg(row_to_json(a_row))
+          FROM (
+            SELECT * FROM drrm_advisories
+            ORDER BY is_active DESC, created_at DESC
+            LIMIT 50
+          ) a_row
+        ), '[]'::json) AS advisories_json
     `;
 
     const c = (rows[0] ?? {}) as Record<string, unknown>;
     const hhRows = parseJsonArray<Record<string, unknown>>(c.households_json);
     const checkinRows = parseJsonArray<Record<string, unknown>>(c.checkins_json);
     const shelterRows = parseJsonArray<Record<string, unknown>>(c.shelters_json);
+    const advisoryRows = parseJsonArray<Record<string, unknown>>(c.advisories_json);
 
     const households: AdminHouseholdSummary[] = hhRows.map((row) => {
       const profile = parseJsonObject<HouseholdProfileData>(
         row.profile_json,
         DEFAULT_HOUSEHOLD_PROFILE,
       );
+      const plan = parseJsonObject<Record<string, unknown>>(row.plan_json, {});
       const memberCount =
         (Number(profile.adults) || 0) +
         (Number(profile.children) || 0) +
@@ -714,6 +889,9 @@ export class PostgresStore implements DataStore {
         packedCount,
         readinessPct,
         updatedAt: toIso(row.updated_at),
+        profile,
+        primaryMeetingPoint: String(plan.primaryMeetingPoint ?? ''),
+        secondaryMeetingPoint: String(plan.secondaryMeetingPoint ?? ''),
       };
     });
 
@@ -731,10 +909,12 @@ export class PostgresStore implements DataStore {
         checkinsTotal: Number(c.checkins_total ?? 0),
         checkinsNeedingHelp: Number(c.checkins_needing_help ?? 0),
         evaluationsTotal: Number(c.evaluations_total ?? 0),
+        activeAdvisories: Number(c.active_advisories ?? 0),
       },
       households,
       recentCheckins,
       shelters: shelterRows.map(mapShelterRow),
+      advisories: advisoryRows.map(mapAdvisoryRow),
     };
   }
 }
@@ -747,6 +927,7 @@ export class InMemoryStore implements DataStore {
   private shelters = new Map<string, EvacuationCenterRecord>();
   private telemetry = new Map<string, TelemetryCacheRecord>();
   private evaluations: IsoEvaluationRecord[] = [];
+  private advisories = new Map<string, DrrmAdvisoryRecord>();
 
   constructor() {
     const seeds: EvacuationCenterRecord[] = [
@@ -945,6 +1126,8 @@ export class InMemoryStore implements DataStore {
       latitude: input.latitude,
       longitude: input.longitude,
       timestamp: new Date().toISOString(),
+      acknowledgedAt: null,
+      acknowledgedBy: null,
     };
     const list = this.checkinsByHousehold.get(input.householdId) ?? [];
     list.unshift(rec);
@@ -954,6 +1137,22 @@ export class InMemoryStore implements DataStore {
 
   async getCheckins(householdId: string, limit = 20): Promise<SafetyCheckinRecord[]> {
     return (this.checkinsByHousehold.get(householdId) ?? []).slice(0, limit);
+  }
+
+  async acknowledgeCheckin(
+    id: string,
+    acknowledgedBy: string,
+    acknowledged: boolean,
+  ): Promise<SafetyCheckinRecord | null> {
+    for (const list of this.checkinsByHousehold.values()) {
+      const found = list.find((c) => c.id === id);
+      if (found) {
+        found.acknowledgedAt = acknowledged ? new Date().toISOString() : null;
+        found.acknowledgedBy = acknowledged ? acknowledgedBy : null;
+        return found;
+      }
+    }
+    return null;
   }
 
   async getShelters(householdId?: string | null): Promise<EvacuationCenterRecord[]> {
@@ -977,18 +1176,92 @@ export class InMemoryStore implements DataStore {
 
   async updateShelterStatus(
     id: string,
-    patch: { isOpen?: boolean; capacityPeople?: number },
+    patch: {
+      isOpen?: boolean;
+      capacityPeople?: number;
+      name?: string;
+      address?: string;
+      city?: string;
+      latitude?: number;
+      longitude?: number;
+      contactPerson?: string;
+      contactNumber?: string;
+      facilities?: string;
+    },
   ): Promise<EvacuationCenterRecord | null> {
     const existing = this.shelters.get(id);
     if (!existing) return null;
     if (patch.isOpen !== undefined) existing.isOpen = patch.isOpen;
     if (patch.capacityPeople !== undefined) existing.capacityPeople = patch.capacityPeople;
+    if (patch.name !== undefined) existing.name = patch.name;
+    if (patch.address !== undefined) existing.address = patch.address;
+    if (patch.city !== undefined) existing.city = patch.city;
+    if (patch.latitude !== undefined) existing.latitude = patch.latitude;
+    if (patch.longitude !== undefined) existing.longitude = patch.longitude;
+    if (patch.contactPerson !== undefined) existing.contactPerson = patch.contactPerson;
+    if (patch.contactNumber !== undefined) existing.contactNumber = patch.contactNumber;
+    if (patch.facilities !== undefined) existing.facilities = patch.facilities;
     existing.updatedAt = new Date().toISOString();
     return existing;
   }
 
   async deleteShelter(id: string): Promise<boolean> {
     return this.shelters.delete(id);
+  }
+
+  async getAdvisories(activeOnly = false): Promise<DrrmAdvisoryRecord[]> {
+    const list = [...this.advisories.values()]
+      .filter((a) => !activeOnly || a.isActive)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return list.slice(0, activeOnly ? 20 : 50);
+  }
+
+  async createAdvisory(input: {
+    title: string;
+    message: string;
+    severity: AdvisorySeverity;
+    area: string;
+    authorName: string;
+  }): Promise<DrrmAdvisoryRecord> {
+    const now = new Date().toISOString();
+    const rec: DrrmAdvisoryRecord = {
+      id: randomUUID(),
+      title: input.title,
+      message: input.message,
+      severity: input.severity,
+      area: input.area,
+      authorName: input.authorName,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.advisories.set(rec.id, rec);
+    return rec;
+  }
+
+  async updateAdvisory(
+    id: string,
+    patch: {
+      isActive?: boolean;
+      title?: string;
+      message?: string;
+      severity?: AdvisorySeverity;
+      area?: string;
+    },
+  ): Promise<DrrmAdvisoryRecord | null> {
+    const existing = this.advisories.get(id);
+    if (!existing) return null;
+    if (patch.isActive !== undefined) existing.isActive = patch.isActive;
+    if (patch.title !== undefined) existing.title = patch.title;
+    if (patch.message !== undefined) existing.message = patch.message;
+    if (patch.severity !== undefined) existing.severity = patch.severity;
+    if (patch.area !== undefined) existing.area = patch.area;
+    existing.updatedAt = new Date().toISOString();
+    return existing;
+  }
+
+  async deleteAdvisory(id: string): Promise<boolean> {
+    return this.advisories.delete(id);
   }
 
   async getTelemetryCache(cacheKey: string): Promise<TelemetryCacheRecord | null> {
@@ -1027,6 +1300,8 @@ export class InMemoryStore implements DataStore {
   async getAdminOverview(): Promise<AdminOverviewData> {
     const allShelters = [...this.shelters.values()];
     const openShelters = allShelters.filter((s) => s.isOpen).length;
+    const allAdvisories = await this.getAdvisories(false);
+    const activeAdvisories = allAdvisories.filter((a) => a.isActive).length;
 
     const householdUsers = [...this.users.values()].filter(
       (u) => u.role === 'household',
@@ -1051,6 +1326,7 @@ export class InMemoryStore implements DataStore {
     allCheckins.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
 
     const checkinsNeedingHelp = allCheckins.filter((c) => {
+      if (c.acknowledgedAt) return false;
       const st = c.status.toUpperCase();
       return st.includes('ASSIST') || st.includes('HELP');
     }).length;
@@ -1086,6 +1362,9 @@ export class InMemoryStore implements DataStore {
           packedCount,
           readinessPct,
           updatedAt: h.updatedAt,
+          profile: p,
+          primaryMeetingPoint: String(h.plan.primaryMeetingPoint ?? ''),
+          secondaryMeetingPoint: String(h.plan.secondaryMeetingPoint ?? ''),
         };
       });
 
@@ -1098,10 +1377,12 @@ export class InMemoryStore implements DataStore {
         checkinsTotal: allCheckins.length,
         checkinsNeedingHelp,
         evaluationsTotal: this.evaluations.length,
+        activeAdvisories,
       },
       households,
       recentCheckins: allCheckins.slice(0, 50),
       shelters: allShelters,
+      advisories: allAdvisories,
     };
   }
 }

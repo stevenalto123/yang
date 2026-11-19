@@ -10,6 +10,7 @@ import {
 import { getEnv, getRequiredEnv } from './env.js';
 import type { DataStore } from './repository.js';
 import type {
+  AdvisorySeverity,
   EvacuationCenterRecord,
   HouseholdProfileData,
   IsoEvaluationRecord,
@@ -509,10 +510,128 @@ export async function handleApiRequest(
           typeof body.capacityPeople === 'number'
             ? Math.max(0, Math.round(body.capacityPeople))
             : undefined,
+        name:
+          typeof body.name === 'string' && body.name.trim()
+            ? body.name.trim()
+            : undefined,
+        address:
+          typeof body.address === 'string' && body.address.trim()
+            ? body.address.trim()
+            : undefined,
+        city:
+          typeof body.city === 'string' && body.city.trim()
+            ? body.city.trim()
+            : undefined,
+        latitude:
+          typeof body.latitude === 'number' && Number.isFinite(body.latitude)
+            ? body.latitude
+            : undefined,
+        longitude:
+          typeof body.longitude === 'number' && Number.isFinite(body.longitude)
+            ? body.longitude
+            : undefined,
+        contactPerson:
+          typeof body.contactPerson === 'string'
+            ? body.contactPerson.trim()
+            : undefined,
+        contactNumber:
+          typeof body.contactNumber === 'string'
+            ? body.contactNumber.trim()
+            : undefined,
+        facilities:
+          typeof body.facilities === 'string' ? body.facilities.trim() : undefined,
       });
 
       if (!updated) return json({ error: 'Shelter not found.' }, 404);
       return json({ shelter: updated });
+    }
+
+    if (method === 'PATCH' && path.startsWith('/admin/checkins/')) {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required.' }, 403);
+      }
+      const id = decodeURIComponent(path.slice('/admin/checkins/'.length)).trim();
+      if (!id) return json({ error: 'Check-in id is required.' }, 400);
+      const body = await parseJsonBody(req);
+      const acknowledged = body.acknowledged !== false;
+      const updated = await store.acknowledgeCheckin(
+        id,
+        claims?.fullName || 'DRRM Admin',
+        acknowledged,
+      );
+      if (!updated) return json({ error: 'Check-in not found.' }, 404);
+      return json({ checkin: updated });
+    }
+
+    if (method === 'GET' && path === '/advisories') {
+      const advisories = await store.getAdvisories(true);
+      return json({ advisories });
+    }
+
+    if (method === 'POST' && path === '/admin/advisories') {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required to post advisories.' }, 403);
+      }
+      const body = await parseJsonBody(req);
+      const title = typeof body.title === 'string' ? body.title.trim() : '';
+      const message = typeof body.message === 'string' ? body.message.trim() : '';
+      if (!title || !message) {
+        return json({ error: 'Advisory title and message are required.' }, 400);
+      }
+      const rawSev = typeof body.severity === 'string' ? body.severity.toLowerCase() : 'warning';
+      const severity: AdvisorySeverity =
+        rawSev === 'critical' || rawSev === 'info' ? rawSev : 'warning';
+      const area =
+        typeof body.area === 'string' && body.area.trim()
+          ? body.area.trim().slice(0, 80)
+          : 'Metro Manila';
+
+      const advisory = await store.createAdvisory({
+        title: title.slice(0, 140),
+        message: message.slice(0, 600),
+        severity,
+        area,
+        authorName: claims?.fullName || 'DRRM Admin',
+      });
+      return json({ advisory }, 201);
+    }
+
+    if (method === 'PATCH' && path.startsWith('/admin/advisories/')) {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required.' }, 403);
+      }
+      const id = decodeURIComponent(path.slice('/admin/advisories/'.length)).trim();
+      if (!id) return json({ error: 'Advisory id is required.' }, 400);
+      const body = await parseJsonBody(req);
+      const rawSev = typeof body.severity === 'string' ? body.severity.toLowerCase() : undefined;
+      const severity: AdvisorySeverity | undefined =
+        rawSev === 'critical' || rawSev === 'warning' || rawSev === 'info'
+          ? rawSev
+          : undefined;
+      const updated = await store.updateAdvisory(id, {
+        isActive: typeof body.isActive === 'boolean' ? body.isActive : undefined,
+        title: typeof body.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 140) : undefined,
+        message: typeof body.message === 'string' && body.message.trim() ? body.message.trim().slice(0, 600) : undefined,
+        severity,
+        area: typeof body.area === 'string' && body.area.trim() ? body.area.trim().slice(0, 80) : undefined,
+      });
+      if (!updated) return json({ error: 'Advisory not found.' }, 404);
+      return json({ advisory: updated });
+    }
+
+    if (method === 'DELETE' && path.startsWith('/admin/advisories/')) {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required.' }, 403);
+      }
+      const id = decodeURIComponent(path.slice('/admin/advisories/'.length)).trim();
+      if (!id) return json({ error: 'Advisory id is required.' }, 400);
+      const deleted = await store.deleteAdvisory(id);
+      if (!deleted) return json({ error: 'Advisory not found.' }, 404);
+      return json({ deleted: true, id });
     }
 
     if (method === 'GET' && path === '/admin/overview') {

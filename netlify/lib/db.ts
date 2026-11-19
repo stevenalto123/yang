@@ -29,7 +29,7 @@ export async function ensureSchema(): Promise<SqlClient> {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
       const check = await sql`
-        SELECT to_regclass('public.iso_evaluations') AS ready
+        SELECT to_regclass('public.drrm_advisories') AS ready
       `;
       if (!check[0]?.ready) {
         await runBootstrap(sql);
@@ -99,8 +99,16 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
       note TEXT NOT NULL DEFAULT '',
       latitude DOUBLE PRECISION NULL,
       longitude DOUBLE PRECISION NULL,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      acknowledged_at TIMESTAMPTZ NULL,
+      acknowledged_by TEXT NULL
     )
+  `;
+
+  await sql`
+    ALTER TABLE safety_checkins
+      ADD COLUMN IF NOT EXISTS acknowledged_at TIMESTAMPTZ NULL,
+      ADD COLUMN IF NOT EXISTS acknowledged_by TEXT NULL
   `;
 
   await sql`
@@ -146,6 +154,20 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
       raw_completion_percentage DOUBLE PRECISION NOT NULL DEFAULT 0,
       comments TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await sql`
+    CREATE TABLE IF NOT EXISTS drrm_advisories (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      title TEXT NOT NULL,
+      message TEXT NOT NULL,
+      severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'critical')),
+      area TEXT NOT NULL DEFAULT 'Metro Manila',
+      author_name TEXT NOT NULL DEFAULT 'DRRM Admin',
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
 

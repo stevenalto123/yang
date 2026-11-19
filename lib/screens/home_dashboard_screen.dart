@@ -7,6 +7,7 @@ import '../providers/monitoring_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import '../widgets/advisory_banner.dart';
 import '../widgets/responsive_container.dart';
 import 'account_sync_screen.dart';
 import 'admin_dashboard_screen.dart';
@@ -325,6 +326,17 @@ class HomeDashboardScreen extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 22),
+                      ],
+
+                      // Active Official DRRM Advisories (only shown when published by Admin)
+                      if (monitoring.advisories.isNotEmpty) ...[
+                        DrrmAdvisoryBannerList(
+                          advisories: monitoring.advisories,
+                          isDark: isDark,
+                          isFil: isFil,
+                          maxItems: 2,
+                        ),
+                        const SizedBox(height: 6),
                       ],
 
                       // Hero Go-Bag Readiness Card
