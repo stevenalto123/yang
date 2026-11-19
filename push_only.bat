@@ -22,7 +22,7 @@ echo [3/4] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Remove researcher box and support unified Admin Sign In"
+git commit -m "Exclude admin accounts from Synced Households list and clarify household size label"
 
 echo [4/4] Pushing to GitHub (master)...
 git push origin master

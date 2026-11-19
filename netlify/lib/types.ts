@@ -112,6 +112,7 @@ export interface AdminHouseholdSummary {
   id: string;
   name: string;
   inviteCode: string;
+  accountCount: number;
   memberCount: number;
   itemCount: number;
   packedCount: number;

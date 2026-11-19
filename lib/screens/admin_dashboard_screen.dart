@@ -761,7 +761,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Code: ${h['inviteCode'] ?? '-'} • ${h['memberCount'] ?? 2} members • ${h['packedCount'] ?? 0}/${h['itemCount'] ?? 0} packed',
+                        'Code: ${h['inviteCode'] ?? '-'} • Household size: ${h['memberCount'] ?? 2} • ${h['accountCount'] ?? 1} ${(h['accountCount'] ?? 1) == 1 ? 'account' : 'accounts'} • ${h['packedCount'] ?? 0}/${h['itemCount'] ?? 0} packed',
                         style: TextStyle(fontSize: 13, color: subtleText),
                       ),
                       const SizedBox(height: 8),

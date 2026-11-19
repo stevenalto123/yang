@@ -625,12 +625,12 @@ export class PostgresStore implements DataStore {
     const sql = await ensureSchema();
     const rows = await sql`
       SELECT
-        (SELECT COUNT(*)::int FROM households) AS households,
-        (SELECT COUNT(*)::int FROM users) AS users,
+        (SELECT COUNT(*)::int FROM households h WHERE EXISTS (SELECT 1 FROM users u WHERE u.household_id = h.id AND u.role = 'household')) AS households,
+        (SELECT COUNT(*)::int FROM users WHERE role = 'household') AS users,
         (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_open = TRUE) AS open_shelters,
         (SELECT COUNT(*)::int FROM evacuation_centers) AS total_shelters,
-        (SELECT COUNT(*)::int FROM safety_checkins) AS checkins_total,
-        (SELECT COUNT(*)::int FROM safety_checkins WHERE UPPER(status) LIKE '%ASSIST%' OR UPPER(status) LIKE '%HELP%') AS checkins_needing_help,
+        (SELECT COUNT(*)::int FROM safety_checkins c LEFT JOIN users u ON u.id = c.user_id WHERE COALESCE(u.role, 'household') = 'household') AS checkins_total,
+        (SELECT COUNT(*)::int FROM safety_checkins c LEFT JOIN users u ON u.id = c.user_id WHERE COALESCE(u.role, 'household') = 'household' AND (UPPER(c.status) LIKE '%ASSIST%' OR UPPER(c.status) LIKE '%HELP%')) AS checkins_needing_help,
         (SELECT COUNT(*)::int FROM iso_evaluations) AS evaluations_total,
         COALESCE((
           SELECT json_agg(row_to_json(t))
@@ -641,9 +641,16 @@ export class PostgresStore implements DataStore {
               h.invite_code,
               h.profile_json,
               h.updated_at,
+              COALESCE(u_cnt.account_count, 0)::int AS account_count,
               COALESCE(k.item_count, 0)::int AS item_count,
               COALESCE(k.packed_count, 0)::int AS packed_count
             FROM households h
+            INNER JOIN (
+              SELECT household_id, COUNT(*)::int AS account_count
+              FROM users
+              WHERE role = 'household'
+              GROUP BY household_id
+            ) u_cnt ON u_cnt.household_id = h.id
             LEFT JOIN (
               SELECT
                 household_id,
@@ -663,6 +670,8 @@ export class PostgresStore implements DataStore {
             SELECT c.*, COALESCE(h.name, 'Household') AS household_name
             FROM safety_checkins c
             LEFT JOIN households h ON h.id = c.household_id
+            LEFT JOIN users u ON u.id = c.user_id
+            WHERE COALESCE(u.role, 'household') = 'household'
             ORDER BY c.created_at DESC
             LIMIT 50
           ) c_row
@@ -699,6 +708,7 @@ export class PostgresStore implements DataStore {
         id: String(row.id),
         name: String(row.name ?? 'My Household'),
         inviteCode: String(row.invite_code ?? ''),
+        accountCount: Number(row.account_count ?? 1),
         memberCount: Math.max(1, memberCount),
         itemCount,
         packedCount,
@@ -1018,10 +1028,23 @@ export class InMemoryStore implements DataStore {
     const allShelters = [...this.shelters.values()];
     const openShelters = allShelters.filter((s) => s.isOpen).length;
 
+    const householdUsers = [...this.users.values()].filter(
+      (u) => u.role === 'household',
+    );
+    const accountCountByHh = new Map<string, number>();
+    for (const u of householdUsers) {
+      accountCountByHh.set(
+        u.householdId,
+        (accountCountByHh.get(u.householdId) ?? 0) + 1,
+      );
+    }
+
     const allCheckins: AdminCheckinItem[] = [];
     for (const [hhId, list] of this.checkinsByHousehold.entries()) {
       const hhName = this.households.get(hhId)?.name ?? 'Household';
       for (const c of list) {
+        const author = c.userId ? this.users.get(c.userId) : null;
+        if (author && author.role === 'admin') continue;
         allCheckins.push({ ...c, householdName: hhName });
       }
     }
@@ -1032,7 +1055,11 @@ export class InMemoryStore implements DataStore {
       return st.includes('ASSIST') || st.includes('HELP');
     }).length;
 
-    const households: AdminHouseholdSummary[] = [...this.households.values()]
+    const realHouseholds = [...this.households.values()].filter(
+      (h) => (accountCountByHh.get(h.id) ?? 0) > 0,
+    );
+
+    const households: AdminHouseholdSummary[] = realHouseholds
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .slice(0, 50)
       .map((h) => {
@@ -1053,6 +1080,7 @@ export class InMemoryStore implements DataStore {
           id: h.id,
           name: h.name,
           inviteCode: h.inviteCode,
+          accountCount: accountCountByHh.get(h.id) ?? 1,
           memberCount,
           itemCount,
           packedCount,
@@ -1063,8 +1091,8 @@ export class InMemoryStore implements DataStore {
 
     return {
       counts: {
-        households: this.households.size,
-        users: this.users.size,
+        households: realHouseholds.length,
+        users: householdUsers.length,
         openShelters,
         totalShelters: allShelters.length,
         checkinsTotal: allCheckins.length,
