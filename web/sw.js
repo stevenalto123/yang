@@ -1,5 +1,5 @@
 // LifeCheckpoint Offline-First Service Worker
-const CACHE_NAME = 'lifecheckpoint-pwa-v8';
+const CACHE_NAME = 'lifecheckpoint-pwa-v9';
 const TILE_CACHE_NAME = 'lifecheckpoint-map-tiles-v1';
 
 // Populated cleanly from build/web/ during build (or core fallback shell)

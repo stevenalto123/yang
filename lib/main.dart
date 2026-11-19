@@ -6,6 +6,7 @@ import 'providers/kit_provider.dart';
 import 'providers/monitoring_provider.dart';
 import 'providers/settings_provider.dart';
 import 'screens/account_sync_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
 import 'screens/emergency_monitoring_screen.dart';
 import 'screens/evacuation_map_screen.dart';
 import 'screens/home_dashboard_screen.dart';
@@ -491,6 +492,37 @@ class _DesktopSidebar extends StatelessWidget {
           ),
 
           const Divider(height: 18),
+
+          // Admin Portal Shortcut (ONLY visible when signed in as Admin)
+          if (auth.isAdmin) ...[
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppTheme.primaryAccent,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 42),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.admin_panel_settings_rounded, size: 19),
+                label: const Text(
+                  'Admin Portal',
+                  style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminDashboardScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
 
           // Family Backup & Sync Tile
           InkWell(

@@ -220,7 +220,10 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                           selected: emergency.selectedFacilityType == null,
                           color: AppTheme.primaryNavy,
                           isDark: isDark,
-                          onTap: () => emergency.setSelectedFacilityType(null),
+                          onTap: () {
+                            setState(() => _selectedCenter = null);
+                            emergency.setSelectedFacilityType(null);
+                          },
                         ),
                         const SizedBox(width: 8),
                         _buildFacilityChip(
@@ -230,9 +233,12 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                               FacilityType.evacuationShelter,
                           color: Colors.teal.shade700,
                           isDark: isDark,
-                          onTap: () => emergency.setSelectedFacilityType(
-                            FacilityType.evacuationShelter,
-                          ),
+                          onTap: () {
+                            setState(() => _selectedCenter = null);
+                            emergency.setSelectedFacilityType(
+                              FacilityType.evacuationShelter,
+                            );
+                          },
                         ),
                         const SizedBox(width: 8),
                         _buildFacilityChip(
@@ -242,8 +248,11 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                               FacilityType.hospital,
                           color: AppTheme.dangerRed,
                           isDark: isDark,
-                          onTap: () => emergency
-                              .setSelectedFacilityType(FacilityType.hospital),
+                          onTap: () {
+                            setState(() => _selectedCenter = null);
+                            emergency
+                                .setSelectedFacilityType(FacilityType.hospital);
+                          },
                         ),
                         const SizedBox(width: 8),
                         _buildFacilityChip(
@@ -253,8 +262,12 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                               FacilityType.policeFire,
                           color: Colors.indigo.shade600,
                           isDark: isDark,
-                          onTap: () => emergency
-                              .setSelectedFacilityType(FacilityType.policeFire),
+                          onTap: () {
+                            setState(() => _selectedCenter = null);
+                            emergency.setSelectedFacilityType(
+                              FacilityType.policeFire,
+                            );
+                          },
                         ),
                       ],
                     ),

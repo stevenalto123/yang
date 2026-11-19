@@ -28,22 +28,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   final _nameCtrl = TextEditingController();
   final _householdCtrl = TextEditingController();
   final _inviteCtrl = TextEditingController();
-  final _adminCodeCtrl = TextEditingController();
   final _joinCodeCtrl = TextEditingController();
-  final _serverUrlCtrl = TextEditingController();
-
-  Map<String, dynamic>? _evalSummary;
-  bool _loadingSummary = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final auth = context.read<AuthProvider>();
-    _serverUrlCtrl.text = auth.customServerUrl;
-    if (auth.isAdmin && auth.hasCloudEndpoint) {
-      _loadEvaluationSummary();
-    }
-  }
 
   @override
   void dispose() {
@@ -52,9 +37,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     _nameCtrl.dispose();
     _householdCtrl.dispose();
     _inviteCtrl.dispose();
-    _adminCodeCtrl.dispose();
     _joinCodeCtrl.dispose();
-    _serverUrlCtrl.dispose();
     super.dispose();
   }
 
@@ -91,7 +74,6 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 : _nameCtrl.text,
             householdName: _householdCtrl.text,
             inviteCode: _inviteCtrl.text,
-            adminCode: _adminCodeCtrl.text,
           )
         : await auth.login(
             email: _emailCtrl.text,
@@ -101,43 +83,24 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     setState(() => _isSubmitting = false);
 
     if (res.ok) {
-      _showSnack(
-        _isRegisterMode
-            ? 'Account created and synced with your family!'
-            : 'Signed in and synced!',
-      );
-      if (auth.isAdmin) _loadEvaluationSummary();
+      if (auth.isAdmin) {
+        _showSnack('Signed in as Admin! Opening Admin Portal...');
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+        );
+      } else {
+        _showSnack(
+          _isRegisterMode
+              ? 'Account created and synced with your family!'
+              : 'Signed in and synced!',
+        );
+      }
     } else {
-      _showSnack(res.error ?? 'Sign in failed. Please try again.', isError: true);
-    }
-  }
-
-  Future<void> _loadEvaluationSummary({String? adminCode}) async {
-    final auth = context.read<AuthProvider>();
-    setState(() => _loadingSummary = true);
-    final res = await auth.fetchEvaluationSummary(adminCode: adminCode);
-    if (!mounted) return;
-    setState(() {
-      _loadingSummary = false;
-      if (res.ok) _evalSummary = res.summary;
-    });
-    if (!res.ok) {
       _showSnack(
-        res.error ?? 'Unable to load evaluation summary.',
+        res.error ?? 'Sign in failed. Please check your email and password.',
         isError: true,
       );
-    }
-  }
-
-  Future<void> _copyCsv({String? adminCode}) async {
-    final auth = context.read<AuthProvider>();
-    final res = await auth.exportEvaluationsCsv(adminCode: adminCode);
-    if (!mounted) return;
-    if (res.ok && res.csv != null) {
-      await Clipboard.setData(ClipboardData(text: res.csv!));
-      _showSnack('ISO/IEC 25010 CSV dataset copied to clipboard!');
-    } else {
-      _showSnack(res.error ?? 'Unable to export CSV.', isError: true);
     }
   }
 
@@ -285,7 +248,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 2. Signed-In Household Card OR Clean Sign In / Create Account Card
+            // 2. Signed-In Household/Admin Card OR Unified Sign In / Create Account Card
             if (auth.isAuthenticated)
               _buildSignedInCard(
                 auth,
@@ -302,7 +265,6 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 isFil,
                 headingColor,
                 subtleText,
-                accentNavy,
               ),
 
             const SizedBox(height: 16),
@@ -310,17 +272,6 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             // 3. Data Privacy & User Rights (RA 10173)
             _buildPrivacyComplianceCard(
               auth,
-              isFil,
-              headingColor,
-              subtleText,
-              accentNavy,
-            ),
-            const SizedBox(height: 16),
-
-            // 4. Collapsed Researcher & Advanced Tools (hidden from regular household clutter)
-            _buildResearcherAndAdvancedTile(
-              auth,
-              isDark,
               isFil,
               headingColor,
               subtleText,
@@ -349,9 +300,13 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: AppTheme.primaryNavy,
-                  child: const Icon(
-                    Icons.family_restroom_rounded,
+                  backgroundColor: auth.isAdmin
+                      ? AppTheme.primaryAccent
+                      : AppTheme.primaryNavy,
+                  child: Icon(
+                    auth.isAdmin
+                        ? Icons.admin_panel_settings_rounded
+                        : Icons.family_restroom_rounded,
                     color: Colors.white,
                   ),
                 ),
@@ -360,13 +315,44 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        auth.fullName ?? 'Family Member',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: headingColor,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              auth.fullName ?? 'Family Member',
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: headingColor,
+                              ),
+                            ),
+                          ),
+                          if (auth.isAdmin) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryAccent
+                                    .withAlpha(isDark ? 60 : 22),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                'Admin',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark
+                                      ? Colors.lightBlue.shade200
+                                      : AppTheme.primaryAccent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         auth.email ?? '',
@@ -377,6 +363,35 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 ),
               ],
             ),
+
+            // Admin Portal Shortcut (ONLY visible when signed in as Admin)
+            if (auth.isAdmin) ...[
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primaryAccent,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.admin_panel_settings_rounded, size: 19),
+                  label: Text(
+                    isFil
+                        ? 'Buksan ang Admin & DRRM Portal'
+                        : 'Open Admin & DRRM Portal',
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AdminDashboardScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+
             const Divider(height: 24),
             Text(
               '${isFil ? 'Pamilya' : 'Household'}: ${auth.householdName ?? 'My Family'}',
@@ -499,7 +514,6 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     bool isFil,
     Color headingColor,
     Color subtleText,
-    Color accentNavy,
   ) {
     return Card(
       child: Padding(
@@ -525,7 +539,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             Text(
               isFil
                   ? 'Opsyonal: Gamitin ang app nang offline kahit walang account, o mag-sign in para maibahagi ang Go-Bag checklist at safety check-ins sa buong pamilya.'
-                  : 'Optional: Use LifeCheckpoint offline without an account, or sign in to share your Go-Bag list and safety check-ins across family phones.',
+                  : 'Optional: Use LifeCheckpoint offline without an account, or sign in with your family or admin account to sync across devices.',
               style: TextStyle(fontSize: 13.5, color: subtleText, height: 1.4),
             ),
             const SizedBox(height: 14),
@@ -549,7 +563,8 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 Expanded(
                   child: ChoiceChip(
                     label: Center(
-                      child: Text(isFil ? 'Gumawa ng Account' : 'Create Account'),
+                      child:
+                          Text(isFil ? 'Gumawa ng Account' : 'Create Account'),
                     ),
                     selected: _isRegisterMode,
                     selectedColor: AppTheme.primaryNavy,
@@ -575,14 +590,17 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             TextField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
-                labelText: isFil ? 'Email Address *' : 'Email Address *',
+              decoration: const InputDecoration(
+                labelText: 'Email Address *',
               ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _passwordCtrl,
               obscureText: true,
+              onSubmitted: (_) {
+                if (!_isRegisterMode && !_isSubmitting) _submitAuth(auth);
+              },
               decoration: InputDecoration(
                 labelText: isFil
                     ? 'Password (hindi bababa sa 6 na karakter) *'
@@ -735,180 +753,6 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   ),
                 ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResearcherAndAdvancedTile(
-    AuthProvider auth,
-    bool isDark,
-    bool isFil,
-    Color headingColor,
-    Color subtleText,
-    Color accentNavy,
-  ) {
-    final means = _evalSummary?['means'] as Map<String, dynamic>?;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: auth.isAdmin,
-          leading: Icon(Icons.tune_rounded, color: subtleText),
-          title: Text(
-            isFil
-                ? 'Para sa Researcher at Advanced Settings'
-                : 'Researcher & Advanced Tools',
-            style: TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w700,
-              color: headingColor,
-            ),
-          ),
-          subtitle: Text(
-            isFil
-                ? 'EAC Survey Export (CSV) at Server Settings'
-                : 'EAC Chapter 4 Survey Analytics (CSV) & Server URL',
-            style: TextStyle(fontSize: 12.5, color: subtleText),
-          ),
-          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          children: [
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                icon: const Icon(Icons.admin_panel_settings_rounded, size: 19),
-                label: Text(
-                  isFil
-                      ? 'Buksan ang Admin & DRRM Portal'
-                      : 'Open Admin & DRRM Portal',
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const AdminDashboardScreen(),
-                    ),
-                  );
-                },
-              ),
-            ),
-            const Divider(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'ISO/IEC 25010 Survey Analytics (EAC Researchers)',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: headingColor,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (!auth.isAdmin) ...[
-              TextField(
-                controller: _adminCodeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Researcher Admin Code',
-                ),
-              ),
-              const SizedBox(height: 10),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.refresh_rounded, size: 18),
-                    label: Text(_loadingSummary ? 'Loading...' : 'Load Summary'),
-                    onPressed: _loadingSummary
-                        ? null
-                        : () => _loadEvaluationSummary(
-                              adminCode: _adminCodeCtrl.text,
-                            ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: FilledButton.icon(
-                    icon: const Icon(Icons.download_rounded, size: 18),
-                    label: const Text('Copy CSV'),
-                    onPressed: () => _copyCsv(adminCode: _adminCodeCtrl.text),
-                  ),
-                ),
-              ],
-            ),
-            if (means != null) ...[
-              const Divider(height: 20),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Total Respondents: ${_evalSummary?['totalRespondents'] ?? 0}',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.bold,
-                        color: accentNavy,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '• Functionality: ${means['functionality']} / 5.00\n'
-                      '• Usability: ${means['usability']} / 5.00\n'
-                      '• Offline Reliability: ${means['offlineReliability']} / 5.00\n'
-                      '• Effectiveness: ${means['effectiveness']} / 5.00\n'
-                      '• Overall Mean: ${means['overallMean']} / 5.00\n'
-                      '• Avg Kit Readiness: ${means['averageReadinessPct']}%',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        height: 1.45,
-                        color: headingColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            const Divider(height: 24),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Custom Cloud Server URL (Optional for Android APK)',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w700,
-                  color: headingColor,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _serverUrlCtrl,
-              decoration: const InputDecoration(
-                labelText: 'Server URL (leave blank on Web)',
-                hintText: 'https://yangjd.netlify.app',
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () async {
-                  await auth.setCustomServerUrl(_serverUrlCtrl.text);
-                  final health = await auth.checkHealth();
-                  _showSnack(
-                    health.ok
-                        ? 'Connected to cloud server!'
-                        : (health.error ?? 'Could not reach server.'),
-                    isError: !health.ok,
-                  );
-                },
-                child: const Text('Save & Test Connection'),
-              ),
             ),
           ],
         ),

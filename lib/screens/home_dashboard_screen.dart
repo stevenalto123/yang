@@ -150,6 +150,24 @@ class HomeDashboardScreen extends StatelessWidget {
                       isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
                   onPressed: () => settings.toggleDarkMode(),
                 ),
+                if (auth.isAdmin)
+                  IconButton(
+                    icon: Icon(
+                      Icons.admin_panel_settings_outlined,
+                      color: isDark
+                          ? Colors.lightBlue.shade200
+                          : AppTheme.primaryAccent,
+                    ),
+                    tooltip: 'Admin & DRRM Portal',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminDashboardScreen(),
+                        ),
+                      );
+                    },
+                  ),
                 IconButton(
                   icon: auth.pendingSyncCount > 0
                       ? Badge(
@@ -411,61 +429,15 @@ class HomeDashboardScreen extends StatelessWidget {
 
                       const SizedBox(height: 28),
                       Center(
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 4,
-                          alignment: WrapAlignment.center,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              isFil
-                                  ? 'LifeCheckpoint • Gabay ng Pamilya sa Metro Manila (EAC)'
-                                  : 'LifeCheckpoint • Metro Manila Family Preparedness • EAC',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subtleText.withAlpha(180),
-                              ),
-                            ),
-                            Text(
-                              '•',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: subtleText.withAlpha(140),
-                              ),
-                            ),
-                            TextButton.icon(
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 4,
-                                ),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                foregroundColor: subtleText,
-                              ),
-                              icon: const Icon(
-                                Icons.admin_panel_settings_outlined,
-                                size: 15,
-                              ),
-                              label: const Text(
-                                'Admin Portal',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const AdminDashboardScreen(),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                        child: Text(
+                          isFil
+                              ? 'LifeCheckpoint • Gabay ng Pamilya sa Metro Manila (EAC)'
+                              : 'LifeCheckpoint • Metro Manila Family Preparedness • EAC',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: subtleText.withAlpha(180),
+                          ),
                         ),
                       ),
                     ],
