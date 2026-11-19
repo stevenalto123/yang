@@ -522,7 +522,9 @@ class HomeDashboardScreen extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const AccountSyncScreen(),
+                      builder: (_) => auth.isAdmin
+                          ? const AdminDashboardScreen()
+                          : const AccountSyncScreen(),
                     ),
                   );
                 },
@@ -531,40 +533,48 @@ class HomeDashboardScreen extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: auth.isAuthenticated
-                        ? AppTheme.safeGreen.withAlpha(160)
-                        : Colors.white.withAlpha(18),
+                    color: auth.isAdmin
+                        ? AppTheme.primaryAccent.withAlpha(200)
+                        : (auth.isAuthenticated
+                            ? AppTheme.safeGreen.withAlpha(160)
+                            : Colors.white.withAlpha(18)),
                     borderRadius: BorderRadius.circular(99),
                     border: Border.all(
-                      color: auth.isAuthenticated
-                          ? const Color(0xFF86EFAC)
-                          : Colors.white30,
+                      color: auth.isAdmin
+                          ? const Color(0xFF93C5FD)
+                          : (auth.isAuthenticated
+                              ? const Color(0xFF86EFAC)
+                              : Colors.white30),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        auth.isAuthenticated
-                            ? Icons.cloud_done_rounded
-                            : Icons.cloud_outlined,
+                        auth.isAdmin
+                            ? Icons.admin_panel_settings_rounded
+                            : (auth.isAuthenticated
+                                ? Icons.cloud_done_rounded
+                                : Icons.cloud_outlined),
                         size: 14,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 6),
                       Flexible(
                         child: Text(
-                          auth.isAuthenticated
-                              ? (isFil
-                                  ? 'Naka-sync • Code: ${auth.inviteCode ?? '-'}'
-                                  : 'Synced • Family Code: ${auth.inviteCode ?? '-'}')
-                              : (auth.pendingSyncCount > 0
+                          auth.isAdmin
+                              ? 'Admin Signed In • Open Portal'
+                              : (auth.isAuthenticated
                                   ? (isFil
-                                      ? 'Naka-save dito (${auth.pendingSyncCount} naghihintay)'
-                                      : 'Saved on device (${auth.pendingSyncCount} pending)')
-                                  : (isFil
-                                      ? 'Naka-save dito • Mag-sign in para sa backup'
-                                      : 'Saved on device • Sign in to back up')),
+                                      ? 'Naka-sync • Code: ${auth.inviteCode ?? '-'}'
+                                      : 'Synced • Family Code: ${auth.inviteCode ?? '-'}')
+                                  : (auth.pendingSyncCount > 0
+                                      ? (isFil
+                                          ? 'Naka-save dito (${auth.pendingSyncCount} naghihintay)'
+                                          : 'Saved on device (${auth.pendingSyncCount} pending)')
+                                      : (isFil
+                                          ? 'Naka-save dito • Mag-sign in para sa backup'
+                                          : 'Saved on device • Sign in to back up'))),
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 12.5,

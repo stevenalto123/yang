@@ -509,7 +509,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               tooltip: 'Refresh Live Data',
               onPressed: _isLoading ? null : () => _loadOverview(),
             ),
-            if (!auth.isAdmin)
+            if (auth.isAdmin)
+              IconButton(
+                icon: const Icon(Icons.logout_rounded),
+                tooltip: 'Sign Out of Admin Account',
+                onPressed: () async {
+                  await auth.logout();
+                  if (!context.mounted) return;
+                  Navigator.pop(context);
+                },
+              )
+            else
               IconButton(
                 icon: const Icon(Icons.lock_outline_rounded),
                 tooltip: 'Lock Admin Portal',

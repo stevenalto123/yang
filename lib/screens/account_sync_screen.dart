@@ -118,7 +118,9 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isFil ? 'Family Backup at Sync' : 'Family Backup & Sync',
+          auth.isAdmin
+              ? 'Admin Account'
+              : (isFil ? 'Family Backup at Sync' : 'Family Backup & Sync'),
         ),
       ),
       body: ResponsiveContainer(
@@ -126,127 +128,129 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
           children: [
-            // 1. Clean Sync Status Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: (auth.isAuthenticated
-                                    ? AppTheme.safeGreen
-                                    : AppTheme.primaryAccent)
-                                .withAlpha(isDark ? 45 : 20),
-                            borderRadius: BorderRadius.circular(12),
+            // 1. Clean Sync Status Card (Households only — Admins don't need Family Sync)
+            if (!auth.isAdmin) ...[
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: (auth.isAuthenticated
+                                      ? AppTheme.safeGreen
+                                      : AppTheme.primaryAccent)
+                                  .withAlpha(isDark ? 45 : 20),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              auth.isAuthenticated
+                                  ? Icons.cloud_done_rounded
+                                  : Icons.smartphone_rounded,
+                              color: auth.isAuthenticated
+                                  ? AppTheme.safeGreen
+                                  : accentNavy,
+                              size: 24,
+                            ),
                           ),
-                          child: Icon(
-                            auth.isAuthenticated
-                                ? Icons.cloud_done_rounded
-                                : Icons.smartphone_rounded,
-                            color: auth.isAuthenticated
-                                ? AppTheme.safeGreen
-                                : accentNavy,
-                            size: 24,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  auth.isAuthenticated
+                                      ? (isFil
+                                          ? 'Naka-sync sa Iyong Pamilya'
+                                          : 'Synced with Your Family')
+                                      : (isFil
+                                          ? 'Naka-save sa Device na Ito'
+                                          : 'Saved on This Device'),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: headingColor,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  auth.lastSyncedAt != null
+                                      ? (isFil
+                                          ? 'Huling sync: ${DateFormat('MMM d, h:mm a').format(auth.lastSyncedAt!)}'
+                                          : 'Last synced: ${DateFormat('MMM d, h:mm a').format(auth.lastSyncedAt!)}')
+                                      : (auth.pendingSyncCount > 0
+                                          ? (isFil
+                                              ? '${auth.pendingSyncCount} pagbabago ang naghihintay i-sync'
+                                              : '${auth.pendingSyncCount} change(s) ready to sync')
+                                          : (isFil
+                                              ? 'Gumagana offline — opsyonal ang pag-sign in'
+                                              : 'Works offline — sign in anytime to back up')),
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    color: subtleText,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                auth.isAuthenticated
-                                    ? (isFil
-                                        ? 'Naka-sync sa Iyong Pamilya'
-                                        : 'Synced with Your Family')
-                                    : (isFil
-                                        ? 'Naka-save sa Device na Ito'
-                                        : 'Saved on This Device'),
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                  color: headingColor,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                auth.lastSyncedAt != null
-                                    ? (isFil
-                                        ? 'Huling sync: ${DateFormat('MMM d, h:mm a').format(auth.lastSyncedAt!)}'
-                                        : 'Last synced: ${DateFormat('MMM d, h:mm a').format(auth.lastSyncedAt!)}')
-                                    : (auth.pendingSyncCount > 0
-                                        ? (isFil
-                                            ? '${auth.pendingSyncCount} pagbabago ang naghihintay i-sync'
-                                            : '${auth.pendingSyncCount} change(s) ready to sync')
-                                        : (isFil
-                                            ? 'Gumagana offline — opsyonal ang pag-sign in'
-                                            : 'Works offline — sign in anytime to back up')),
-                                style: TextStyle(
-                                  fontSize: 13.5,
-                                  color: subtleText,
-                                ),
-                              ),
-                            ],
+                        ],
+                      ),
+                      if (auth.lastSyncError != null) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          auth.lastSyncError!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.warningAmber,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
-                    ),
-                    if (auth.lastSyncError != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        auth.lastSyncError!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.warningAmber,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                    if (auth.isAuthenticated) ...[
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          icon: auth.isSyncing
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Icon(Icons.sync_rounded, size: 18),
-                          label: Text(
-                            auth.isSyncing
-                                ? (isFil ? 'Nagsi-sync...' : 'Syncing...')
-                                : (isFil ? 'I-sync Ngayon' : 'Sync Now'),
+                      if (auth.isAuthenticated) ...[
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            icon: auth.isSyncing
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.sync_rounded, size: 18),
+                            label: Text(
+                              auth.isSyncing
+                                  ? (isFil ? 'Nagsi-sync...' : 'Syncing...')
+                                  : (isFil ? 'I-sync Ngayon' : 'Sync Now'),
+                            ),
+                            onPressed: auth.isSyncing
+                                ? null
+                                : () async {
+                                    final res = await auth.syncNow();
+                                    _showSnack(
+                                      res.ok
+                                          ? 'Everything is up to date!'
+                                          : (res.error ??
+                                              'Saved offline. Will sync when online.'),
+                                      isError: !res.ok,
+                                    );
+                                  },
                           ),
-                          onPressed: auth.isSyncing
-                              ? null
-                              : () async {
-                                  final res = await auth.syncNow();
-                                  _showSnack(
-                                    res.ok
-                                        ? 'Everything is up to date!'
-                                        : (res.error ??
-                                            'Saved offline. Will sync when online.'),
-                                    isError: !res.ok,
-                                  );
-                                },
                         ),
-                      ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
 
             // 2. Signed-In Household/Admin Card OR Unified Sign In / Create Account Card
             if (auth.isAuthenticated)
@@ -366,6 +370,11 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
 
             // Admin Portal Shortcut (ONLY visible when signed in as Admin)
             if (auth.isAdmin) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Signed in as an authorized DRRM Administrator. Manage official Metro Manila shelters, monitor family check-ins, and export ISO/IEC 25010 surveys.',
+                style: TextStyle(fontSize: 13.5, color: subtleText, height: 1.4),
+              ),
               const SizedBox(height: 14),
               SizedBox(
                 width: double.infinity,
@@ -390,118 +399,133 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   },
                 ),
               ),
-            ],
-
-            const Divider(height: 24),
-            Text(
-              '${isFil ? 'Pamilya' : 'Household'}: ${auth.householdName ?? 'My Family'}',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: headingColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    color: AppTheme.dangerRed,
+                  ),
+                  label: const Text(
+                    'Sign Out of Admin Account',
+                    style: TextStyle(color: AppTheme.dangerRed),
+                  ),
+                  onPressed: () => auth.logout(),
                 ),
               ),
-              child: Row(
+            ] else ...[
+              const Divider(height: 24),
+              Text(
+                '${isFil ? 'Pamilya' : 'Household'}: ${auth.householdName ?? 'My Family'}',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: headingColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isFil
+                                ? 'FAMILY INVITE CODE (IBAHAGI SA PAMILYA)'
+                                : 'FAMILY INVITE CODE (SHARE WITH RELATIVES)',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.4,
+                              color: subtleText,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          SelectableText(
+                            auth.inviteCode ?? '------',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 3,
+                              color: accentNavy,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton.filledTonal(
+                      icon: const Icon(Icons.copy_rounded),
+                      tooltip: isFil ? 'Kopyahin ang Code' : 'Copy Code',
+                      onPressed: () {
+                        final code = auth.inviteCode ?? '';
+                        if (code.isNotEmpty) {
+                          Clipboard.setData(ClipboardData(text: code));
+                          _showSnack('Family code $code copied!');
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
                 children: [
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isFil
-                              ? 'FAMILY INVITE CODE (IBAHAGI SA PAMILYA)'
-                              : 'FAMILY INVITE CODE (SHARE WITH RELATIVES)',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.4,
-                            color: subtleText,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        SelectableText(
-                          auth.inviteCode ?? '------',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 3,
-                            color: accentNavy,
-                          ),
-                        ),
-                      ],
+                    child: TextField(
+                      controller: _joinCodeCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Sumali sa ibang Family Code'
+                            : 'Join another family code',
+                      ),
                     ),
                   ),
-                  IconButton.filledTonal(
-                    icon: const Icon(Icons.copy_rounded),
-                    tooltip: isFil ? 'Kopyahin ang Code' : 'Copy Code',
-                    onPressed: () {
-                      final code = auth.inviteCode ?? '';
-                      if (code.isNotEmpty) {
-                        Clipboard.setData(ClipboardData(text: code));
-                        _showSnack('Family code $code copied!');
-                      }
+                  const SizedBox(width: 8),
+                  FilledButton(
+                    onPressed: () async {
+                      if (_joinCodeCtrl.text.trim().isEmpty) return;
+                      final res = await auth.joinHousehold(_joinCodeCtrl.text);
+                      _showSnack(
+                        res.ok
+                            ? 'Joined household and synced supplies!'
+                            : (res.error ?? 'Invalid family code.'),
+                        isError: !res.ok,
+                      );
                     },
+                    child: Text(isFil ? 'Sumali' : 'Join'),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _joinCodeCtrl,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: InputDecoration(
-                      labelText: isFil
-                          ? 'Sumali sa ibang Family Code'
-                          : 'Join another family code',
-                    ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(
+                    Icons.logout_rounded,
+                    color: AppTheme.dangerRed,
                   ),
+                  label: Text(
+                    isFil
+                        ? 'Mag-sign Out (Mananatili ang Offline Data)'
+                        : 'Sign Out (Keep Offline Data on Device)',
+                    style: const TextStyle(color: AppTheme.dangerRed),
+                  ),
+                  onPressed: () => auth.logout(),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () async {
-                    if (_joinCodeCtrl.text.trim().isEmpty) return;
-                    final res = await auth.joinHousehold(_joinCodeCtrl.text);
-                    _showSnack(
-                      res.ok
-                          ? 'Joined household and synced supplies!'
-                          : (res.error ?? 'Invalid family code.'),
-                      isError: !res.ok,
-                    );
-                  },
-                  child: Text(isFil ? 'Sumali' : 'Join'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(
-                  Icons.logout_rounded,
-                  color: AppTheme.dangerRed,
-                ),
-                label: Text(
-                  isFil
-                      ? 'Mag-sign Out (Mananatili ang Offline Data)'
-                      : 'Sign Out (Keep Offline Data on Device)',
-                  style: const TextStyle(color: AppTheme.dangerRed),
-                ),
-                onPressed: () => auth.logout(),
               ),
-            ),
+            ],
           ],
         ),
       ),

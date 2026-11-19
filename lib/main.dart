@@ -545,11 +545,15 @@ class _DesktopSidebar extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    auth.isAuthenticated
-                        ? Icons.cloud_done_rounded
-                        : Icons.person_outline_rounded,
+                    auth.isAdmin
+                        ? Icons.admin_panel_settings_rounded
+                        : (auth.isAuthenticated
+                            ? Icons.cloud_done_rounded
+                            : Icons.person_outline_rounded),
                     size: 19,
-                    color: auth.isAuthenticated ? AppTheme.safeGreen : subtle,
+                    color: auth.isAdmin
+                        ? AppTheme.primaryAccent
+                        : (auth.isAuthenticated ? AppTheme.safeGreen : subtle),
                   ),
                   const SizedBox(width: 9),
                   Expanded(
@@ -557,11 +561,13 @@ class _DesktopSidebar extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          auth.isAuthenticated
-                              ? (auth.householdName ?? 'Family Synced')
-                              : (settings.isFilipino
-                                  ? 'I-save sa Cloud'
-                                  : 'Family Backup'),
+                          auth.isAdmin
+                              ? (auth.fullName ?? 'Admin Account')
+                              : (auth.isAuthenticated
+                                  ? (auth.householdName ?? 'Family Synced')
+                                  : (settings.isFilipino
+                                      ? 'I-save sa Cloud'
+                                      : 'Family Backup')),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -571,11 +577,13 @@ class _DesktopSidebar extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          auth.isAuthenticated
-                              ? 'Code: ${auth.inviteCode ?? '-'}'
-                              : (settings.isFilipino
-                                  ? 'Mag-sign in o mag-sync'
-                                  : 'Sign in to share & sync'),
+                          auth.isAdmin
+                              ? 'Administrator'
+                              : (auth.isAuthenticated
+                                  ? 'Code: ${auth.inviteCode ?? '-'}'
+                                  : (settings.isFilipino
+                                      ? 'Mag-sign in o mag-sync'
+                                      : 'Sign in to share & sync')),
                           style: TextStyle(fontSize: 11.5, color: subtle),
                         ),
                       ],
