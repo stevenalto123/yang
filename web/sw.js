@@ -1,8 +1,8 @@
-// LifeCheckpoint Offline-First Service Worker
-const CACHE_NAME = 'lifecheckpoint-pwa-v13';
+// LifeCheckpoint Offline-Ready Service Worker (Network-First for App Shell, Cache-First for Map Tiles & Assets)
+const CACHE_NAME = 'lifecheckpoint-pwa-v14';
 const TILE_CACHE_NAME = 'lifecheckpoint-map-tiles-v1';
 
-// Populated cleanly from build/web/ during build (or core fallback shell)
+// Core app shell precached for instant offline launch
 const PRECACHE_URLS = [
   './',
   './index.html',
@@ -45,7 +45,7 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(req.url);
 
-  // Cache OpenStreetMap street tiles for offline map viewing
+  // Cache-First for OpenStreetMap street tiles (fast & low-data offline viewing)
   if (url.hostname.endsWith('tile.openstreetmap.org')) {
     event.respondWith(
       caches.open(TILE_CACHE_NAME).then((cache) =>
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin !== self.location.origin) return;
 
-  // Never intercept API endpoints or stale service worker scripts
+  // Never intercept API endpoints or service worker scripts
   if (
     url.pathname.startsWith('/api/') ||
     url.pathname.startsWith('/.netlify/') ||
@@ -75,15 +75,38 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (req.mode === 'navigate') {
+  // Network-First with Offline Cache Fallback for navigations & core app bundles
+  // Ensures every new deploy loads immediately when online while staying 100% offline-capable
+  const isAppShell =
+    req.mode === 'navigate' ||
+    url.pathname === '/' ||
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/main.dart.js') ||
+    url.pathname.endsWith('/flutter_bootstrap.js') ||
+    url.pathname.endsWith('/version.json') ||
+    url.pathname.endsWith('/manifest.json');
+
+  if (isAppShell) {
     event.respondWith(
-      caches.match('./index.html').then((cached) => {
-        return cached || fetch(req).catch(() => caches.match('./'));
-      })
+      fetch(req)
+        .then((response) => {
+          if (response && response.status === 200 && response.type === 'basic') {
+            const clone = response.clone();
+            const cacheKey = req.mode === 'navigate' ? './index.html' : req;
+            caches.open(CACHE_NAME).then((cache) => cache.put(cacheKey, clone));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(req.mode === 'navigate' ? './index.html' : req, {
+            ignoreSearch: true,
+          }).then((cached) => cached || caches.match('./'))
+        )
     );
     return;
   }
 
+  // Cache-First for static icons, fonts, and assets
   event.respondWith(
     caches.match(req, { ignoreSearch: true }).then((cached) => {
       if (cached) return cached;
