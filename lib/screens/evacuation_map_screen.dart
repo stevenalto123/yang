@@ -24,6 +24,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
 
   final MapController _mapController = MapController();
   EvacuationCenter? _selectedCenter;
+  bool _unlockMobileMapPan = false;
 
   void _safeMove(LatLng target, double zoom) {
     try {
@@ -80,10 +81,11 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Clean GPS + Filter Header
-          Container(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isSplit = constraints.maxWidth >= 860;
+
+          final headerPanel = Container(
             color: isDark ? AppTheme.darkCard : Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
             child: ResponsiveContainer(
@@ -118,9 +120,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                                   ? (isFil
                                       ? 'Aktibo ang GPS (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)'
                                       : 'Live GPS Active (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)')
-                                  : (isFil
-                                      ? 'Metro Manila • Paco, Manila'
-                                      : 'Metro Manila • Paco, Manila'),
+                                  : 'Metro Manila • Paco, Manila',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -142,10 +142,11 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                             minimumSize: const Size(0, 42),
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                           ),
-                          icon: const Icon(Icons.location_city_rounded, size: 17),
-                          label: Text(
-                            isFil ? 'Metro Manila' : 'Metro Manila',
-                            style: const TextStyle(fontSize: 13),
+                          icon:
+                              const Icon(Icons.location_city_rounded, size: 17),
+                          label: const Text(
+                            'Metro Manila',
+                            style: TextStyle(fontSize: 13),
                           ),
                           onPressed: () {
                             emergency.setManualLocation(
@@ -228,7 +229,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         ),
                         const SizedBox(width: 8),
                         _buildFacilityChip(
-                          label: isFil ? 'Shelters' : 'Shelters',
+                          label: 'Shelters',
                           icon: Icons.roofing_rounded,
                           selected: emergency.selectedFacilityType ==
                               FacilityType.evacuationShelter,
@@ -341,50 +342,50 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                 ],
               ),
             ),
-          ),
-          const Divider(height: 1),
+          );
 
-          // Real Interactive Street Map + Nearby Places List
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isSplit = constraints.maxWidth >= 860;
-                final mapWidget = _buildInteractiveMap(
-                  context: context,
-                  emergency: emergency,
-                  centers: centers,
-                  isDark: isDark,
-                  isFil: isFil,
-                  isFarFromManila: isFarFromManila,
-                );
+          final mapWidget = _buildInteractiveMap(
+            context: context,
+            emergency: emergency,
+            centers: centers,
+            isDark: isDark,
+            isFil: isFil,
+            isFarFromManila: isFarFromManila,
+            isSplit: isSplit,
+          );
 
-                final shelterWidgets = centers.isEmpty
-                    ? [
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(
-                              isFil
-                                  ? 'Walang nahanap na lugar sa napiling filter.'
-                                  : 'No places match your selected filters.',
-                              style: TextStyle(fontSize: 14, color: subtleText),
-                            ),
-                          ),
-                        ),
-                      ]
-                    : centers.asMap().entries.map((entry) {
-                        return _buildShelterCard(
-                          context,
-                          entry.value,
-                          emergency,
-                          entry.key == 0,
-                          isDark,
-                          isFil,
-                        );
-                      }).toList();
+          final shelterWidgets = centers.isEmpty
+              ? [
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Text(
+                        isFil
+                            ? 'Walang nahanap na lugar sa napiling filter.'
+                            : 'No places match your selected filters.',
+                        style: TextStyle(fontSize: 14, color: subtleText),
+                      ),
+                    ),
+                  ),
+                ]
+              : centers.asMap().entries.map((entry) {
+                  return _buildShelterCard(
+                    context,
+                    entry.value,
+                    emergency,
+                    entry.key == 0,
+                    isDark,
+                    isFil,
+                  );
+                }).toList();
 
-                if (isSplit) {
-                  return ResponsiveContainer(
+          if (isSplit) {
+            return Column(
+              children: [
+                headerPanel,
+                const Divider(height: 1),
+                Expanded(
+                  child: ResponsiveContainer(
                     maxWidth: 1160,
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
                     child: Row(
@@ -411,44 +412,75 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         Expanded(
                           flex: 10,
                           child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.only(bottom: 36),
                             children: shelterWidgets,
                           ),
                         ),
                       ],
                     ),
-                  );
-                }
+                  ),
+                ),
+              ],
+            );
+          }
 
-                // Mobile Stacked View: Real Street Map on top + Scrollable list below
-                return ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                  children: [
-                    SizedBox(
-                      height: 310,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            border: Border.all(
-                              color: isDark
-                                  ? AppTheme.darkBorder
-                                  : AppTheme.lightBorder,
-                            ),
-                            borderRadius: BorderRadius.circular(18),
-                          ),
-                          child: mapWidget,
+          // Mobile / Narrow Stacked View: entire screen scrolls smoothly together
+          return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 96),
+            children: [
+              headerPanel,
+              const Divider(height: 1),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: SizedBox(
+                  height: 245,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: isDark
+                              ? AppTheme.darkBorder
+                              : AppTheme.lightBorder,
                         ),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: mapWidget,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      isFil
+                          ? 'Mga Malapit na Lugar (${centers.length})'
+                          : 'Nearby Places (${centers.length})',
+                      style: TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: headingColor,
                       ),
                     ),
-                    const SizedBox(height: 14),
-                    ...shelterWidgets,
+                    Text(
+                      isFil ? 'Pinakamalapit muna' : 'Nearest first',
+                      style: TextStyle(fontSize: 12, color: subtleText),
+                    ),
                   ],
-                );
-              },
-            ),
-          ),
-        ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(children: shelterWidgets),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -460,6 +492,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     required bool isDark,
     required bool isFil,
     required bool isFarFromManila,
+    required bool isSplit,
   }) {
     final userPoint = LatLng(emergency.userLat, emergency.userLng);
     final initialFocus =
@@ -542,6 +575,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
       ),
     ];
 
+    final allowPanAndWheel = isSplit || _unlockMobileMapPan;
+
     return Stack(
       children: [
         FlutterMap(
@@ -551,8 +586,10 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
             initialZoom: 13.0,
             minZoom: 5.0,
             maxZoom: 18.0,
-            interactionOptions: const InteractionOptions(
-              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+            interactionOptions: InteractionOptions(
+              flags: allowPanAndWheel
+                  ? (InteractiveFlag.all & ~InteractiveFlag.rotate)
+                  : (InteractiveFlag.pinchZoom | InteractiveFlag.doubleTapZoom),
             ),
             onTap: (_, __) {
               if (_selectedCenter != null) {
@@ -568,6 +605,59 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
             MarkerLayer(markers: markers),
           ],
         ),
+
+        // Mobile-only Map Pan Unlock Pill so vertical page scrolling never gets trapped
+        if (!isSplit)
+          Positioned(
+            top: 12,
+            left: 12,
+            child: Material(
+              color: _unlockMobileMapPan
+                  ? Colors.teal.shade700
+                  : (isDark ? AppTheme.darkCard : Colors.white).withAlpha(240),
+              elevation: 2,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(10),
+                onTap: () => setState(
+                  () => _unlockMobileMapPan = !_unlockMobileMapPan,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 7,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _unlockMobileMapPan
+                            ? Icons.lock_open_rounded
+                            : Icons.pan_tool_alt_outlined,
+                        size: 15,
+                        color: _unlockMobileMapPan
+                            ? Colors.white
+                            : (isDark ? Colors.white : AppTheme.darkSlate),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _unlockMobileMapPan
+                            ? (isFil ? 'Tapos Gumalaw' : 'Done Moving')
+                            : (isFil ? 'Igalaw ang Mapa' : 'Move Map'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _unlockMobileMapPan
+                              ? Colors.white
+                              : (isDark ? Colors.white : AppTheme.darkSlate),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
 
         // Top-right Map Controls (+, -, My Location, Metro Manila)
         Positioned(
