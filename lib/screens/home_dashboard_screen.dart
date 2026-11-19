@@ -1,5 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/kit_item.dart';
 import '../providers/auth_provider.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/kit_provider.dart';
@@ -7,6 +10,7 @@ import '../providers/monitoring_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import '../utils/pwa_bridge.dart';
 import '../widgets/advisory_banner.dart';
 import '../widgets/responsive_container.dart';
 import 'account_sync_screen.dart';
@@ -366,6 +370,34 @@ class HomeDashboardScreen extends StatelessWidget {
                         subtleText: subtleText,
                       ),
 
+                      const SizedBox(height: 12),
+
+                      // 1-Tap Quick Family Safety Check-In Strip (Home)
+                      _buildQuickCheckInStrip(
+                        context,
+                        monitoring: monitoring,
+                        emergency: emergency,
+                        auth: auth,
+                        isHazardAlert: isHazardAlert,
+                        isDark: isDark,
+                        isFil: isFil,
+                        headingColor: headingColor,
+                        subtleText: subtleText,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Smart "Next Best Step" Card
+                      _buildNextBestStepCard(
+                        context,
+                        kit: kit,
+                        emergency: emergency,
+                        isDark: isDark,
+                        isFil: isFil,
+                        headingColor: headingColor,
+                        subtleText: subtleText,
+                      ),
+
                       if (expiredCount > 0 || expiringSoonCount > 0) ...[
                         const SizedBox(height: 12),
                         _buildAlertBanner(
@@ -438,6 +470,16 @@ class HomeDashboardScreen extends StatelessWidget {
                         headingColor: headingColor,
                         subtleText: subtleText,
                       ),
+
+                      if (kIsWeb) ...[
+                        const SizedBox(height: 16),
+                        _PwaInstallBanner(
+                          isDark: isDark,
+                          isFil: isFil,
+                          headingColor: headingColor,
+                          subtleText: subtleText,
+                        ),
+                      ],
 
                       const SizedBox(height: 28),
                       Center(
@@ -1221,6 +1263,515 @@ class HomeDashboardScreen extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickCheckInStrip(
+    BuildContext context, {
+    required MonitoringProvider monitoring,
+    required EmergencyProvider emergency,
+    required AuthProvider auth,
+    required bool isHazardAlert,
+    required bool isDark,
+    required bool isFil,
+    required Color headingColor,
+    required Color subtleText,
+  }) {
+    final latest =
+        monitoring.safetyLog.isNotEmpty ? monitoring.safetyLog.first : null;
+    final latestStatus = latest?['status'];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isHazardAlert
+              ? AppTheme.warningAmber.withAlpha(170)
+              : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+          width: isHazardAlert ? 1.4 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.family_restroom_rounded,
+                size: 19,
+                color: isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isFil
+                      ? 'Mabilisang Family Check-In'
+                      : 'Quick Family Check-In',
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    color: headingColor,
+                  ),
+                ),
+              ),
+              if (latestStatus != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: (latestStatus == 'SAFE'
+                            ? AppTheme.safeGreen
+                            : AppTheme.dangerRed)
+                        .withAlpha(isDark ? 45 : 20),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    latestStatus == 'SAFE'
+                        ? (isFil ? 'Huli: Ligtas' : 'Last: Safe')
+                        : (isFil ? 'Huli: Humingi ng Tulong' : 'Last: Help Sent'),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w700,
+                      color: latestStatus == 'SAFE'
+                          ? AppTheme.safeGreen
+                          : AppTheme.dangerRed,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.safeGreen,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 44),
+                  ),
+                  icon: const Icon(Icons.check_circle_rounded, size: 18),
+                  label: Text(
+                    isFil ? 'Ligtas Kami' : "I'm Safe",
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: () async {
+                    await monitoring.addSafetyCheckIn(
+                      'SAFE',
+                      isFil
+                          ? 'Ligtas ang lahat ng kasama sa bahay.'
+                          : 'Everyone in the household is safe.',
+                      latitude: emergency.userLat,
+                      longitude: emergency.userLng,
+                      authorName: auth.fullName ?? 'Family Member',
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: AppTheme.safeGreen,
+                        content: Text(
+                          isFil
+                              ? 'Naitala: Ligtas kami!'
+                              : "Check-in saved: I'm Safe!",
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.dangerRed,
+                    side: BorderSide(color: AppTheme.dangerRed.withAlpha(160)),
+                    minimumSize: const Size(0, 44),
+                  ),
+                  icon: const Icon(Icons.sos_rounded, size: 18),
+                  label: Text(
+                    isFil ? 'Kailangan ng Tulong' : 'Need Help',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: () => _confirmQuickHelpDialog(
+                    context,
+                    monitoring,
+                    emergency,
+                    auth,
+                    isFil,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmQuickHelpDialog(
+    BuildContext context,
+    MonitoringProvider monitoring,
+    EmergencyProvider emergency,
+    AuthProvider auth,
+    bool isFil,
+  ) {
+    final noteCtrl = TextEditingController(
+      text: isFil
+          ? 'Nangangailangan ng tulong o suplay sa aming lokasyon.'
+          : 'Need urgent assistance or supplies at our current location.',
+    );
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          isFil ? 'Magpadala ng Need Help Alert?' : 'Send Need Help Alert?',
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isFil
+                  ? 'Ipapaalam nito sa iyong pamilya at sa DRRM Portal ang iyong lokasyon at mensahe.'
+                  : 'This notifies your synced family and the DRRM Admin Portal with your GPS location.',
+              style: const TextStyle(fontSize: 13.5),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: isFil ? 'Detalye / Mensahe' : 'Situation Note',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(isFil ? 'Kanselahin' : 'Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.dangerRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () async {
+              final msg = noteCtrl.text.trim();
+              Navigator.pop(ctx);
+              await monitoring.addSafetyCheckIn(
+                'NEED ASSISTANCE',
+                msg,
+                latitude: emergency.userLat,
+                longitude: emergency.userLng,
+                authorName: auth.fullName ?? 'Family Member',
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppTheme.dangerRed,
+                    content: Text(
+                      isFil
+                          ? 'Naipadala ang Need Help alert!'
+                          : 'Need Help alert logged with GPS!',
+                    ),
+                  ),
+                );
+              }
+            },
+            child: Text(isFil ? 'Ipadala Ngayon' : 'Send Alert'),
+          ),
+        ],
+      ),
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 350), noteCtrl.dispose);
+    });
+  }
+
+  Widget _buildNextBestStepCard(
+    BuildContext context, {
+    required KitProvider kit,
+    required EmergencyProvider emergency,
+    required bool isDark,
+    required bool isFil,
+    required Color headingColor,
+    required Color subtleText,
+  }) {
+    late final String title;
+    late final String subtitle;
+    late final String ctaLabel;
+    late final IconData icon;
+    late final Color accent;
+    late final VoidCallback onTap;
+
+    if (kit.expiredItems.isNotEmpty) {
+      final firstExp = kit.expiredItems.first;
+      title = isFil
+          ? 'Susunod na Hakbang: Palitan ang ${firstExp.name}'
+          : 'Next Best Step: Replace ${firstExp.name}';
+      subtitle = isFil
+          ? 'Paso na ito — palitan agad para tumaas ang kahandaan ng Go-Bag.'
+          : 'Expired supplies reduce your readiness score — mark restocked in 1 tap.';
+      ctaLabel = isFil ? 'Palitan' : 'Fix Now';
+      icon = Icons.autorenew_rounded;
+      accent = AppTheme.dangerRed;
+      onTap = () {
+        kit.setFilterStatus(ItemFilterStatus.expired);
+        onNavigateTab(1);
+      };
+    } else if (kit.missingItems.isNotEmpty) {
+      final sortedMissing = List<KitItem>.from(kit.missingItems)
+        ..sort(
+          (a, b) =>
+              b.category.priorityWeight.compareTo(a.category.priorityWeight),
+        );
+      final top = sortedMissing.first;
+      title = isFil
+          ? 'Susunod na Hakbang: I-pack ang ${top.name}'
+          : 'Next Best Step: Pack ${top.name}';
+      subtitle = isFil
+          ? 'Kailangan ng ${top.targetQuantity} ${top.unit} (${sortedMissing.length} gamit pa ang kulang).'
+          : 'Target: ${top.targetQuantity} ${top.unit} • High-priority survival item.';
+      ctaLabel = isFil ? 'Buksan' : 'Pack Now';
+      icon = Icons.tips_and_updates_rounded;
+      accent = AppTheme.primaryAccent;
+      onTap = () {
+        kit.setFilterStatus(ItemFilterStatus.missing);
+        onNavigateTab(1);
+      };
+    } else if (emergency.emergencyPlan.primaryMeetingPoint.trim().isEmpty) {
+      title = isFil
+          ? 'Susunod na Hakbang: Itakda ang Tagpuan ng Pamilya'
+          : 'Next Best Step: Set Your Family Meeting Point';
+      subtitle = isFil
+          ? 'Ilagay kung saan magkikita ang pamilya kung magkahiwalay o mawalan ng signal.'
+          : 'Save your assembly point, utility shutoffs & ICE blood types offline.';
+      ctaLabel = isFil ? 'Itakda' : 'Set Plan';
+      icon = Icons.flag_outlined;
+      accent = Colors.teal.shade700;
+      onTap = () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const EmergencyPlanScreen()),
+        );
+      };
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withAlpha(isDark ? 32 : 14),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withAlpha(isDark ? 110 : 70)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: accent.withAlpha(isDark ? 50 : 26),
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: accent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w800,
+                    color: headingColor,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: TextStyle(fontSize: 12.5, color: subtleText),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: Colors.white,
+              minimumSize: const Size(0, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+            onPressed: onTap,
+            child: Text(
+              ctaLabel,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PwaInstallBanner extends StatefulWidget {
+  final bool isDark;
+  final bool isFil;
+  final Color headingColor;
+  final Color subtleText;
+
+  const _PwaInstallBanner({
+    required this.isDark,
+    required this.isFil,
+    required this.headingColor,
+    required this.subtleText,
+  });
+
+  @override
+  State<_PwaInstallBanner> createState() => _PwaInstallBannerState();
+}
+
+class _PwaInstallBannerState extends State<_PwaInstallBanner> {
+  static const String _dismissKey = 'lifecheckpoint_pwa_install_dismissed_v1';
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkVisibility();
+  }
+
+  Future<void> _checkVisibility() async {
+    if (isRunningAsInstalledPwa()) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final dismissed = prefs.getBool(_dismissKey) ?? false;
+      if (!dismissed && mounted) {
+        setState(() => _visible = true);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _dismiss() async {
+    setState(() => _visible = false);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_dismissKey, true);
+    } catch (_) {}
+  }
+
+  Future<void> _handleInstall() async {
+    if (canTriggerNativePwaInstall()) {
+      final accepted = await triggerNativePwaInstall();
+      if (accepted && mounted) {
+        setState(() => _visible = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppTheme.safeGreen,
+            content: Text('LifeCheckpoint installed on your device!'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    final ios = isIosBrowser();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          widget.isFil
+              ? 'I-install ang LifeCheckpoint sa Telepono'
+              : 'Install LifeCheckpoint (Works Offline)',
+        ),
+        content: Text(
+          ios
+              ? (widget.isFil
+                  ? 'Sa iPhone Safari:\n1. I-tap ang Share button sa ibaba.\n2. Piliin ang "Add to Home Screen" at i-tap ang Add.'
+                  : 'On iPhone Safari:\n1. Tap the Share button at the bottom.\n2. Tap "Add to Home Screen", then tap Add.')
+              : (widget.isFil
+                  ? 'Sa Chrome / Edge:\n1. I-tap ang Menu (⋮) o Install icon sa address bar.\n2. Piliin ang "Install app" o "Add to Home screen".'
+                  : 'On Android Chrome / Desktop:\n1. Tap the browser Menu (⋮) or Install icon in the address bar.\n2. Select "Install app" or "Add to Home screen".'),
+          style: const TextStyle(height: 1.45),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(widget.isFil ? 'Naintindihan' : 'Got It'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_visible) return const SizedBox.shrink();
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryNavy.withAlpha(widget.isDark ? 65 : 18),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Icon(
+                Icons.install_mobile_rounded,
+                color: widget.isDark
+                    ? Colors.lightBlue.shade200
+                    : AppTheme.primaryNavy,
+                size: 21,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.isFil
+                        ? 'I-save sa Home Screen (Gumagana Offline)'
+                        : 'Save App to Home Screen (Works Offline)',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: widget.headingColor,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.isFil
+                        ? 'Buksan agad kahit walang signal o kuryente.'
+                        : 'Launch instantly like a native app during brownouts.',
+                    style: TextStyle(fontSize: 12.5, color: widget.subtleText),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.tonal(
+              onPressed: _handleInstall,
+              child: Text(widget.isFil ? 'I-install' : 'Install'),
+            ),
+            IconButton(
+              icon: Icon(Icons.close_rounded, size: 18, color: widget.subtleText),
+              tooltip: 'Dismiss',
+              onPressed: _dismiss,
+            ),
+          ],
         ),
       ),
     );

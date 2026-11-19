@@ -14,6 +14,7 @@ import 'screens/kit_management_screen.dart';
 import 'screens/safety_hub_screen.dart';
 import 'utils/app_strings.dart';
 import 'utils/app_theme.dart';
+import 'utils/pwa_bridge.dart';
 import 'utils/sos_sheet.dart';
 import 'widgets/responsive_container.dart';
 
@@ -59,10 +60,36 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   bool _syncWired = false;
+  bool _isOnline = true;
+  void Function()? _disposeConnectivity;
 
   @override
   void initState() {
     super.initState();
+    _isOnline = isDeviceOnline();
+    _disposeConnectivity = listenConnectivity((online) {
+      if (!mounted) return;
+      final wasOffline = !_isOnline;
+      setState(() => _isOnline = online);
+      if (online && wasOffline) {
+        final auth = context.read<AuthProvider>();
+        final monitoring = context.read<MonitoringProvider>();
+        final emergency = context.read<EmergencyProvider>();
+        if (auth.isAuthenticated || auth.pendingSyncCount > 0) {
+          auth.syncNow(pushLocalKitFirst: false);
+        }
+        monitoring.refreshLiveFeeds(
+          lat: emergency.userLat,
+          lng: emergency.userLng,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: AppTheme.safeGreen,
+            content: Text('Back online — syncing your updates!'),
+          ),
+        );
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _syncWired) return;
       _syncWired = true;
@@ -92,6 +119,12 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         checkinsApplier: monitoring.applyRemoteCheckins,
       );
     });
+  }
+
+  @override
+  void dispose() {
+    _disposeConnectivity?.call();
+    super.dispose();
   }
 
   void _onNavigateTab(int index) {
@@ -134,15 +167,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       children: screens,
     );
 
-    final contentWithDrill = isDrillActive
+    final hasTopBanner = isDrillActive || !_isOnline;
+    final contentWithDrill = hasTopBanner
         ? Column(
             children: [
-              _DrillModeBanner(
-                label: '${s.drillBannerText}: ${monitoring.drillMode.label}',
-                exitLabel: s.exitDrill,
-                onExit: () =>
-                    monitoring.setDrillMode(DrillAlertMode.liveNormal),
-              ),
+              if (!_isOnline)
+                _OfflineModeBanner(isFil: settings.isFilipino),
+              if (isDrillActive)
+                _DrillModeBanner(
+                  label: '${s.drillBannerText}: ${monitoring.drillMode.label}',
+                  exitLabel: s.exitDrill,
+                  onExit: () =>
+                      monitoring.setDrillMode(DrillAlertMode.liveNormal),
+                ),
               Expanded(
                 child: MediaQuery.removePadding(
                   context: context,
@@ -700,6 +737,48 @@ class _DrillModeBanner extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OfflineModeBanner extends StatelessWidget {
+  final bool isFil;
+
+  const _OfflineModeBanner({required this.isFil});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFF1E3A5F),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.cloud_off_rounded,
+                color: Color(0xFF93C5FD),
+                size: 17,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isFil
+                      ? 'Offline Mode • Gumagana pa rin ang Go-Bag, Gabay, Hotlines at Plano. Awtomatikong magsi-sync kapag may signal.'
+                      : 'Offline Mode • Your Go-Bag, Guides, Hotlines & Plan still work. Updates will sync when signal returns.',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
                   ),
                 ),
               ),

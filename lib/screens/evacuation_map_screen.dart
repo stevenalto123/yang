@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -327,6 +328,15 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         );
                       }).toList(),
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildNearestOpenShelterStrip(
+                    context,
+                    emergency,
+                    isDark,
+                    isFil,
+                    headingColor,
+                    subtleText,
                   ),
                 ],
               ),
@@ -740,6 +750,128 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     );
   }
 
+  Future<void> _shareShelterPin(
+    BuildContext context,
+    EvacuationCenter center,
+    bool isFil,
+  ) async {
+    final lat = center.latitude.toStringAsFixed(5);
+    final lng = center.longitude.toStringAsFixed(5);
+    final text =
+        'Meet at ${center.name}\nAddress: ${center.address}\nMap: https://maps.google.com/?q=$lat,$lng\nHotline: ${center.contactNumber}';
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppTheme.safeGreen,
+        content: Text(
+          isFil
+              ? 'Nakopya ang lokasyon ng shelter — i-paste sa Messenger o SMS!'
+              : 'Shelter meeting pin copied — paste into Messenger or SMS!',
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNearestOpenShelterStrip(
+    BuildContext context,
+    EmergencyProvider emergency,
+    bool isDark,
+    bool isFil,
+    Color headingColor,
+    Color subtleText,
+  ) {
+    final openShelters = emergency.allEvacuationCenters
+        .where(
+          (c) => c.facilityType == FacilityType.evacuationShelter && c.isOpen,
+        )
+        .toList();
+    if (openShelters.isEmpty) return const SizedBox.shrink();
+
+    openShelters.sort(
+      (a, b) => emergency
+          .distanceToCenterKm(a)
+          .compareTo(emergency.distanceToCenterKm(b)),
+    );
+    final nearest = openShelters.first;
+    final distKm = emergency.distanceToCenterKm(nearest);
+
+    return Material(
+      color: Colors.teal.withAlpha(isDark ? 36 : 16),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _focusCenter(nearest),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.teal.withAlpha(isDark ? 90 : 55),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppTheme.safeGreen,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isFil ? 'PINAKAMALAPIT' : 'NEAREST OPEN',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${nearest.name} (${distKm.toStringAsFixed(1)} km)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: headingColor,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  foregroundColor:
+                      isDark ? Colors.tealAccent : Colors.teal.shade800,
+                  minimumSize: const Size(0, 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                icon: const Icon(Icons.directions_rounded, size: 16),
+                label: Text(
+                  isFil ? 'Ruta' : 'Go',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                onPressed: () => ActionFeedback.openMapWithFeedback(
+                  context,
+                  emergency,
+                  nearest.latitude,
+                  nearest.longitude,
+                  nearest.name,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildMapPopupCard(
     BuildContext context,
     EvacuationCenter center,
@@ -821,24 +953,36 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size(0, 38),
-                    ),
-                    icon: const Icon(Icons.call_rounded, size: 16),
-                    label: Text(
-                      isFil ? 'Tumawag' : 'Call',
-                      style: const TextStyle(fontSize: 13),
-                    ),
-                    onPressed: () => ActionFeedback.callWithFeedback(
-                      context,
-                      emergency,
-                      center.contactNumber,
-                      center.contactPerson,
-                    ),
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                   ),
+                  icon: const Icon(Icons.call_rounded, size: 16),
+                  label: Text(
+                    isFil ? 'Tawag' : 'Call',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                  onPressed: () => ActionFeedback.callWithFeedback(
+                    context,
+                    emergency,
+                    center.contactNumber,
+                    center.contactPerson,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, 38),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  icon: const Icon(Icons.share_rounded, size: 16),
+                  label: Text(
+                    isFil ? 'Ibahagi' : 'Share',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                  onPressed: () => _shareShelterPin(context, center, isFil),
                 ),
               ],
             ),

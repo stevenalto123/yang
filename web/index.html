@@ -101,6 +101,82 @@
   </div>
 
   <script>
+    // PWA install prompt & offline survival whistle bridge
+    window.__lcDeferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', function (e) {
+      e.preventDefault();
+      window.__lcDeferredPrompt = e;
+    });
+    window.__lcCanInstall = function () {
+      return !!window.__lcDeferredPrompt;
+    };
+    window.__lcIsInstalled = function () {
+      return (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        window.navigator.standalone === true
+      );
+    };
+    window.__lcIsIos = function () {
+      return /iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
+    };
+    window.__lcTriggerInstall = async function () {
+      var p = window.__lcDeferredPrompt;
+      if (!p) return false;
+      p.prompt();
+      var choice = await p.userChoice;
+      window.__lcDeferredPrompt = null;
+      return !!(choice && choice.outcome === 'accepted');
+    };
+
+    // Offline 3.1kHz emergency rescue whistle via Web Audio API
+    window.__lcWhistleCtx = null;
+    window.__lcWhistleTimer = null;
+    window.__lcStartWhistle = function () {
+      try {
+        window.__lcStopWhistle();
+        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return false;
+        var ctx = new AudioCtx();
+        var osc1 = ctx.createOscillator();
+        var osc2 = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc1.type = 'sine';
+        osc2.type = 'triangle';
+        osc1.frequency.value = 3050;
+        osc2.frequency.value = 3280;
+        gain.gain.value = 0.0001;
+        osc1.connect(gain);
+        osc2.connect(gain);
+        gain.connect(ctx.destination);
+        osc1.start();
+        osc2.start();
+        window.__lcWhistleCtx = ctx;
+        var pulseOn = true;
+        function pulse() {
+          if (!window.__lcWhistleCtx) return;
+          gain.gain.setTargetAtTime(pulseOn ? 0.55 : 0.0001, ctx.currentTime, 0.02);
+          pulseOn = !pulseOn;
+        }
+        pulse();
+        window.__lcWhistleTimer = setInterval(pulse, 550);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    };
+    window.__lcStopWhistle = function () {
+      try {
+        if (window.__lcWhistleTimer) {
+          clearInterval(window.__lcWhistleTimer);
+          window.__lcWhistleTimer = null;
+        }
+        if (window.__lcWhistleCtx) {
+          window.__lcWhistleCtx.close();
+          window.__lcWhistleCtx = null;
+        }
+      } catch (e) {}
+    };
+
     window.addEventListener('flutter-first-frame', function () {
       var splash = document.getElementById('lc-splash');
       if (splash) {

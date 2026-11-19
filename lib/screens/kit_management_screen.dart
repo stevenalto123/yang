@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -30,6 +31,13 @@ class KitManagementScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(isFil ? 'Checklist ng Go-Bag' : 'Go-Bag Checklist'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart_outlined),
+            tooltip: isFil
+                ? 'Kopyahin ang Listahan ng Bibilhin'
+                : 'Copy Shopping / Missing List',
+            onPressed: () => _showShoppingListSheet(context, kit, isDark, isFil),
+          ),
           IconButton(
             icon: const Icon(Icons.tune_rounded),
             tooltip: isFil
@@ -597,10 +605,23 @@ class KitManagementScreen extends StatelessWidget {
                           isDark,
                           isFil,
                         ),
-                        if (item.isExpired || isExpiring)
+                        if (item.isExpired || isExpiring) ...[
                           InkWell(
-                            onTap: () =>
-                                _quickReplaceItem(context, kit, item, isFil),
+                            onTap: () {
+                              final nextYear = DateTime.now()
+                                  .add(const Duration(days: 365));
+                              kit.markItemReplaced(item.id, nextYear);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  backgroundColor: AppTheme.safeGreen,
+                                  content: Text(
+                                    isFil
+                                        ? 'Napalitan ang ${item.name} (+1 taon)!'
+                                        : '${item.name} marked restocked (+1 yr)!',
+                                  ),
+                                ),
+                              );
+                            },
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
@@ -608,21 +629,48 @@ class KitManagementScreen extends StatelessWidget {
                                 vertical: 5,
                               ),
                               decoration: BoxDecoration(
-                                color: item.isExpired
-                                    ? AppTheme.dangerRed
-                                    : AppTheme.warningAmber,
+                                color: AppTheme.safeGreen,
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
-                                isFil ? 'Palitan' : 'Replace',
+                                isFil ? 'Napalitan (+1 yr)' : 'Restocked (+1 yr)',
                                 style: const TextStyle(
-                                  fontSize: 12,
+                                  fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
                                 ),
                               ),
                             ),
                           ),
+                          InkWell(
+                            onTap: () =>
+                                _quickReplaceItem(context, kit, item, isFil),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: (item.isExpired
+                                        ? AppTheme.dangerRed
+                                        : AppTheme.warningAmber)
+                                    .withAlpha(isDark ? 65 : 28),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isFil ? 'Petsa' : 'Pick Date',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: item.isExpired
+                                      ? AppTheme.dangerRed
+                                      : AppTheme.warningAmber,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -760,6 +808,147 @@ class KitManagementScreen extends StatelessWidget {
         ),
       );
     }
+  }
+
+  Future<void> _showShoppingListSheet(
+    BuildContext context,
+    KitProvider kit,
+    bool isDark,
+    bool isFil,
+  ) async {
+    final missing = kit.missingItems;
+    final expired = kit.expiredItems;
+    final expiring = kit.expiringSoonItems;
+
+    final buf = StringBuffer();
+    buf.writeln(
+      'LifeCheckpoint Go-Bag Shopping List (Family of ${kit.householdProfile.totalPeople})',
+    );
+    if (missing.isNotEmpty) {
+      buf.writeln('\nMISSING / LOW SUPPLIES (${missing.length}):');
+      for (final item in missing) {
+        final need = (item.targetQuantity - item.quantity).clamp(1, 999);
+        buf.writeln('[ ] ${item.name} — need $need ${item.unit}');
+      }
+    }
+    if (expired.isNotEmpty) {
+      buf.writeln('\nEXPIRED — REPLACE NOW (${expired.length}):');
+      for (final item in expired) {
+        buf.writeln('[ ] ${item.name} (${item.targetQuantity} ${item.unit})');
+      }
+    }
+    if (expiring.isNotEmpty) {
+      buf.writeln('\nEXPIRING SOON (${expiring.length}):');
+      for (final item in expiring) {
+        buf.writeln('[ ] ${item.name} (${item.targetQuantity} ${item.unit})');
+      }
+    }
+    if (missing.isEmpty && expired.isEmpty && expiring.isEmpty) {
+      buf.writeln('\nAll Go-Bag essentials are packed and fresh!');
+    }
+
+    final text = buf.toString().trim();
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.shopping_cart_checkout_rounded,
+                        color: AppTheme.safeGreen,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isFil
+                              ? 'Listahan ng Bibilhin (Nakopya Na!)'
+                              : 'Go-Bag Shopping List (Copied!)',
+                          style: const TextStyle(
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    isFil
+                        ? 'I-paste ito sa Notes, Messenger, o Viber kapag mamimili sa grocery o botika.'
+                        : 'Paste into Notes, Messenger, or Viber when restocking at the grocery or pharmacy.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.white70 : AppTheme.mutedSlate,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(maxHeight: 280),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color:
+                          isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color:
+                            isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        text,
+                        style: const TextStyle(fontSize: 13, height: 1.45),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          icon: const Icon(Icons.copy_rounded, size: 17),
+                          label: Text(isFil ? 'Kopyahin Ulit' : 'Copy Again'),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: text));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Shopping list copied!'),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(isFil ? 'Tapos' : 'Done'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _quickReplaceItem(
