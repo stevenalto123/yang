@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/auth_provider.dart';
+import '../providers/kit_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
+import '../widgets/privacy_notice_dialog.dart';
 import '../widgets/responsive_container.dart';
 
 class AccountSyncScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   bool _isRegisterMode = false;
   bool _isSubmitting = false;
   bool _showAdvancedServer = false;
+  bool _acceptedPrivacy = false;
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -67,6 +71,13 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   Future<void> _submitAuth(AuthProvider auth) async {
     if (_emailCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
       _showSnack('Please enter email and password.', isError: true);
+      return;
+    }
+    if (_isRegisterMode && !_acceptedPrivacy) {
+      _showSnack(
+        'Please review and accept the RA 10173 Data Privacy Notice first.',
+        isError: true,
+      );
       return;
     }
 
@@ -309,6 +320,16 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
           _buildResearcherPortalCard(
             auth,
             isDark,
+            headingColor,
+            subtleText,
+            accentNavy,
+          ),
+          const SizedBox(height: 16),
+
+          // 4. RA 10173 Data Privacy & Local Erasure Card
+          _buildPrivacyComplianceCard(
+            auth,
+            isFil,
             headingColor,
             subtleText,
             accentNavy,
@@ -558,6 +579,40 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   labelText: 'EAC Researcher / Admin Code (optional)',
                 ),
               ),
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Checkbox(
+                    value: _acceptedPrivacy,
+                    activeColor: AppTheme.primaryNavy,
+                    onChanged: (v) =>
+                        setState(() => _acceptedPrivacy = v ?? false),
+                  ),
+                  Expanded(
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          'I agree to the RA 10173 Data Privacy Notice.',
+                          style: TextStyle(fontSize: 13, color: subtleText),
+                        ),
+                        TextButton(
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
+                            minimumSize: const Size(0, 32),
+                          ),
+                          onPressed: () => PrivacyNoticeDialog.show(context),
+                          child: const Text(
+                            'Read Notice',
+                            style: TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ],
             const SizedBox(height: 14),
             SizedBox(
@@ -674,5 +729,119 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildPrivacyComplianceCard(
+    AuthProvider auth,
+    bool isFil,
+    Color headingColor,
+    Color subtleText,
+    Color accentNavy,
+  ) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.verified_user_outlined, color: accentNavy),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isFil
+                        ? 'Data Privacy Act ng Pilipinas (RA 10173)'
+                        : 'Data Privacy & User Rights (RA 10173)',
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.bold,
+                      color: headingColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              isFil
+                  ? 'Protektado ang iyong impormasyon sa HTTPS, scrypt hashing, at database Row-Level Security. Maaari mong tingnan ang patakaran o burahin ang lokal na datos anumang oras.'
+                  : 'Your household records are protected via HTTPS/TLS, scrypt password hashing, and PostgreSQL Row-Level Security. Review our privacy notice or erase local device storage anytime.',
+              style: TextStyle(fontSize: 13.5, color: subtleText, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.policy_outlined, size: 18),
+                    label: Text(isFil ? 'Privacy Notice' : 'Privacy Notice'),
+                    onPressed: () =>
+                        PrivacyNoticeDialog.show(context, isFil: isFil),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppTheme.dangerRed,
+                      side: const BorderSide(color: AppTheme.dangerRed),
+                    ),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    label: Text(
+                      isFil ? 'Burahin ang Datos' : 'Erase Local Data',
+                    ),
+                    onPressed: () => _confirmEraseLocalData(auth, isFil),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmEraseLocalData(AuthProvider auth, bool isFil) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          isFil ? 'Burahin ang Lokal na Datos?' : 'Erase All Local Device Data?',
+        ),
+        content: Text(
+          isFil
+              ? 'Aalisin nito ang iyong session, lokal na plano, at naka-save na impormasyon sa device na ito alinsunod sa iyong karapatan sa RA 10173.'
+              : 'This signs you out and wipes locally stored household plans, contacts, and offline data from this device under your RA 10173 Right to Erasure.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isFil ? 'Kanselahin' : 'Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.dangerRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isFil ? 'Burahin' : 'Erase Data'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final kit = context.read<KitProvider>();
+      await auth.logout();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      await kit.loadItems();
+      _showSnack(
+        isFil
+            ? 'Nabura na ang lahat ng lokal na datos.'
+            : 'All local device data has been erased.',
+      );
+    }
   }
 }

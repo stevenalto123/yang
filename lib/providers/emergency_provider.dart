@@ -24,6 +24,7 @@ class EmergencyProvider extends ChangeNotifier {
   HouseholdEmergencyPlan _emergencyPlan = HouseholdEmergencyPlan();
 
   String _selectedCity = 'All';
+  FacilityType? _selectedFacilityType;
   bool _isLoading = true;
 
   // GPS state (defaults to EAC Paco Manila reference until live GPS is fetched)
@@ -44,6 +45,7 @@ class EmergencyProvider extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   String get selectedCity => _selectedCity;
+  FacilityType? get selectedFacilityType => _selectedFacilityType;
   HouseholdEmergencyPlan get emergencyPlan => _emergencyPlan;
 
   double get userLat => _userLat;
@@ -67,13 +69,18 @@ class EmergencyProvider extends ChangeNotifier {
     return ['All', ...cities];
   }
 
-  /// Returns shelters sorted by nearest Haversine distance from current GPS
+  /// Returns facilities sorted by nearest Haversine distance from current GPS
   List<EvacuationCenter> get filteredEvacuationCenters {
-    final base = _selectedCity == 'All'
-        ? allEvacuationCenters
-        : allEvacuationCenters
-            .where((center) => center.city == _selectedCity)
-            .toList();
+    final base = allEvacuationCenters.where((center) {
+      if (_selectedCity != 'All' && center.city != _selectedCity) {
+        return false;
+      }
+      if (_selectedFacilityType != null &&
+          center.facilityType != _selectedFacilityType) {
+        return false;
+      }
+      return true;
+    }).toList();
 
     final sorted = List<EvacuationCenter>.from(base);
     sorted.sort((a, b) {
@@ -99,6 +106,11 @@ class EmergencyProvider extends ChangeNotifier {
 
   void setSelectedCity(String city) {
     _selectedCity = city;
+    notifyListeners();
+  }
+
+  void setSelectedFacilityType(FacilityType? type) {
+    _selectedFacilityType = type;
     notifyListeners();
   }
 
@@ -255,7 +267,11 @@ class EmergencyProvider extends ChangeNotifier {
     }
 
     if (officialList.isNotEmpty) {
-      _defaultCenters = officialList;
+      final mergedDefaults = {for (final c in _defaultCenters) c.id: c};
+      for (final c in officialList) {
+        mergedDefaults[c.id] = c;
+      }
+      _defaultCenters = mergedDefaults.values.toList();
     }
     if (customList.isNotEmpty) {
       final merged = {for (final c in _customCenters) c.id: c};

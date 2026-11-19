@@ -2,6 +2,7 @@ import '../models/evacuation_center.dart';
 
 List<EvacuationCenter> getDefaultEvacuationCenters() {
   return [
+    // --- Official Evacuation Centers (Manila / EAC / QC) ---
     const EvacuationCenter(
       id: 'manila_rizal_memorial',
       name: 'Rizal Memorial Sports Complex (Official City Shelter)',
@@ -14,6 +15,7 @@ List<EvacuationCenter> getDefaultEvacuationCenters() {
       capacityPeople: 3000,
       isOpen: true,
       facilities: 'Large Indoor Arena, Medical Staging Area, Relief Distribution Hub',
+      facilityType: FacilityType.evacuationShelter,
     ),
     const EvacuationCenter(
       id: 'eac_campus_reference',
@@ -27,6 +29,7 @@ List<EvacuationCenter> getDefaultEvacuationCenters() {
       capacityPeople: 1000,
       isOpen: true,
       facilities: 'Campus Open Grounds, Verify active shelter status with LGU/Admin',
+      facilityType: FacilityType.evacuationShelter,
     ),
     const EvacuationCenter(
       id: 'manila_delpan_complex',
@@ -40,6 +43,7 @@ List<EvacuationCenter> getDefaultEvacuationCenters() {
       capacityPeople: 1200,
       isOpen: true,
       facilities: 'Designated City of Manila Typhoon & Fire Evacuation Complex',
+      facilityType: FacilityType.evacuationShelter,
     ),
     const EvacuationCenter(
       id: 'manila_baseco_center',
@@ -53,6 +57,7 @@ List<EvacuationCenter> getDefaultEvacuationCenters() {
       capacityPeople: 1500,
       isOpen: true,
       facilities: 'Coastal Surge & Flood Evacuation Facility, Relief Staging',
+      facilityType: FacilityType.evacuationShelter,
     ),
     const EvacuationCenter(
       id: 'qc_amoranto_stadium',
@@ -66,6 +71,81 @@ List<EvacuationCenter> getDefaultEvacuationCenters() {
       capacityPeople: 3500,
       isOpen: true,
       facilities: 'Major QC Emergency Assembly Ground & Relief Hub',
+      facilityType: FacilityType.evacuationShelter,
+    ),
+
+    // --- Nearby Metro Manila Emergency Hospitals ---
+    const EvacuationCenter(
+      id: 'hosp_up_pgh',
+      name: 'Philippine General Hospital (UP-PGH)',
+      address: 'Taft Ave., Ermita, Manila',
+      city: 'Manila',
+      latitude: 14.5784,
+      longitude: 120.9857,
+      contactPerson: 'PGH Emergency Department',
+      contactNumber: '(02) 8554-8400',
+      capacityPeople: 1500,
+      isOpen: true,
+      facilities: '24/7 Level 3 Trauma Center, Emergency Room, Ambulance Bay',
+      facilityType: FacilityType.hospital,
+    ),
+    const EvacuationCenter(
+      id: 'hosp_manila_doctors',
+      name: 'Manila Doctors Hospital',
+      address: '667 United Nations Ave., Ermita, Manila',
+      city: 'Manila',
+      latitude: 14.5819,
+      longitude: 120.9822,
+      contactPerson: 'Emergency Room Triage',
+      contactNumber: '(02) 8558-0888',
+      capacityPeople: 500,
+      isOpen: true,
+      facilities: '24/7 Emergency Medical Care, Trauma & ICU Support',
+      facilityType: FacilityType.hospital,
+    ),
+    const EvacuationCenter(
+      id: 'hosp_ospital_ng_maynila',
+      name: 'Ospital ng Maynila Medical Center',
+      address: 'Quirino Ave. cor. Roxas Blvd., Malate, Manila',
+      city: 'Manila',
+      latitude: 14.5646,
+      longitude: 120.9873,
+      contactPerson: 'OMMC Emergency Dispatch',
+      contactNumber: '(02) 8524-6061',
+      capacityPeople: 400,
+      isOpen: true,
+      facilities: 'Public City Hospital, 24/7 Emergency Services',
+      facilityType: FacilityType.hospital,
+    ),
+
+    // --- Nearby Metro Manila Police & Fire Stations ---
+    const EvacuationCenter(
+      id: 'police_mpd_station5',
+      name: 'MPD Station 5 — Ermita Police Station',
+      address: 'United Nations Ave. cor. Taft Ave., Ermita, Manila',
+      city: 'Manila',
+      latitude: 14.5825,
+      longitude: 120.9845,
+      contactPerson: 'MPD Station 5 Desk Officer',
+      contactNumber: '(02) 8523-9826',
+      capacityPeople: 100,
+      isOpen: true,
+      facilities: '24/7 PNP Emergency Assistance, Rapid Patrol & Rescue Coordination',
+      facilityType: FacilityType.policeFire,
+    ),
+    const EvacuationCenter(
+      id: 'fire_bfp_manila_central',
+      name: 'BFP Manila Central Fire Station',
+      address: 'Arroceros / Taft Ave., Ermita, Manila',
+      city: 'Manila',
+      latitude: 14.5931,
+      longitude: 120.9817,
+      contactPerson: 'BFP Manila Fire Dispatch',
+      contactNumber: '(02) 8527-3627',
+      capacityPeople: 100,
+      isOpen: true,
+      facilities: '24/7 Fire Suppression, Rescue Truck & EMS First Responders',
+      facilityType: FacilityType.policeFire,
     ),
   ];
 }

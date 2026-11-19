@@ -393,6 +393,8 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
         return Icons.tsunami;
       case DisasterType.fire:
         return Icons.local_fire_department;
+      case DisasterType.landslide:
+        return Icons.terrain;
       case DisasterType.volcanicEruption:
         return Icons.volcano;
     }

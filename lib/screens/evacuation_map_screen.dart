@@ -131,10 +131,61 @@ class EvacuationMapScreen extends StatelessWidget {
             ),
           ),
 
+          // Facility Type Filter Chips (Shelters, Hospitals, Police & Fire)
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Row(
+              children: [
+                _buildFacilityChip(
+                  label: isFil ? 'Lahat' : 'All Facilities',
+                  icon: Icons.layers_outlined,
+                  selected: emergency.selectedFacilityType == null,
+                  color: AppTheme.primaryNavy,
+                  isDark: isDark,
+                  onTap: () => emergency.setSelectedFacilityType(null),
+                ),
+                const SizedBox(width: 8),
+                _buildFacilityChip(
+                  label: isFil ? 'Evacuation' : 'Shelters',
+                  icon: Icons.roofing_rounded,
+                  selected: emergency.selectedFacilityType ==
+                      FacilityType.evacuationShelter,
+                  color: Colors.teal.shade700,
+                  isDark: isDark,
+                  onTap: () => emergency
+                      .setSelectedFacilityType(FacilityType.evacuationShelter),
+                ),
+                const SizedBox(width: 8),
+                _buildFacilityChip(
+                  label: isFil ? 'Ospital' : 'Hospitals',
+                  icon: Icons.local_hospital_rounded,
+                  selected:
+                      emergency.selectedFacilityType == FacilityType.hospital,
+                  color: AppTheme.dangerRed,
+                  isDark: isDark,
+                  onTap: () =>
+                      emergency.setSelectedFacilityType(FacilityType.hospital),
+                ),
+                const SizedBox(width: 8),
+                _buildFacilityChip(
+                  label: isFil ? 'Pulis at Bumbero' : 'Police & Fire',
+                  icon: Icons.local_police_rounded,
+                  selected: emergency.selectedFacilityType ==
+                      FacilityType.policeFire,
+                  color: Colors.indigo.shade600,
+                  isDark: isDark,
+                  onTap: () => emergency
+                      .setSelectedFacilityType(FacilityType.policeFire),
+                ),
+              ],
+            ),
+          ),
+
           // City Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
             child: Row(
               children: cities.map((city) {
                 final isSelected = emergency.selectedCity == city;
@@ -230,7 +281,7 @@ class EvacuationMapScreen extends StatelessWidget {
                         if (isSplit) ...[
                           const SizedBox(height: 12),
                           Text(
-                            'Center blue dot marks your active GPS location. Cyan pin marks the closest open evacuation center.',
+                            'Blue center = Your GPS • Cyan/Amber = Shelters • Red = Hospitals • Indigo = Police & Fire.',
                             style: TextStyle(
                               fontSize: 12.5,
                               color: Colors.blueGrey.shade200,
@@ -304,6 +355,42 @@ class EvacuationMapScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildFacilityChip({
+    required String label,
+    required IconData icon,
+    required bool selected,
+    required Color color,
+    required bool isDark,
+    required VoidCallback onTap,
+  }) {
+    return ChoiceChip(
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      avatar: Icon(
+        icon,
+        size: 16,
+        color: selected ? Colors.white : (isDark ? Colors.white70 : color),
+      ),
+      label: Text(label),
+      selected: selected,
+      selectedColor: color,
+      backgroundColor: isDark ? AppTheme.darkCard : Colors.grey.shade100,
+      side: BorderSide(
+        color: selected
+            ? color
+            : (isDark ? AppTheme.darkBorder : Colors.grey.shade300),
+      ),
+      labelStyle: TextStyle(
+        color: selected
+            ? Colors.white
+            : (isDark ? Colors.white : AppTheme.darkSlate),
+        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+        fontSize: 13.5,
+      ),
+      onSelected: (_) => onTap(),
+    );
+  }
+
   Widget _buildShelterCard(
     BuildContext context,
     EvacuationCenter center,
@@ -318,6 +405,26 @@ class EvacuationMapScreen extends StatelessWidget {
     final isCampusRef = center.id == 'eac_campus_reference';
     final isOfficialLgu =
         center.id.startsWith('manila_') || center.id.startsWith('qc_');
+    final isHospital = center.facilityType == FacilityType.hospital;
+    final isPoliceFire = center.facilityType == FacilityType.policeFire;
+
+    final Color facilityAccent = isHospital
+        ? AppTheme.dangerRed
+        : (isPoliceFire ? Colors.indigo : Colors.teal.shade700);
+    final IconData facilityIcon = isHospital
+        ? Icons.local_hospital_rounded
+        : (isPoliceFire
+            ? Icons.local_police_rounded
+            : Icons.roofing_rounded);
+    final String badgeLabel = isHospital
+        ? (isFil ? 'OSPITAL / MEDIKAL' : 'HOSPITAL / ER')
+        : (isPoliceFire
+            ? (isFil ? 'PULIS / BUMBERO' : 'POLICE & FIRE')
+            : (isCampusRef
+                ? (isFil ? 'CAMPUS ASSEMBLY REFERENCE' : 'CAMPUS REFERENCE')
+                : (isOfficialLgu
+                    ? (isFil ? 'OPISYAL NA LGU CENTER' : 'OFFICIAL LGU CENTER')
+                    : (isFil ? 'BARANGAY / SARILING TALA' : 'SAVED LOCAL SHELTER'))));
 
     final titleColor = isDark ? Colors.white : AppTheme.darkSlate;
     final subtleText = isDark ? Colors.white70 : Colors.grey.shade700;
@@ -327,7 +434,7 @@ class EvacuationMapScreen extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: isNearest
-            ? BorderSide(color: Colors.teal.shade500, width: 1.5)
+            ? BorderSide(color: facilityAccent, width: 1.5)
             : BorderSide(
                 color: isDark ? AppTheme.darkBorder : Colors.grey.shade200,
               ),
@@ -348,13 +455,13 @@ class EvacuationMapScreen extends StatelessWidget {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.teal.shade700,
+                      color: facilityAccent,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       isFil ? 'PINAKAMALAPIT' : 'NEAREST',
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 13,
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
@@ -366,40 +473,24 @@ class EvacuationMapScreen extends StatelessWidget {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: isCampusRef
-                        ? AppTheme.eacCrimson.withAlpha(isDark ? 70 : 24)
-                        : (isOfficialLgu
-                            ? AppTheme.primaryNavy.withAlpha(isDark ? 90 : 20)
-                            : Colors.indigo.withAlpha(isDark ? 70 : 20)),
+                    color: (isCampusRef ? AppTheme.eacCrimson : facilityAccent)
+                        .withAlpha(isDark ? 65 : 22),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
-                      color: isCampusRef
-                          ? AppTheme.eacCrimson.withAlpha(120)
-                          : (isDark
-                              ? Colors.lightBlue.shade200.withAlpha(90)
-                              : AppTheme.primaryNavy.withAlpha(70)),
+                      color: (isCampusRef ? AppTheme.eacCrimson : facilityAccent)
+                          .withAlpha(120),
                     ),
                   ),
                   child: Text(
-                    isCampusRef
-                        ? (isFil
-                            ? 'CAMPUS ASSEMBLY REFERENCE'
-                            : 'CAMPUS REFERENCE')
-                        : (isOfficialLgu
-                            ? (isFil
-                                ? 'OPISYAL NA LGU CENTER'
-                                : 'OFFICIAL LGU CENTER')
-                            : (isFil ? 'BARANGAY / SARILING TALA' : 'SAVED LOCAL SHELTER')),
+                    badgeLabel,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      color: isCampusRef
-                          ? (isDark
-                              ? Colors.pink.shade200
-                              : AppTheme.eacCrimson)
-                          : (isDark
-                              ? Colors.lightBlue.shade200
-                              : AppTheme.primaryNavy),
+                      color: isDark
+                          ? Colors.white
+                          : (isCampusRef
+                              ? AppTheme.eacCrimson
+                              : facilityAccent),
                     ),
                   ),
                 ),
@@ -410,13 +501,11 @@ class EvacuationMapScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  backgroundColor: isDark
-                      ? Colors.teal.withAlpha(50)
-                      : Colors.teal.shade50,
+                  backgroundColor: facilityAccent.withAlpha(isDark ? 55 : 24),
                   radius: 22,
                   child: Icon(
-                    Icons.roofing_rounded,
-                    color: isDark ? Colors.tealAccent : Colors.teal.shade800,
+                    facilityIcon,
+                    color: isDark ? Colors.white : facilityAccent,
                     size: 24,
                   ),
                 ),
@@ -812,7 +901,11 @@ class _OfflineShelterRadarPainter extends CustomPainter {
       final px = center.dx + math.cos(rad) * maxRadius * normDist;
       final py = center.dy + math.sin(rad) * maxRadius * normDist;
 
-      final pinColor = i == 0 ? Colors.tealAccent : Colors.amberAccent;
+      final Color pinColor = c.facilityType == FacilityType.hospital
+          ? Colors.redAccent
+          : (c.facilityType == FacilityType.policeFire
+              ? Colors.indigoAccent.shade100
+              : (i == 0 ? Colors.tealAccent : Colors.amberAccent));
       canvas.drawCircle(
         Offset(px, py),
         i == 0 ? 6 : 4.5,

@@ -22,7 +22,7 @@ echo [3/4] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Upgrade LifeCheckpoint responsive UI/UX and splash screen"
+git commit -m "Add Landslide guide, Metro Manila hospitals/police/fire map, and RA 10173 privacy compliance"
 
 echo [4/4] Pushing to GitHub (master)...
 git push origin master

@@ -3,6 +3,7 @@ enum DisasterType {
   earthquake,
   flood,
   fire,
+  landslide,
   volcanicEruption,
 }
 
@@ -17,6 +18,8 @@ extension DisasterTypeExtension on DisasterType {
         return 'Flooding & Flashflood (Baha)';
       case DisasterType.fire:
         return 'Structural Fire (Sunog)';
+      case DisasterType.landslide:
+        return 'Landslide & Mudslide (Pagguho ng Lupa)';
       case DisasterType.volcanicEruption:
         return 'Volcanic Eruption (Pagputok ng Bulkan)';
     }
@@ -32,6 +35,8 @@ extension DisasterTypeExtension on DisasterType {
         return 'Flood';
       case DisasterType.fire:
         return 'Fire';
+      case DisasterType.landslide:
+        return 'Landslide';
       case DisasterType.volcanicEruption:
         return 'Volcano';
     }
@@ -47,6 +52,8 @@ extension DisasterTypeExtension on DisasterType {
         return 'Evacuate before waters rise. Cut main electrical circuit breakers.';
       case DisasterType.fire:
         return 'Crawl low under smoke, feel doors before opening, get out and stay out!';
+      case DisasterType.landslide:
+        return 'Watch for soil cracks, tilting trees, or muddy water — move away from slopes immediately!';
       case DisasterType.volcanicEruption:
         return 'Wear N95 masks, protect eyes, and prepare for ashfall accumulation.';
     }

@@ -135,6 +135,36 @@ List<DisasterGuide> getDefaultDisasterGuides() {
       ],
     ),
     const DisasterGuide(
+      type: DisasterType.landslide,
+      overview:
+          'Heavy monsoon rains, typhoons, and earthquakes can trigger sudden landslides and debris flows along steep slopes, riverbanks, and hillside communities.',
+      beforeSteps: [
+        'Check PHIVOLCS / MGB geohazard maps to see if your barangay is near a landslide-prone slope.',
+        'Watch for early warning signs: new cracks in walls or ground, leaning trees/poles, or doors/windows sticking.',
+        'Keep drainage channels and gutters clear so rainwater does not saturate slopes behind your home.',
+        'Plan at least two evacuation routes moving away from valleys, gullies, and steep embankments.',
+      ],
+      duringSteps: [
+        'Evacuate immediately if you hear rumbling sounds, snapping trees, or see sudden muddy stream surges.',
+        'Move quickly to higher, stable ground sideways out of the landslide path — never run straight downhill.',
+        'If trapped indoors and unable to escape, curl into a tight ball and shield your head under sturdy furniture.',
+        'Stay alert when driving near hillside roads; watch for falling rocks and collapsed pavement.',
+      ],
+      afterSteps: [
+        'Stay away from the slide area — secondary landslides often occur hours after the initial collapse.',
+        'Check for injured or trapped neighbors without entering unstable debris; call 911 or Barangay DRRMO.',
+        'Watch for flooding caused by landslide debris blocking nearby creeks or drainage canals.',
+        'Report broken utility lines, damaged roads, and structural cracks to local authorities before returning.',
+      ],
+      essentialSupplies: [
+        'Emergency whistle (to signal rescuers if trapped)',
+        'Sturdy closed-toe shoes & heavy work gloves',
+        'High-lumen LED flashlight & spare batteries',
+        'Dust / N95 masks & first-aid trauma kit',
+        'Waterproof Go-Bag with drinking water & IDs',
+      ],
+    ),
+    const DisasterGuide(
       type: DisasterType.volcanicEruption,
       overview:
           'Volcanoes (Taal, Mayon, Pinatubo, Kanlaon) can produce dangerous ashfall, pyroclastic flows, and toxic volcanic gases.',

@@ -9,6 +9,7 @@ import '../providers/kit_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import '../widgets/privacy_notice_dialog.dart';
 import '../widgets/responsive_container.dart';
 import 'account_sync_screen.dart';
 
@@ -28,6 +29,7 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
   int _preparednessImpactScore = 5;
   bool _surveySubmitted = false;
   bool _isSubmitting = false;
+  bool _privacyConsented = false;
 
   final _respondentCtrl = TextEditingController();
   final _commentsCtrl = TextEditingController();
@@ -63,6 +65,19 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
   }
 
   Future<void> _saveSurvey(bool isFil, KitProvider kit) async {
+    if (!_privacyConsented) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppTheme.warningAmber,
+          content: Text(
+            isFil
+                ? 'Paki-check muna ang pahintulot sa RA 10173 Data Privacy bago mag-submit.'
+                : 'Please check the RA 10173 Data Privacy consent box before submitting.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() => _isSubmitting = true);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -524,7 +539,47 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                           : 'Feedback / Comments (optional)',
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Checkbox(
+                        value: _privacyConsented,
+                        activeColor: AppTheme.primaryNavy,
+                        onChanged: (v) =>
+                            setState(() => _privacyConsented = v ?? false),
+                      ),
+                      Expanded(
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              isFil
+                                  ? 'Pumapayag akong isumite ang evaluation na ito alinsunod sa RA 10173.'
+                                  : 'I consent to submit this anonymized evaluation under RA 10173.',
+                              style: TextStyle(fontSize: 13, color: subtleText),
+                            ),
+                            TextButton(
+                              style: TextButton.styleFrom(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 6),
+                                minimumSize: const Size(0, 32),
+                              ),
+                              onPressed: () => PrivacyNoticeDialog.show(
+                                context,
+                                isFil: isFil,
+                              ),
+                              child: Text(
+                                isFil ? 'Basahin ang Privacy Notice' : 'Read Privacy Notice',
+                                style: const TextStyle(fontSize: 13),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
