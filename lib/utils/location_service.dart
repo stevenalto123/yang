@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'location_service_stub.dart'
-    if (dart.library.js_interop) 'location_service_web.dart' as impl;
+    if (dart.library.js_interop) 'location_service_web.dart'
+    if (dart.library.io) 'location_service_io.dart' as impl;
 
 class LocationService {
   static Future<({double lat, double lng, double? accuracy})?>

@@ -27,6 +27,9 @@ class KitProvider extends ChangeNotifier {
   KitCategory? _selectedCategory;
   ItemFilterStatus _filterStatus = ItemFilterStatus.all;
 
+  void Function(Map<String, dynamic> syncPayload)? onKitChanged;
+  void Function(String itemId)? onItemDeleted;
+
   KitProvider() {
     loadItems();
   }
@@ -176,6 +179,56 @@ class KitProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Failed to save expiry alert days: $e');
     }
+    _notifyCloudSync();
+  }
+
+  Map<String, dynamic> exportSyncPayload() {
+    return {
+      'items': _items.map((item) => item.toMap()).toList(),
+      'profile': _householdProfile.toMap(),
+      'expiryAlertDays': _expiryAlertDays,
+    };
+  }
+
+  Future<void> applyRemoteSync(
+    List<Map<String, dynamic>> remoteItems,
+    Map<String, dynamic>? profileMap,
+    int? alertDays,
+  ) async {
+    if (profileMap != null) {
+      _householdProfile = HouseholdProfile.fromMap(profileMap);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_profileKey, _householdProfile.toJson());
+      } catch (_) {}
+    }
+    if (alertDays != null) {
+      _expiryAlertDays = alertDays;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_alertDaysKey, alertDays);
+      } catch (_) {}
+    }
+
+    if (remoteItems.isNotEmpty) {
+      final mergedById = <String, KitItem>{
+        for (final item in _items) item.id: item,
+      };
+      for (final raw in remoteItems) {
+        final remote = KitItem.fromMap(raw);
+        final local = mergedById[remote.id];
+        if (local == null || !remote.lastUpdated.isBefore(local.lastUpdated)) {
+          mergedById[remote.id] = remote;
+        }
+      }
+      _items = mergedById.values.toList();
+      await _saveToStorage();
+    }
+    notifyListeners();
+  }
+
+  void _notifyCloudSync() {
+    onKitChanged?.call(exportSyncPayload());
   }
 
   // --- Item Modifications & Persistence ---
@@ -241,6 +294,7 @@ class KitProvider extends ChangeNotifier {
         quantity: newQty,
       );
       _saveToStorage();
+      _notifyCloudSync();
       notifyListeners();
     }
   }
@@ -255,6 +309,7 @@ class KitProvider extends ChangeNotifier {
         isPacked: validQty >= item.targetQuantity,
       );
       _saveToStorage();
+      _notifyCloudSync();
       notifyListeners();
     }
   }
@@ -267,6 +322,7 @@ class KitProvider extends ChangeNotifier {
         clearExpirationDate: newDate == null,
       );
       _saveToStorage();
+      _notifyCloudSync();
       notifyListeners();
     }
   }
@@ -283,6 +339,7 @@ class KitProvider extends ChangeNotifier {
         clearExpirationDate: newExpiryDate == null,
       );
       _saveToStorage();
+      _notifyCloudSync();
       notifyListeners();
     }
   }
@@ -290,6 +347,7 @@ class KitProvider extends ChangeNotifier {
   void addItem(KitItem newItem) {
     _items.add(newItem);
     _saveToStorage();
+    _notifyCloudSync();
     notifyListeners();
   }
 
@@ -298,6 +356,7 @@ class KitProvider extends ChangeNotifier {
     if (index != -1) {
       _items[index] = updatedItem;
       _saveToStorage();
+      _notifyCloudSync();
       notifyListeners();
     }
   }
@@ -305,12 +364,14 @@ class KitProvider extends ChangeNotifier {
   void deleteItem(String id) {
     _items.removeWhere((item) => item.id == id);
     _saveToStorage();
+    onItemDeleted?.call(id);
     notifyListeners();
   }
 
   void resetToDefault() {
     _items = getDefaultKitItems();
     _saveToStorage();
+    _notifyCloudSync();
     notifyListeners();
   }
 
@@ -437,6 +498,7 @@ class KitProvider extends ChangeNotifier {
       await prefs.setString(_profileKey, profile.toJson());
     } catch (_) {}
 
+    _notifyCloudSync();
     notifyListeners();
     return (updatedCount: updated, addedCount: added);
   }

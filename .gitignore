@@ -43,3 +43,11 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Node / Netlify / Env secrets
+node_modules/
+.netlify/
+.test-dist/
+.env
+.env.local
+.env.*.local

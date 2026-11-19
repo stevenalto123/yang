@@ -28,7 +28,6 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     final settings = context.watch<SettingsProvider>();
     final isDark = settings.isDarkMode;
     final isFil = settings.isFilipino;
-    final s = AppStrings(isFil);
 
     final subColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
 
@@ -222,7 +221,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           IconButton(
             icon: const Icon(Icons.person_add_alt_1),
             tooltip: 'Add Family Contact',
-            onPressed: () => _showAddPersonalContactDialog(context, emergency),
+            onPressed: () =>
+                _showAddPersonalContactDialog(context, emergency, isFil),
           ),
         ],
       ),

@@ -1,0 +1,23 @@
+{
+  "name": "life-checkpoint-fullstack",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LifeCheckpoint full-stack backend (Netlify Functions + Supabase PostgreSQL) and Flutter Web PWA host",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "test:api": "npx tsc -p tsconfig.test.json && node --test server/tests/api.test.mjs",
+    "typecheck": "npx tsc --noEmit"
+  },
+  "dependencies": {
+    "@netlify/functions": "^3.0.0",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=20.12.0"
+  }
+}

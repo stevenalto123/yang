@@ -5,7 +5,7 @@ import 'package:life_checkpoint/main.dart';
 
 void main() {
   testWidgets(
-      'LifeCheckpoint app loads 5 tabs, persistent SOS, EN/FIL and Dark Mode toggles',
+      'LifeCheckpoint app loads 5 tabs, persistent SOS, Account Sync screen, EN/FIL and Dark Mode toggles',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues({});
 
@@ -15,6 +15,7 @@ void main() {
     // App branding & Global SOS button
     expect(find.text('LifeCheckpoint'), findsOneWidget);
     expect(find.text('SOS'), findsOneWidget);
+    expect(find.text('Offline-Ready • Tap to Sign In & Sync'), findsOneWidget);
 
     // 5 NavigationBar tabs in English
     expect(find.text('Home'), findsOneWidget);
@@ -22,6 +23,16 @@ void main() {
     expect(find.text('Monitor'), findsOneWidget);
     expect(find.text('Map'), findsOneWidget);
     expect(find.text('Safety'), findsOneWidget);
+
+    // Open Account & Cloud Sync screen
+    await tester.tap(find.byIcon(Icons.account_circle_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('Account & Cloud Sync'), findsOneWidget);
+    expect(find.text('Sign In to Sync Across Devices'), findsOneWidget);
+
+    // Return to Home
+    await tester.pageBack();
+    await tester.pumpAndSettle();
 
     // Navigate to Safety Hub tab
     await tester.tap(find.text('Safety'));

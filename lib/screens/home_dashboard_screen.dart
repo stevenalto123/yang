@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/kit_provider.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import 'account_sync_screen.dart';
 import 'disaster_guide_screen.dart';
 import 'emergency_plan_screen.dart';
 import 'notifications_screen.dart';
@@ -24,7 +26,8 @@ class HomeDashboardScreen extends StatelessWidget {
     final kit = context.watch<KitProvider>();
     final monitoring = context.watch<MonitoringProvider>();
     final settings = context.watch<SettingsProvider>();
-    context.watch<EmergencyProvider>();
+    final emergency = context.watch<EmergencyProvider>();
+    final auth = context.watch<AuthProvider>();
 
     final isDark = settings.isDarkMode;
     final isFil = settings.isFilipino;
@@ -134,6 +137,33 @@ class HomeDashboardScreen extends StatelessWidget {
           ),
           IconButton(
             constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+            icon: auth.pendingSyncCount > 0
+                ? Badge(
+                    label: Text('${auth.pendingSyncCount}'),
+                    backgroundColor: AppTheme.warningAmber,
+                    child: Icon(
+                      auth.isAuthenticated
+                          ? Icons.cloud_sync_outlined
+                          : Icons.account_circle_outlined,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    auth.isAuthenticated
+                        ? Icons.cloud_done_outlined
+                        : Icons.account_circle_outlined,
+                    color: Colors.white,
+                  ),
+            tooltip: isFil ? 'Account at Cloud Sync' : 'Account & Cloud Sync',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AccountSyncScreen()),
+              );
+            },
+          ),
+          IconButton(
+            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
             icon: alertCount > 0
                 ? Badge(
                     label: Text('$alertCount'),
@@ -162,7 +192,13 @@ class HomeDashboardScreen extends StatelessWidget {
           : RefreshIndicator(
               onRefresh: () async {
                 await kit.loadItems();
-                await monitoring.refreshLiveFeeds();
+                await monitoring.refreshLiveFeeds(
+                  lat: emergency.userLat,
+                  lng: emergency.userLng,
+                );
+                if (auth.isAuthenticated) {
+                  await auth.syncNow();
+                }
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -208,6 +244,75 @@ class HomeDashboardScreen extends StatelessWidget {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AccountSyncScreen(),
+                          ),
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: auth.isAuthenticated
+                              ? AppTheme.safeGreen.withAlpha(isDark ? 45 : 20)
+                              : (isDark
+                                  ? AppTheme.darkCard
+                                  : Colors.blueGrey.shade50),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: auth.isAuthenticated
+                                ? AppTheme.safeGreen.withAlpha(110)
+                                : (isDark
+                                    ? AppTheme.darkBorder
+                                    : Colors.grey.shade300),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              auth.isAuthenticated
+                                  ? Icons.cloud_done
+                                  : Icons.cloud_off_outlined,
+                              size: 15,
+                              color: auth.isAuthenticated
+                                  ? (isDark
+                                      ? Colors.green.shade200
+                                      : AppTheme.safeGreen)
+                                  : subtleText,
+                            ),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                auth.isAuthenticated
+                                    ? 'Synced • Family Code: ${auth.inviteCode ?? '-'}'
+                                    : (auth.pendingSyncCount > 0
+                                        ? 'Offline Mode (${auth.pendingSyncCount} pending) • Tap to Sync'
+                                        : 'Offline-Ready • Tap to Sign In & Sync'),
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: auth.isAuthenticated
+                                      ? (isDark
+                                          ? Colors.green.shade200
+                                          : AppTheme.safeGreen)
+                                      : subtleText,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),

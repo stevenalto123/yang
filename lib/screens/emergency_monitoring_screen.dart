@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/emergency_provider.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
@@ -13,6 +15,8 @@ class EmergencyMonitoringScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final mon = context.watch<MonitoringProvider>();
     final settings = context.watch<SettingsProvider>();
+    final emergency = context.watch<EmergencyProvider>();
+    final auth = context.watch<AuthProvider>();
     final isDark = settings.isDarkMode;
     final isFil = settings.isFilipino;
 
@@ -41,12 +45,20 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                   )
                 : const Icon(Icons.sync),
             tooltip: isFil ? 'I-sync ang Live Feeds' : 'Sync Live Feeds',
-            onPressed: mon.isRefreshing ? null : () => mon.refreshLiveFeeds(),
+            onPressed: mon.isRefreshing
+                ? null
+                : () => mon.refreshLiveFeeds(
+                      lat: emergency.userLat,
+                      lng: emergency.userLng,
+                    ),
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () => mon.refreshLiveFeeds(),
+        onRefresh: () => mon.refreshLiveFeeds(
+          lat: emergency.userLat,
+          lng: emergency.userLng,
+        ),
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
@@ -261,11 +273,11 @@ class EmergencyMonitoringScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Live Metro Manila Weather Telemetry
+            // Live Dynamic GPS / Metro Manila Weather Telemetry
             Text(
               isFil
-                  ? 'Lokal na Lagay ng Panahon (Metro Manila)'
-                  : 'Local Weather Monitoring (Metro Manila)',
+                  ? 'Lokal na Lagay ng Panahon (${emergency.hasLiveGps ? 'Live GPS' : 'Metro Manila'})'
+                  : 'Local Weather Monitoring (${emergency.hasLiveGps ? 'Live GPS' : 'Metro Manila'})',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -404,7 +416,8 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                   ),
                   icon: const Icon(Icons.add_task, size: 18),
                   label: Text(isFil ? 'Mag-check In' : 'Log Check-In'),
-                  onPressed: () => _showCheckInDialog(context, mon, isFil),
+                  onPressed: () =>
+                      _showCheckInDialog(context, mon, emergency, auth, isFil),
                 ),
               ],
             ),
@@ -415,7 +428,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                   child: Text(
                     isFil
                         ? 'Itala ang kalagayan ng pamilya habang may sakuna (naka-save offline).'
-                        : 'Record household status updates during calamities (saved locally offline).',
+                        : 'Record household status updates during calamities (saved locally & synced).',
                     style: TextStyle(fontSize: 14, color: subtleText),
                   ),
                 ),
@@ -424,6 +437,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
               ...mon.safetyLog.take(5).map((entry) {
                 final ts = DateTime.tryParse(entry['timestamp'] ?? '');
                 final isSafe = entry['status'] == 'SAFE';
+                final author = (entry['authorName'] ?? '').trim();
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
@@ -433,7 +447,9 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                           isSafe ? AppTheme.safeGreen : AppTheme.dangerRed,
                     ),
                     title: Text(
-                      '${entry['status']} — ${entry['note']}',
+                      author.isNotEmpty
+                          ? '${entry['status']} ($author) — ${entry['note']}'
+                          : '${entry['status']} — ${entry['note']}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -521,7 +537,12 @@ class EmergencyMonitoringScreen extends StatelessWidget {
   }
 
   void _showCheckInDialog(
-      BuildContext context, MonitoringProvider mon, bool isFil) {
+    BuildContext context,
+    MonitoringProvider mon,
+    EmergencyProvider emergency,
+    AuthProvider auth,
+    bool isFil,
+  ) {
     String selectedStatus = 'SAFE';
     final noteCtrl = TextEditingController(
       text: isFil
@@ -575,7 +596,13 @@ class EmergencyMonitoringScreen extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                mon.addSafetyCheckIn(selectedStatus, noteCtrl.text.trim());
+                mon.addSafetyCheckIn(
+                  selectedStatus,
+                  noteCtrl.text.trim(),
+                  latitude: emergency.userLat,
+                  longitude: emergency.userLng,
+                  authorName: auth.fullName ?? 'Household Member',
+                );
                 Navigator.pop(ctx);
               },
               child: Text(isFil ? 'I-save' : 'Save Log'),

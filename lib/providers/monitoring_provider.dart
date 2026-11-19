@@ -118,6 +118,12 @@ class MonitoringProvider extends ChangeNotifier {
   List<SeismicEvent> _earthquakes = [];
   DrillAlertMode _drillMode = DrillAlertMode.liveNormal;
   List<Map<String, String>> _safetyLog = [];
+  double _lastLat = 14.5822;
+  double _lastLng = 120.9882;
+
+  Future<Map<String, dynamic>?> Function(double lat, double lng)?
+      telemetryProxyFetcher;
+  void Function(Map<String, dynamic> checkin)? onCheckinAdded;
 
   MonitoringProvider() {
     _loadCachedData();
@@ -180,60 +186,91 @@ class MonitoringProvider extends ChangeNotifier {
     refreshLiveFeeds();
   }
 
-  Future<void> refreshLiveFeeds() async {
+  Future<void> refreshLiveFeeds({double? lat, double? lng}) async {
+    if (lat != null) _lastLat = lat;
+    if (lng != null) _lastLng = lng;
+
     _isRefreshing = true;
     notifyListeners();
 
     bool anySuccess = false;
 
-    // 1. Fetch Live Metro Manila Weather via Open-Meteo (no key, CORS enabled)
-    try {
-      final weatherUri = Uri.parse(
-        'https://api.open-meteo.com/v1/forecast?latitude=14.5995&longitude=120.9842&current=temperature_2m,precipitation,wind_speed_10m,weather_code&timezone=Asia%2FManila',
-      );
-      final resp = await http.get(weatherUri).timeout(const Duration(seconds: 6));
-      if (resp.statusCode == 200) {
-        final data = json.decode(resp.body);
-        final current = data['current'];
-        if (current != null) {
-          final code = (current['weather_code'] ?? 0) as int;
-          _weather = WeatherSnapshot(
-            temperatureC: (current['temperature_2m'] ?? 29.0).toDouble(),
-            windSpeedKmh: (current['wind_speed_10m'] ?? 10.0).toDouble(),
-            precipitationMm: (current['precipitation'] ?? 0.0).toDouble(),
-            weatherCode: code,
-            conditionText: _decodeWmoWeather(code),
-          );
+    // 0. Try low-bandwidth cached backend proxy first when configured
+    if (telemetryProxyFetcher != null) {
+      try {
+        final proxyData = await telemetryProxyFetcher!(_lastLat, _lastLng);
+        if (proxyData != null) {
+          if (proxyData['weather'] is Map) {
+            _weather = WeatherSnapshot.fromMap(
+              Map<String, dynamic>.from(proxyData['weather']),
+            );
+            anySuccess = true;
+          }
+          if (proxyData['earthquakes'] is List) {
+            _earthquakes = (proxyData['earthquakes'] as List<dynamic>)
+                .map((e) => SeismicEvent.fromMap(Map<String, dynamic>.from(e)))
+                .toList();
+            anySuccess = true;
+          }
+        }
+      } catch (_) {}
+    }
+
+    // 1. Direct Open-Meteo weather fallback for current coordinates
+    if (!anySuccess) {
+      try {
+        final weatherUri = Uri.parse(
+          'https://api.open-meteo.com/v1/forecast?latitude=$_lastLat&longitude=$_lastLng&current=temperature_2m,precipitation,wind_speed_10m,weather_code&timezone=Asia%2FManila',
+        );
+        final resp =
+            await http.get(weatherUri).timeout(const Duration(seconds: 6));
+        if (resp.statusCode == 200) {
+          final data = json.decode(resp.body);
+          final current = data['current'];
+          if (current != null) {
+            final code = (current['weather_code'] ?? 0) as int;
+            _weather = WeatherSnapshot(
+              temperatureC: (current['temperature_2m'] ?? 29.0).toDouble(),
+              windSpeedKmh: (current['wind_speed_10m'] ?? 10.0).toDouble(),
+              precipitationMm: (current['precipitation'] ?? 0.0).toDouble(),
+              weatherCode: code,
+              conditionText: _decodeWmoWeather(code),
+            );
+            anySuccess = true;
+          }
+        }
+      } catch (_) {}
+
+      // 2. Direct Philippine Earthquakes via USGS GeoJSON Feed
+      try {
+        final quakeUri = Uri.parse(
+          'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4.5&maxlatitude=21.5&minlongitude=116.0&maxlongitude=127.0&limit=5&orderby=time',
+        );
+        final resp =
+            await http.get(quakeUri).timeout(const Duration(seconds: 6));
+        if (resp.statusCode == 200) {
+          final data = json.decode(resp.body);
+          final features = (data['features'] as List<dynamic>?) ?? [];
+          _earthquakes = features.map((f) {
+            final props = f['properties'] ?? {};
+            final geom = f['geometry'] ?? {};
+            final coords =
+                (geom['coordinates'] as List<dynamic>?) ?? [0, 0, 10];
+            final ms =
+                (props['time'] ?? DateTime.now().millisecondsSinceEpoch) as int;
+            return SeismicEvent(
+              id: (f['id'] ?? '').toString(),
+              magnitude: (props['mag'] ?? 0.0).toDouble(),
+              place: (props['place'] ?? 'Philippines').toString(),
+              time: DateTime.fromMillisecondsSinceEpoch(ms),
+              depthKm:
+                  coords.length > 2 ? (coords[2] ?? 10.0).toDouble() : 10.0,
+            );
+          }).toList();
           anySuccess = true;
         }
-      }
-    } catch (_) {}
-
-    // 2. Fetch Recent Philippine Earthquakes via USGS GeoJSON Feed (CORS enabled)
-    try {
-      final quakeUri = Uri.parse(
-        'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4.5&maxlatitude=21.5&minlongitude=116.0&maxlongitude=127.0&limit=5&orderby=time',
-      );
-      final resp = await http.get(quakeUri).timeout(const Duration(seconds: 6));
-      if (resp.statusCode == 200) {
-        final data = json.decode(resp.body);
-        final features = (data['features'] as List<dynamic>?) ?? [];
-        _earthquakes = features.map((f) {
-          final props = f['properties'] ?? {};
-          final geom = f['geometry'] ?? {};
-          final coords = (geom['coordinates'] as List<dynamic>?) ?? [0, 0, 10];
-          final ms = (props['time'] ?? DateTime.now().millisecondsSinceEpoch) as int;
-          return SeismicEvent(
-            id: (f['id'] ?? '').toString(),
-            magnitude: (props['mag'] ?? 0.0).toDouble(),
-            place: (props['place'] ?? 'Philippines').toString(),
-            time: DateTime.fromMillisecondsSinceEpoch(ms),
-            depthKm: coords.length > 2 ? (coords[2] ?? 10.0).toDouble() : 10.0,
-          );
-        }).toList();
-        anySuccess = true;
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     _isRefreshing = false;
     _isOfflineMode = !anySuccess;
@@ -275,11 +312,19 @@ class MonitoringProvider extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> addSafetyCheckIn(String status, String note) async {
+  Future<void> addSafetyCheckIn(
+    String status,
+    String note, {
+    double? latitude,
+    double? longitude,
+    String authorName = 'Household Member',
+  }) async {
+    final ts = DateTime.now().toIso8601String();
     _safetyLog.insert(0, {
       'status': status,
       'note': note,
-      'timestamp': DateTime.now().toIso8601String(),
+      'authorName': authorName,
+      'timestamp': ts,
     });
     if (_safetyLog.length > 20) {
       _safetyLog = _safetyLog.sublist(0, 20);
@@ -289,6 +334,41 @@ class MonitoringProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_checkInLogKey, json.encode(_safetyLog));
     } catch (_) {}
+
+    onCheckinAdded?.call({
+      'status': status,
+      'note': note,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+    });
+  }
+
+  Future<void> applyRemoteCheckins(List<Map<String, dynamic>> remote) async {
+    if (remote.isEmpty) return;
+    final existingKeys = _safetyLog
+        .map((e) => '${e['timestamp']}_${e['status']}_${e['note']}')
+        .toSet();
+    final combined = List<Map<String, String>>.from(_safetyLog);
+    for (final r in remote) {
+      final entry = <String, String>{
+        'status': (r['status'] ?? 'SAFE').toString(),
+        'note': (r['note'] ?? '').toString(),
+        'authorName': (r['authorName'] ?? 'Family').toString(),
+        'timestamp': (r['timestamp'] ?? DateTime.now().toIso8601String()).toString(),
+      };
+      final key = '${entry['timestamp']}_${entry['status']}_${entry['note']}';
+      if (!existingKeys.contains(key)) {
+        existingKeys.add(key);
+        combined.add(entry);
+      }
+    }
+    combined.sort((a, b) => (b['timestamp'] ?? '').compareTo(a['timestamp'] ?? ''));
+    _safetyLog = combined.take(20).toList();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_checkInLogKey, json.encode(_safetyLog));
+    } catch (_) {}
+    notifyListeners();
   }
 
   String _decodeWmoWeather(int code) {

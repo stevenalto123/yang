@@ -4,10 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/kit_item.dart';
+import '../providers/auth_provider.dart';
 import '../providers/kit_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import 'account_sync_screen.dart';
 
 class SelfAssessmentScreen extends StatefulWidget {
   const SelfAssessmentScreen({super.key});
@@ -24,11 +26,22 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
   int _offlineReliabilityScore = 5;
   int _preparednessImpactScore = 5;
   bool _surveySubmitted = false;
+  bool _isSubmitting = false;
+
+  final _respondentCtrl = TextEditingController();
+  final _commentsCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadSurvey();
+  }
+
+  @override
+  void dispose() {
+    _respondentCtrl.dispose();
+    _commentsCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadSurvey() async {
@@ -48,8 +61,8 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
     } catch (_) {}
   }
 
-  Future<void> _saveSurvey(bool isFil) async {
-    setState(() => _surveySubmitted = true);
+  Future<void> _saveSurvey(bool isFil, KitProvider kit) async {
+    setState(() => _isSubmitting = true);
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
@@ -64,18 +77,41 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
         }),
       );
     } catch (_) {}
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.safeGreen,
-          content: Text(
-            isFil
-                ? 'Nai-save na ang ISO/IEC 25010 evaluation!'
-                : 'ISO/IEC 25010 Usability Evaluation recorded!',
-          ),
+
+    final auth = context.read<AuthProvider>();
+    final res = await auth.submitEvaluation(
+      respondentLabel: _respondentCtrl.text,
+      functionalityScore: _functionalityScore,
+      usabilityScore: _usabilityScore,
+      reliabilityScore: _offlineReliabilityScore,
+      effectivenessScore: _preparednessImpactScore,
+      readinessPercentage: kit.readinessPercentage,
+      rawCompletionPercentage: kit.rawCompletionPercentage,
+      comments: _commentsCtrl.text,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _surveySubmitted = true;
+      _isSubmitting = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: res.ok ? AppTheme.safeGreen : AppTheme.warningAmber,
+        content: Text(
+          res.ok
+              ? (res.queuedOffline
+                  ? (isFil
+                      ? 'Nai-save offline — awtomatikong magsi-sync sa cloud kapag may internet!'
+                      : 'Saved locally & queued for cloud sync when online!')
+                  : (isFil
+                      ? 'Nai-save at naipadala na sa cloud database!'
+                      : 'ISO/IEC 25010 Evaluation submitted to cloud database!'))
+              : (res.error ?? 'Saved locally; cloud sync error.'),
         ),
-      );
-    }
+      ),
+    );
   }
 
   void _copyFullReport(KitProvider kit, bool isFil) {
@@ -466,7 +502,26 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                     _preparednessImpactScore,
                     (v) => setState(() => _preparednessImpactScore = v),
                   ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _respondentCtrl,
+                    decoration: InputDecoration(
+                      labelText: isFil
+                          ? 'Pangalan ng Respondent / Barangay (opsyonal)'
+                          : 'Respondent Label / Barangay (optional)',
+                    ),
+                  ),
                   const SizedBox(height: 10),
+                  TextField(
+                    controller: _commentsCtrl,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: isFil
+                          ? 'Komento o Suhestiyon (opsyonal)'
+                          : 'Feedback / Comments (optional)',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
@@ -478,13 +533,17 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                           ),
                           icon: Icon(_surveySubmitted ? Icons.check : Icons.save),
                           label: Text(
-                            _surveySubmitted
-                                ? (isFil
-                                    ? 'Nai-save (I-update)'
-                                    : 'Evaluation Saved (Update)')
-                                : (isFil ? 'I-submit' : 'Submit Evaluation'),
+                            _isSubmitting
+                                ? 'Submitting...'
+                                : (_surveySubmitted
+                                    ? (isFil
+                                        ? 'Nai-save (I-update)'
+                                        : 'Evaluation Saved (Update)')
+                                    : (isFil ? 'I-submit' : 'Submit Evaluation')),
                           ),
-                          onPressed: () => _saveSurvey(isFil),
+                          onPressed: _isSubmitting
+                              ? null
+                              : () => _saveSurvey(isFil, kit),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -498,6 +557,26 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                         onPressed: () => _copyFullReport(kit, isFil),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton.icon(
+                      icon: const Icon(Icons.analytics_outlined, size: 18),
+                      label: Text(
+                        isFil
+                            ? 'Buksan ang Researcher Analytics & CSV Export'
+                            : 'Researcher Chapter 4 Analytics & CSV Export',
+                      ),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AccountSyncScreen(),
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),

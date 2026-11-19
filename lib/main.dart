@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
 import 'providers/emergency_provider.dart';
 import 'providers/kit_provider.dart';
 import 'providers/monitoring_provider.dart';
@@ -26,6 +27,7 @@ class LifeCheckpointApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => KitProvider()),
         ChangeNotifierProvider(create: (_) => EmergencyProvider()),
         ChangeNotifierProvider(create: (_) => MonitoringProvider()),
@@ -53,6 +55,39 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  bool _syncWired = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _syncWired) return;
+      _syncWired = true;
+      final auth = context.read<AuthProvider>();
+      final kit = context.read<KitProvider>();
+      final emergency = context.read<EmergencyProvider>();
+      final monitoring = context.read<MonitoringProvider>();
+
+      kit.onKitChanged = (payload) => auth.enqueueMutation('upsert_kit', payload);
+      kit.onItemDeleted =
+          (id) => auth.enqueueMutation('delete_kit', {'id': id});
+      emergency.onPlanSaved =
+          (planMap) => auth.enqueueMutation('save_plan', planMap);
+      emergency.onShelterAdded =
+          (shelterMap) => auth.enqueueMutation('add_shelter', shelterMap);
+      monitoring.telemetryProxyFetcher = auth.fetchTelemetryProxy;
+      monitoring.onCheckinAdded =
+          (checkin) => auth.enqueueMutation('add_checkin', checkin);
+
+      auth.attachSyncHandlers(
+        kitPayloadReader: kit.exportSyncPayload,
+        kitBundleApplier: kit.applyRemoteSync,
+        planApplier: emergency.applyRemotePlan,
+        sheltersApplier: emergency.applyRemoteShelters,
+        checkinsApplier: monitoring.applyRemoteCheckins,
+      );
+    });
+  }
 
   void _onNavigateTab(int index) {
     setState(() {

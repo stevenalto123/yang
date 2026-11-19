@@ -1,5 +1,6 @@
 import 'notification_helper_stub.dart'
-    if (dart.library.js_interop) 'notification_helper_web.dart' as impl;
+    if (dart.library.js_interop) 'notification_helper_web.dart'
+    if (dart.library.io) 'notification_helper_io.dart' as impl;
 
 class NotificationHelper {
   static String getPermissionStatus() => impl.getWebNotificationPermissionStatus();

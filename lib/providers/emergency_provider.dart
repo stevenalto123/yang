@@ -33,6 +33,9 @@ class EmergencyProvider extends ChangeNotifier {
   bool _isLocating = false;
   double? _gpsAccuracyMeters;
 
+  void Function(Map<String, dynamic> planMap)? onPlanSaved;
+  void Function(Map<String, dynamic> shelterMap)? onShelterAdded;
+
   EmergencyProvider() {
     _defaultContacts = getDefaultEmergencyContacts();
     _defaultCenters = getDefaultEvacuationCenters();
@@ -168,11 +171,38 @@ class EmergencyProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error saving emergency plan: $e');
     }
+    onPlanSaved?.call(plan.toMap());
+  }
+
+  Future<void> applyRemotePlan(Map<String, dynamic> planMap) async {
+    final remote = HouseholdEmergencyPlan.fromMap(planMap);
+    if (!remote.lastUpdated.isBefore(_emergencyPlan.lastUpdated) ||
+        (_emergencyPlan.homeAddress.isEmpty && remote.homeAddress.isNotEmpty)) {
+      _emergencyPlan = remote;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_emergencyPlanKey, remote.toJson());
+      } catch (_) {}
+      notifyListeners();
+    }
   }
 
   Future<void> addCustomEvacuationCenter(EvacuationCenter center) async {
     _customCenters.insert(0, center);
     notifyListeners();
+    final centerMap = {
+      'id': center.id,
+      'name': center.name,
+      'address': center.address,
+      'city': center.city,
+      'latitude': center.latitude,
+      'longitude': center.longitude,
+      'contactPerson': center.contactPerson,
+      'contactNumber': center.contactNumber,
+      'capacityPeople': center.capacityPeople,
+      'isOpen': center.isOpen,
+      'facilities': center.facilities,
+    };
     try {
       final prefs = await SharedPreferences.getInstance();
       final list = _customCenters
@@ -194,6 +224,66 @@ class EmergencyProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error saving custom shelter: $e');
     }
+    onShelterAdded?.call(centerMap);
+  }
+
+  Future<void> applyRemoteShelters(List<Map<String, dynamic>> shelters) async {
+    if (shelters.isEmpty) return;
+
+    final officialList = <EvacuationCenter>[];
+    final customList = <EvacuationCenter>[];
+
+    for (final s in shelters) {
+      final center = EvacuationCenter(
+        id: (s['id'] ?? '').toString(),
+        name: (s['name'] ?? '').toString(),
+        address: (s['address'] ?? '').toString(),
+        city: (s['city'] ?? 'Manila').toString(),
+        latitude: (s['latitude'] as num?)?.toDouble() ?? 14.5822,
+        longitude: (s['longitude'] as num?)?.toDouble() ?? 120.9882,
+        contactPerson: (s['contactPerson'] ?? 'DRRMO Officer').toString(),
+        contactNumber: (s['contactNumber'] ?? '911').toString(),
+        capacityPeople: (s['capacityPeople'] as num?)?.toInt() ?? 500,
+        isOpen: s['isOpen'] == null ? true : s['isOpen'] == true,
+        facilities: (s['facilities'] ?? '').toString(),
+      );
+      if (s['isOfficial'] == true) {
+        officialList.add(center);
+      } else {
+        customList.add(center);
+      }
+    }
+
+    if (officialList.isNotEmpty) {
+      _defaultCenters = officialList;
+    }
+    if (customList.isNotEmpty) {
+      final merged = {for (final c in _customCenters) c.id: c};
+      for (final c in customList) {
+        merged[c.id] = c;
+      }
+      _customCenters = merged.values.toList();
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final list = _customCenters
+            .map((c) => {
+                  'id': c.id,
+                  'name': c.name,
+                  'address': c.address,
+                  'city': c.city,
+                  'latitude': c.latitude,
+                  'longitude': c.longitude,
+                  'contactPerson': c.contactPerson,
+                  'contactNumber': c.contactNumber,
+                  'capacityPeople': c.capacityPeople,
+                  'isOpen': c.isOpen,
+                  'facilities': c.facilities,
+                })
+            .toList();
+        await prefs.setString(_customSheltersKey, json.encode(list));
+      } catch (_) {}
+    }
+    notifyListeners();
   }
 
   Future<bool> detectLiveGps() async {
