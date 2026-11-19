@@ -9,6 +9,7 @@ import '../providers/kit_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import '../widgets/responsive_container.dart';
 import 'account_sync_screen.dart';
 
 class SelfAssessmentScreen extends StatefulWidget {
@@ -186,8 +187,10 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: ResponsiveContainer(
+        maxWidth: 860,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
         children: [
           // Header Card showing BOTH Weighted Survival Score and Raw Completion %
           Container(
@@ -584,6 +587,7 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
           ),
           const SizedBox(height: 24),
         ],
+      ),
       ),
     );
   }

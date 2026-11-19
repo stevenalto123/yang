@@ -1,5 +1,5 @@
 // LifeCheckpoint Offline-First Service Worker
-const CACHE_NAME = 'lifecheckpoint-pwa-v3';
+const CACHE_NAME = 'lifecheckpoint-pwa-v4';
 
 // Populated cleanly from build/web/ during build (or core fallback shell)
 const PRECACHE_URLS = [

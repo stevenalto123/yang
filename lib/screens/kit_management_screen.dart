@@ -8,6 +8,7 @@ import '../providers/kit_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import '../widgets/responsive_container.dart';
 import 'notifications_screen.dart';
 
 class KitManagementScreen extends StatelessWidget {
@@ -52,13 +53,46 @@ class KitManagementScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Search, Recommender & Filter Header
+          // Search, Readiness Progress, Recommender & Filter Header
           Container(
             color: isDark ? AppTheme.darkCard : Colors.white,
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 10),
-            child: Column(
-              children: [
-                // Smart Recommender Banner
+            child: ResponsiveContainer(
+              maxWidth: 960,
+              child: Column(
+                children: [
+                  // Compact Live Readiness Progress Bar
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(99),
+                          child: LinearProgressIndicator(
+                            value: (kit.readinessPercentage / 100).clamp(0.0, 1.0),
+                            minHeight: 8,
+                            backgroundColor:
+                                isDark ? AppTheme.darkBg : Colors.grey.shade200,
+                            color: kit.readinessPercentage >= 85
+                                ? AppTheme.safeGreen
+                                : (kit.readinessPercentage >= 50
+                                    ? AppTheme.warningAmber
+                                    : AppTheme.dangerRed),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '${kit.readinessPercentage.toStringAsFixed(0)}% • ${kit.packedItemsCount}/${kit.totalItemsCount}',
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: accentTone,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  // Smart Recommender Banner
                 InkWell(
                   onTap: () => _showSmartRecommenderDialog(context, kit, isDark, isFil),
                   borderRadius: BorderRadius.circular(10),
@@ -243,6 +277,7 @@ class KitManagementScreen extends StatelessWidget {
                 ),
               ],
             ),
+            ),
           ),
           const Divider(height: 1),
 
@@ -250,13 +285,16 @@ class KitManagementScreen extends StatelessWidget {
           Expanded(
             child: kit.filteredItems.isEmpty
                 ? _buildEmptyState(kit, subtleText, isFil)
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 96),
-                    itemCount: kit.filteredItems.length,
-                    itemBuilder: (context, index) {
-                      final item = kit.filteredItems[index];
-                      return _buildItemCard(context, item, kit, s, isDark, isFil);
-                    },
+                : ResponsiveContainer(
+                    maxWidth: 960,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 96),
+                      itemCount: kit.filteredItems.length,
+                      itemBuilder: (context, index) {
+                        final item = kit.filteredItems[index];
+                        return _buildItemCard(context, item, kit, s, isDark, isFil);
+                      },
+                    ),
                   ),
           ),
         ],

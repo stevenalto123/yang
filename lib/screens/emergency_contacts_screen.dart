@@ -7,6 +7,7 @@ import '../providers/settings_provider.dart';
 import '../utils/action_feedback.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import '../widgets/responsive_container.dart';
 import 'emergency_plan_screen.dart';
 
 class EmergencyContactsScreen extends StatefulWidget {
@@ -188,13 +189,16 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
         // Contacts List
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 90),
-            itemCount: filtered.length,
-            itemBuilder: (context, index) {
-              final contact = filtered[index];
-              return _buildContactCard(context, contact, emergency, isDark, subColor);
-            },
+          child: ResponsiveContainer(
+            maxWidth: 960,
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 90),
+              itemCount: filtered.length,
+              itemBuilder: (context, index) {
+                final contact = filtered[index];
+                return _buildContactCard(context, contact, emergency, isDark, subColor);
+              },
+            ),
           ),
         ),
       ],

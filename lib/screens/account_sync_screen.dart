@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
+import '../widgets/responsive_container.dart';
 
 class AccountSyncScreen extends StatefulWidget {
   const AccountSyncScreen({super.key});
@@ -143,8 +144,10 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
           isFil ? 'Account at Cloud Sync' : 'Account & Cloud Sync',
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+      body: ResponsiveContainer(
+        maxWidth: 780,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
         children: [
           // 1. Sync Status Card
           Card(
@@ -311,6 +314,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             accentNavy,
           ),
         ],
+      ),
       ),
     );
   }

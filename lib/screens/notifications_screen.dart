@@ -7,6 +7,7 @@ import '../providers/kit_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
 import '../utils/notification_helper.dart';
+import '../widgets/responsive_container.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -106,8 +107,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: ResponsiveContainer(
+        maxWidth: 860,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
         children: [
           // Notification Control Card
           Card(
@@ -320,6 +323,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
           const SizedBox(height: 24),
         ],
+      ),
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../providers/settings_provider.dart';
 import '../utils/action_feedback.dart';
 import '../utils/app_theme.dart';
 import '../utils/location_service.dart';
+import '../widgets/responsive_container.dart';
 
 class EvacuationMapScreen extends StatelessWidget {
   const EvacuationMapScreen({super.key});
@@ -177,21 +178,21 @@ class EvacuationMapScreen extends StatelessWidget {
           ),
           const Divider(height: 1),
 
-          // Scrollable Radar + Sorted Evacuation Shelters
+          // Scrollable Radar + Sorted Evacuation Shelters (Split Command View on Desktop)
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 96),
-              children: [
-                // Offline Interactive Compass & Shelter Radar
-                Card(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isSplit = constraints.maxWidth >= 820;
+                final radarCard = Card(
                   color: const Color(0xFF0F172A),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                   child: Padding(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -200,23 +201,23 @@ class EvacuationMapScreen extends StatelessWidget {
                               'OFFLINE SHELTER RADAR',
                               style: TextStyle(
                                 color: Colors.tealAccent,
-                                fontSize: 14,
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.bold,
                                 letterSpacing: 0.6,
                               ),
                             ),
                             Text(
-                              isFil ? 'Pinakamalapit Una' : 'Sorted Nearest First',
+                              isFil ? 'Pinakamalapit Una' : 'Nearest First',
                               style: TextStyle(
                                 color: Colors.grey.shade300,
-                                fontSize: 14,
+                                fontSize: 12.5,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         SizedBox(
-                          height: 190,
+                          height: isSplit ? 280 : 190,
                           width: double.infinity,
                           child: CustomPaint(
                             painter: _OfflineShelterRadarPainter(
@@ -226,38 +227,76 @@ class EvacuationMapScreen extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (isSplit) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            'Center blue dot marks your active GPS location. Cyan pin marks the closest open evacuation center.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: Colors.blueGrey.shade200,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
+                );
 
-                if (centers.isEmpty)
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        isFil
-                            ? 'Walang nahanap na evacuation shelter sa napiling lugar.'
-                            : 'No evacuation shelters found for selected area.',
-                        style: const TextStyle(fontSize: 14),
-                      ),
+                final shelterWidgets = centers.isEmpty
+                    ? [
+                        Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              isFil
+                                  ? 'Walang nahanap na evacuation shelter sa napiling lugar.'
+                                  : 'No evacuation shelters found for selected area.',
+                              style: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ),
+                      ]
+                    : centers.asMap().entries.map((entry) {
+                        return _buildShelterCard(
+                          context,
+                          entry.value,
+                          emergency,
+                          entry.key == 0,
+                          isDark,
+                          isFil,
+                        );
+                      }).toList();
+
+                if (isSplit) {
+                  return ResponsiveContainer(
+                    maxWidth: 1120,
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 360, child: radarCard),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: ListView(
+                            padding: const EdgeInsets.only(bottom: 36),
+                            children: shelterWidgets,
+                          ),
+                        ),
+                      ],
                     ),
-                  )
-                else
-                  ...centers.asMap().entries.map((entry) {
-                    final idx = entry.key;
-                    final center = entry.value;
-                    return _buildShelterCard(
-                      context,
-                      center,
-                      emergency,
-                      idx == 0,
-                      isDark,
-                      isFil,
-                    );
-                  }),
-              ],
+                  );
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 96),
+                  children: [
+                    radarCard,
+                    const SizedBox(height: 12),
+                    ...shelterWidgets,
+                  ],
+                );
+              },
             ),
           ),
         ],

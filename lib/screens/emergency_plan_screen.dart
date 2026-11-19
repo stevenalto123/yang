@@ -7,6 +7,7 @@ import '../providers/emergency_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
+import '../widgets/responsive_container.dart';
 
 class EmergencyPlanScreen extends StatefulWidget {
   final bool isEmbedded;
@@ -120,8 +121,10 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
 
     final subColor = isDark ? Colors.grey.shade300 : Colors.grey.shade700;
 
-    final bodyContent = ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
+    final bodyContent = ResponsiveContainer(
+      maxWidth: 860,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 90),
       children: [
         Container(
           padding: const EdgeInsets.all(14),
@@ -320,6 +323,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
           onPressed: _savePlan,
         ),
       ],
+    ),
     );
 
     if (widget.isEmbedded) {

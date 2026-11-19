@@ -8,27 +8,31 @@ del /f /q "lib\providers\broadcast_provider.dart" 2>nul
 del /f /q "lib\screens\mass_broadcast_screen.dart" 2>nul
 del /f /q "web\jamindan_broadcast.html" 2>nul
 
-echo [2/4] Installing Node packages & running Backend API tests...
-call npm install
-if errorlevel 1 goto :error
+echo [2/4] Checking Backend TypeScript & API tests...
+if not exist "node_modules" (
+  call npm install
+  if errorlevel 1 goto :error
+)
 call npm run typecheck
 if errorlevel 1 goto :error
 call npm run test:api
 if errorlevel 1 goto :error
 
 echo [3/4] Staging and committing updates...
-git add .
-git diff --cached --quiet || git commit -m "Deploy full-stack LifeCheckpoint with cloud Flutter build on Netlify"
+git status -s
+git add -A
+if errorlevel 1 goto :error
+git commit -m "Upgrade LifeCheckpoint responsive UI/UX and splash screen"
 
-echo [4/4] Pushing to GitHub (master) — Netlify will build Flutter Web + Functions in the cloud...
+echo [4/4] Pushing to GitHub (master)...
 git push origin master
 if errorlevel 1 goto :error
 
 echo.
 echo ============================================================
 echo PUSHED TO GITHUB!
-echo Netlify is now building Flutter Web + API in the cloud (~2-3 mins).
-echo Reply "Done" in chat so I can monitor the Netlify deploy for you!
+echo Netlify is now building your new UI in the cloud (~1-2 mins).
+echo Reply "Done" in chat so I can verify https://yangjd.netlify.app!
 echo ============================================================
 pause
 exit /b 0
@@ -36,7 +40,7 @@ exit /b 0
 :error
 echo.
 echo ============================================================
-echo ERROR OCCURRED! Take a screenshot or send the error to chat.
+echo ERROR OCCURRED ABOVE! Please screenshot this window and send it here.
 echo ============================================================
 pause
 exit /b 1

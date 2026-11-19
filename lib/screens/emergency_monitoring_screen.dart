@@ -6,6 +6,7 @@ import '../providers/emergency_provider.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
+import '../widgets/responsive_container.dart';
 import 'disaster_guide_screen.dart';
 
 class EmergencyMonitoringScreen extends StatelessWidget {
@@ -59,8 +60,10 @@ class EmergencyMonitoringScreen extends StatelessWidget {
           lat: emergency.userLat,
           lng: emergency.userLng,
         ),
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        child: ResponsiveContainer(
+          maxWidth: 960,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
           children: [
             // Connectivity / Cache Mode Banner
             Container(
@@ -469,33 +472,62 @@ class EmergencyMonitoringScreen extends StatelessWidget {
             const SizedBox(height: 16),
             // PAGASA Rainfall & TCWS Offline Quick Reference
             Card(
-              color: isDark ? AppTheme.darkCard : Colors.blueGrey.shade50,
               child: Padding(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      isFil
-                          ? 'PAGASA Offline Gabay sa Babala'
-                          : 'PAGASA Offline Warning Legend',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: headingColor,
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.info_outline, size: 20, color: accentNavy),
+                        const SizedBox(width: 8),
+                        Text(
+                          isFil
+                              ? 'PAGASA Offline Gabay sa Babala'
+                              : 'PAGASA Offline Warning Legend',
+                          style: TextStyle(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.bold,
+                            color: headingColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPagasaLegendRow(
+                      color: const Color(0xFFEAB308),
+                      badge: 'YELLOW',
+                      description:
+                          'Flooding possible in low-lying areas — monitor updates.',
+                      headingColor: headingColor,
+                      subtleText: subtleText,
                     ),
                     const SizedBox(height: 8),
-                    Text(
-                      '• Yellow Rainfall: Flooding possible in low-lying areas (Monitor).\n'
-                      '• Orange Rainfall: Flooding threatening (Prepare to evacuate).\n'
-                      '• Red Rainfall: Severe flooding imminent (Immediate evacuation).\n'
-                      '• TCWS #3–#5: Destructive typhoon winds; stay inside reinforced shelter.',
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.45,
-                        color: subtleText,
-                      ),
+                    _buildPagasaLegendRow(
+                      color: const Color(0xFFF97316),
+                      badge: 'ORANGE',
+                      description:
+                          'Flooding threatening — prepare Go-Bag & evacuation route.',
+                      headingColor: headingColor,
+                      subtleText: subtleText,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildPagasaLegendRow(
+                      color: AppTheme.dangerRed,
+                      badge: 'RED',
+                      description:
+                          'Severe flooding imminent — evacuate to designated shelter.',
+                      headingColor: headingColor,
+                      subtleText: subtleText,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildPagasaLegendRow(
+                      color: Colors.purple,
+                      badge: 'TCWS #3–5',
+                      description:
+                          'Destructive typhoon winds — stay inside reinforced shelter.',
+                      headingColor: headingColor,
+                      subtleText: subtleText,
                     ),
                   ],
                 ),
@@ -503,7 +535,47 @@ class EmergencyMonitoringScreen extends StatelessWidget {
             ),
           ],
         ),
+        ),
       ),
+    );
+  }
+
+  Widget _buildPagasaLegendRow({
+    required Color color,
+    required String badge,
+    required String description,
+    required Color headingColor,
+    required Color subtleText,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 82,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: color.withAlpha(32),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withAlpha(140)),
+          ),
+          child: Text(
+            badge,
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            description,
+            style: TextStyle(fontSize: 13.5, height: 1.35, color: subtleText),
+          ),
+        ),
+      ],
     );
   }
 
