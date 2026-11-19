@@ -520,10 +520,8 @@ export async function handleApiRequest(
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required.' }, 403);
       }
-      const [overview, evaluations] = await Promise.all([
-        store.getAdminOverview(),
-        store.getEvaluations(),
-      ]);
+      const overview = await store.getAdminOverview();
+      const evaluations = await store.getEvaluations();
       return json({
         ...overview,
         evaluationSummary: buildEvaluationSummary(evaluations),

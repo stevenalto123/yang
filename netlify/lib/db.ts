@@ -14,10 +14,11 @@ export function getSql(): SqlClient {
 
     sqlInstance = postgres(connectionString, {
       ssl: isLocal ? false : 'require',
-      max: 3,
-      idle_timeout: 20,
+      max: 1,
+      idle_timeout: 5,
       connect_timeout: 10,
       prepare: false,
+      fetch_types: false,
     });
   }
   return sqlInstance;
@@ -26,7 +27,14 @@ export function getSql(): SqlClient {
 export async function ensureSchema(): Promise<SqlClient> {
   const sql = getSql();
   if (!schemaReadyPromise) {
-    schemaReadyPromise = runBootstrap(sql).catch((err) => {
+    schemaReadyPromise = (async () => {
+      const check = await sql`
+        SELECT to_regclass('public.iso_evaluations') AS ready
+      `;
+      if (!check[0]?.ready) {
+        await runBootstrap(sql);
+      }
+    })().catch((err) => {
       schemaReadyPromise = null;
       throw err;
     });

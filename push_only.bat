@@ -22,7 +22,7 @@ echo [3/4] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Add protected Admin & DRRM Portal with shelter management, check-in monitor, and survey analytics"
+git commit -m "Fix Supabase Transaction Pooler timeout on Admin Portal and speed up API cold starts"
 
 echo [4/4] Pushing to GitHub (master)...
 git push origin master

@@ -118,6 +118,19 @@ function parseJsonObject<T>(val: unknown, fallback: T): T {
   return fallback;
 }
 
+function parseJsonArray<T>(val: unknown): T[] {
+  if (Array.isArray(val)) return val as T[];
+  if (typeof val === 'string' && val.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? (parsed as T[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
 function mapHouseholdRow(row: Record<string, unknown>): HouseholdRecord {
   return {
     id: String(row.id),
@@ -299,15 +312,13 @@ export class PostgresStore implements DataStore {
     const household = await this.getHouseholdById(householdId);
     if (!household) return null;
 
-    const [kitRows, checkins, shelters] = await Promise.all([
-      sql`
-        SELECT * FROM kit_items
-        WHERE household_id = ${householdId} AND deleted = FALSE
-        ORDER BY category_index ASC, name ASC
-      `,
-      this.getCheckins(householdId, 20),
-      this.getShelters(householdId),
-    ]);
+    const kitRows = await sql`
+      SELECT * FROM kit_items
+      WHERE household_id = ${householdId} AND deleted = FALSE
+      ORDER BY category_index ASC, name ASC
+    `;
+    const checkins = await this.getCheckins(householdId, 20);
+    const shelters = await this.getShelters(householdId);
 
     return {
       household,
@@ -612,55 +623,64 @@ export class PostgresStore implements DataStore {
 
   async getAdminOverview(): Promise<AdminOverviewData> {
     const sql = await ensureSchema();
-    const [countRows, hhRows, checkinRows, shelterRows] = await Promise.all([
-      sql`
-        SELECT
-          (SELECT COUNT(*)::int FROM households) AS households,
-          (SELECT COUNT(*)::int FROM users) AS users,
-          (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_open = TRUE) AS open_shelters,
-          (SELECT COUNT(*)::int FROM evacuation_centers) AS total_shelters,
-          (SELECT COUNT(*)::int FROM safety_checkins) AS checkins_total,
-          (SELECT COUNT(*)::int FROM safety_checkins WHERE UPPER(status) LIKE '%ASSIST%' OR UPPER(status) LIKE '%HELP%') AS checkins_needing_help,
-          (SELECT COUNT(*)::int FROM iso_evaluations) AS evaluations_total
-      `,
-      sql`
-        SELECT
-          h.id,
-          h.name,
-          h.invite_code,
-          h.profile_json,
-          h.updated_at,
-          COALESCE(k.item_count, 0)::int AS item_count,
-          COALESCE(k.packed_count, 0)::int AS packed_count
-        FROM households h
-        LEFT JOIN (
-          SELECT
-            household_id,
-            COUNT(*)::int AS item_count,
-            COUNT(*) FILTER (WHERE is_packed = TRUE OR quantity >= target_quantity)::int AS packed_count
-          FROM kit_items
-          WHERE deleted = FALSE
-          GROUP BY household_id
-        ) k ON k.household_id = h.id
-        ORDER BY h.updated_at DESC
-        LIMIT 50
-      `,
-      sql`
-        SELECT
-          c.*,
-          COALESCE(h.name, 'Household') AS household_name
-        FROM safety_checkins c
-        LEFT JOIN households h ON h.id = c.household_id
-        ORDER BY c.created_at DESC
-        LIMIT 50
-      `,
-      sql`
-        SELECT * FROM evacuation_centers
-        ORDER BY is_official DESC, city ASC, name ASC
-      `,
-    ]);
+    const rows = await sql`
+      SELECT
+        (SELECT COUNT(*)::int FROM households) AS households,
+        (SELECT COUNT(*)::int FROM users) AS users,
+        (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_open = TRUE) AS open_shelters,
+        (SELECT COUNT(*)::int FROM evacuation_centers) AS total_shelters,
+        (SELECT COUNT(*)::int FROM safety_checkins) AS checkins_total,
+        (SELECT COUNT(*)::int FROM safety_checkins WHERE UPPER(status) LIKE '%ASSIST%' OR UPPER(status) LIKE '%HELP%') AS checkins_needing_help,
+        (SELECT COUNT(*)::int FROM iso_evaluations) AS evaluations_total,
+        COALESCE((
+          SELECT json_agg(row_to_json(t))
+          FROM (
+            SELECT
+              h.id,
+              h.name,
+              h.invite_code,
+              h.profile_json,
+              h.updated_at,
+              COALESCE(k.item_count, 0)::int AS item_count,
+              COALESCE(k.packed_count, 0)::int AS packed_count
+            FROM households h
+            LEFT JOIN (
+              SELECT
+                household_id,
+                COUNT(*)::int AS item_count,
+                COUNT(*) FILTER (WHERE is_packed = TRUE OR quantity >= target_quantity)::int AS packed_count
+              FROM kit_items
+              WHERE deleted = FALSE
+              GROUP BY household_id
+            ) k ON k.household_id = h.id
+            ORDER BY h.updated_at DESC
+            LIMIT 50
+          ) t
+        ), '[]'::json) AS households_json,
+        COALESCE((
+          SELECT json_agg(row_to_json(c_row))
+          FROM (
+            SELECT c.*, COALESCE(h.name, 'Household') AS household_name
+            FROM safety_checkins c
+            LEFT JOIN households h ON h.id = c.household_id
+            ORDER BY c.created_at DESC
+            LIMIT 50
+          ) c_row
+        ), '[]'::json) AS checkins_json,
+        COALESCE((
+          SELECT json_agg(row_to_json(s_row))
+          FROM (
+            SELECT * FROM evacuation_centers
+            ORDER BY is_official DESC, city ASC, name ASC
+          ) s_row
+        ), '[]'::json) AS shelters_json
+    `;
 
-    const c = countRows[0] ?? {};
+    const c = (rows[0] ?? {}) as Record<string, unknown>;
+    const hhRows = parseJsonArray<Record<string, unknown>>(c.households_json);
+    const checkinRows = parseJsonArray<Record<string, unknown>>(c.checkins_json);
+    const shelterRows = parseJsonArray<Record<string, unknown>>(c.shelters_json);
+
     const households: AdminHouseholdSummary[] = hhRows.map((row) => {
       const profile = parseJsonObject<HouseholdProfileData>(
         row.profile_json,
