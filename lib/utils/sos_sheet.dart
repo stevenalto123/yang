@@ -78,7 +78,7 @@ class SosSheet {
                       foregroundColor: Colors.white,
                       minimumSize: const Size(0, 50),
                     ),
-                    icon: const Icon(Icons.sos_rounded, size: 22),
+                    icon: const Icon(Icons.emergency_rounded, size: 22),
                     label: Text(
                       isFil
                           ? 'Magpadala ng SOS Alert sa Pamilya at DRRM'

@@ -52,6 +52,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   String _activeAdminCode = '';
   bool _unlocked = false;
+  bool _obscureAdminCode = true;
   bool _isLoading = false;
   bool _isPostingAdvisory = false;
   bool _autoRefreshEnabled = true;
@@ -1140,11 +1141,24 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       const SizedBox(height: 16),
                       TextField(
                         controller: _codeCtrl,
-                        obscureText: true,
+                        obscureText: _obscureAdminCode,
                         onSubmitted: (_) => _unlockWithCode(),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Admin Access Code',
-                          prefixIcon: Icon(Icons.lock_outline_rounded),
+                          prefixIcon: const Icon(Icons.lock_outline_rounded),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscureAdminCode
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                            tooltip: _obscureAdminCode
+                                ? 'Show admin code'
+                                : 'Hide admin code',
+                            onPressed: () => setState(
+                              () => _obscureAdminCode = !_obscureAdminCode,
+                            ),
+                          ),
                         ),
                       ),
                       if (_error != null) ...[

@@ -22,6 +22,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   bool _isRegisterMode = false;
   bool _isSubmitting = false;
   bool _acceptedPrivacy = false;
+  bool _obscurePassword = true;
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -571,6 +572,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
               children: [
                 Expanded(
                   child: ChoiceChip(
+                    showCheckmark: false,
                     label: Center(
                       child: Text(isFil ? 'Mag-sign In' : 'Sign In'),
                     ),
@@ -586,6 +588,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: ChoiceChip(
+                    showCheckmark: false,
                     label: Center(
                       child:
                           Text(isFil ? 'Gumawa ng Account' : 'Create Account'),
@@ -621,7 +624,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             const SizedBox(height: 10),
             TextField(
               controller: _passwordCtrl,
-              obscureText: true,
+              obscureText: _obscurePassword,
               onSubmitted: (_) {
                 if (!_isRegisterMode && !_isSubmitting) _submitAuth(auth);
               },
@@ -629,6 +632,18 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 labelText: isFil
                     ? 'Password (hindi bababa sa 6 na karakter) *'
                     : 'Password (at least 6 characters) *',
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
+                  ),
+                  tooltip: _obscurePassword
+                      ? (isFil ? 'Ipakita ang password' : 'Show password')
+                      : (isFil ? 'Itago ang password' : 'Hide password'),
+                  onPressed: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                ),
               ),
             ),
             if (_isRegisterMode) ...[

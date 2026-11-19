@@ -223,7 +223,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         foregroundColor: Colors.white,
         elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.sos_rounded, size: 21),
+        icon: const Icon(Icons.emergency_rounded, size: 21),
         label: Text(
           s.sosButtonLabel,
           style: const TextStyle(
@@ -428,7 +428,7 @@ class _DesktopSidebar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: const Icon(Icons.sos_rounded, size: 20),
+              icon: const Icon(Icons.emergency_rounded, size: 20),
               label: Text(
                 settings.isFilipino ? 'Tawag SOS / 911' : 'Emergency SOS',
                 style: const TextStyle(
