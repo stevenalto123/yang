@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { ensureSchema } from './db.js';
 import type {
+  AdminCheckinItem,
+  AdminHouseholdSummary,
+  AdminOverviewData,
   EvacuationCenterRecord,
   HouseholdProfileData,
   HouseholdRecord,
@@ -82,6 +85,7 @@ export interface DataStore {
     id: string,
     patch: { isOpen?: boolean; capacityPeople?: number },
   ): Promise<EvacuationCenterRecord | null>;
+  deleteShelter(id: string): Promise<boolean>;
 
   getTelemetryCache(cacheKey: string): Promise<TelemetryCacheRecord | null>;
   setTelemetryCache(
@@ -93,6 +97,7 @@ export interface DataStore {
 
   createEvaluation(input: IsoEvaluationInput): Promise<IsoEvaluationRecord>;
   getEvaluations(): Promise<IsoEvaluationRecord[]>;
+  getAdminOverview(): Promise<AdminOverviewData>;
 }
 
 function toIso(val: unknown): string {
@@ -531,6 +536,14 @@ export class PostgresStore implements DataStore {
     return rows.length > 0 ? mapShelterRow(rows[0]) : null;
   }
 
+  async deleteShelter(id: string): Promise<boolean> {
+    const sql = await ensureSchema();
+    const rows = await sql`
+      DELETE FROM evacuation_centers WHERE id = ${id} RETURNING id
+    `;
+    return rows.length > 0;
+  }
+
   async getTelemetryCache(cacheKey: string): Promise<TelemetryCacheRecord | null> {
     const sql = await ensureSchema();
     const rows = await sql`
@@ -595,6 +608,104 @@ export class PostgresStore implements DataStore {
       SELECT * FROM iso_evaluations ORDER BY created_at DESC LIMIT 500
     `;
     return rows.map(mapEvaluationRow);
+  }
+
+  async getAdminOverview(): Promise<AdminOverviewData> {
+    const sql = await ensureSchema();
+    const [countRows, hhRows, checkinRows, shelterRows] = await Promise.all([
+      sql`
+        SELECT
+          (SELECT COUNT(*)::int FROM households) AS households,
+          (SELECT COUNT(*)::int FROM users) AS users,
+          (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_open = TRUE) AS open_shelters,
+          (SELECT COUNT(*)::int FROM evacuation_centers) AS total_shelters,
+          (SELECT COUNT(*)::int FROM safety_checkins) AS checkins_total,
+          (SELECT COUNT(*)::int FROM safety_checkins WHERE UPPER(status) LIKE '%ASSIST%' OR UPPER(status) LIKE '%HELP%') AS checkins_needing_help,
+          (SELECT COUNT(*)::int FROM iso_evaluations) AS evaluations_total
+      `,
+      sql`
+        SELECT
+          h.id,
+          h.name,
+          h.invite_code,
+          h.profile_json,
+          h.updated_at,
+          COALESCE(k.item_count, 0)::int AS item_count,
+          COALESCE(k.packed_count, 0)::int AS packed_count
+        FROM households h
+        LEFT JOIN (
+          SELECT
+            household_id,
+            COUNT(*)::int AS item_count,
+            COUNT(*) FILTER (WHERE is_packed = TRUE OR quantity >= target_quantity)::int AS packed_count
+          FROM kit_items
+          WHERE deleted = FALSE
+          GROUP BY household_id
+        ) k ON k.household_id = h.id
+        ORDER BY h.updated_at DESC
+        LIMIT 50
+      `,
+      sql`
+        SELECT
+          c.*,
+          COALESCE(h.name, 'Household') AS household_name
+        FROM safety_checkins c
+        LEFT JOIN households h ON h.id = c.household_id
+        ORDER BY c.created_at DESC
+        LIMIT 50
+      `,
+      sql`
+        SELECT * FROM evacuation_centers
+        ORDER BY is_official DESC, city ASC, name ASC
+      `,
+    ]);
+
+    const c = countRows[0] ?? {};
+    const households: AdminHouseholdSummary[] = hhRows.map((row) => {
+      const profile = parseJsonObject<HouseholdProfileData>(
+        row.profile_json,
+        DEFAULT_HOUSEHOLD_PROFILE,
+      );
+      const memberCount =
+        (Number(profile.adults) || 0) +
+        (Number(profile.children) || 0) +
+        (Number(profile.infants) || 0) +
+        (Number(profile.seniors) || 0);
+      const itemCount = Number(row.item_count ?? 0);
+      const packedCount = Number(row.packed_count ?? 0);
+      const readinessPct =
+        itemCount > 0 ? Number(((packedCount / itemCount) * 100).toFixed(1)) : 0;
+      return {
+        id: String(row.id),
+        name: String(row.name ?? 'My Household'),
+        inviteCode: String(row.invite_code ?? ''),
+        memberCount: Math.max(1, memberCount),
+        itemCount,
+        packedCount,
+        readinessPct,
+        updatedAt: toIso(row.updated_at),
+      };
+    });
+
+    const recentCheckins: AdminCheckinItem[] = checkinRows.map((row) => ({
+      ...mapCheckinRow(row),
+      householdName: String(row.household_name ?? 'Household'),
+    }));
+
+    return {
+      counts: {
+        households: Number(c.households ?? 0),
+        users: Number(c.users ?? 0),
+        openShelters: Number(c.open_shelters ?? 0),
+        totalShelters: Number(c.total_shelters ?? 0),
+        checkinsTotal: Number(c.checkins_total ?? 0),
+        checkinsNeedingHelp: Number(c.checkins_needing_help ?? 0),
+        evaluationsTotal: Number(c.evaluations_total ?? 0),
+      },
+      households,
+      recentCheckins,
+      shelters: shelterRows.map(mapShelterRow),
+    };
   }
 }
 
@@ -846,6 +957,10 @@ export class InMemoryStore implements DataStore {
     return existing;
   }
 
+  async deleteShelter(id: string): Promise<boolean> {
+    return this.shelters.delete(id);
+  }
+
   async getTelemetryCache(cacheKey: string): Promise<TelemetryCacheRecord | null> {
     return this.telemetry.get(cacheKey) ?? null;
   }
@@ -877,6 +992,69 @@ export class InMemoryStore implements DataStore {
 
   async getEvaluations(): Promise<IsoEvaluationRecord[]> {
     return [...this.evaluations];
+  }
+
+  async getAdminOverview(): Promise<AdminOverviewData> {
+    const allShelters = [...this.shelters.values()];
+    const openShelters = allShelters.filter((s) => s.isOpen).length;
+
+    const allCheckins: AdminCheckinItem[] = [];
+    for (const [hhId, list] of this.checkinsByHousehold.entries()) {
+      const hhName = this.households.get(hhId)?.name ?? 'Household';
+      for (const c of list) {
+        allCheckins.push({ ...c, householdName: hhName });
+      }
+    }
+    allCheckins.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+    const checkinsNeedingHelp = allCheckins.filter((c) => {
+      const st = c.status.toUpperCase();
+      return st.includes('ASSIST') || st.includes('HELP');
+    }).length;
+
+    const households: AdminHouseholdSummary[] = [...this.households.values()]
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 50)
+      .map((h) => {
+        const itemsMap = this.kitByHousehold.get(h.id) ?? new Map<string, KitItemRecord>();
+        const activeItems = [...itemsMap.values()].filter((i) => !i.deleted);
+        const packedCount = activeItems.filter(
+          (i) => i.isPacked || i.quantity >= i.targetQuantity,
+        ).length;
+        const itemCount = activeItems.length;
+        const readinessPct =
+          itemCount > 0 ? Number(((packedCount / itemCount) * 100).toFixed(1)) : 0;
+        const p = h.profile;
+        const memberCount = Math.max(
+          1,
+          (p.adults || 0) + (p.children || 0) + (p.infants || 0) + (p.seniors || 0),
+        );
+        return {
+          id: h.id,
+          name: h.name,
+          inviteCode: h.inviteCode,
+          memberCount,
+          itemCount,
+          packedCount,
+          readinessPct,
+          updatedAt: h.updatedAt,
+        };
+      });
+
+    return {
+      counts: {
+        households: this.households.size,
+        users: this.users.size,
+        openShelters,
+        totalShelters: allShelters.length,
+        checkinsTotal: allCheckins.length,
+        checkinsNeedingHelp,
+        evaluationsTotal: this.evaluations.length,
+      },
+      households,
+      recentCheckins: allCheckins.slice(0, 50),
+      shelters: allShelters,
+    };
   }
 }
 

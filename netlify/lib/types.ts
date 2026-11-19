@@ -107,3 +107,33 @@ export interface SyncBundle {
   checkins: SafetyCheckinRecord[];
   shelters: EvacuationCenterRecord[];
 }
+
+export interface AdminHouseholdSummary {
+  id: string;
+  name: string;
+  inviteCode: string;
+  memberCount: number;
+  itemCount: number;
+  packedCount: number;
+  readinessPct: number;
+  updatedAt: string;
+}
+
+export interface AdminCheckinItem extends SafetyCheckinRecord {
+  householdName: string;
+}
+
+export interface AdminOverviewData {
+  counts: {
+    households: number;
+    users: number;
+    openShelters: number;
+    totalShelters: number;
+    checkinsTotal: number;
+    checkinsNeedingHelp: number;
+    evaluationsTotal: number;
+  };
+  households: AdminHouseholdSummary[];
+  recentCheckins: AdminCheckinItem[];
+  shelters: EvacuationCenterRecord[];
+}

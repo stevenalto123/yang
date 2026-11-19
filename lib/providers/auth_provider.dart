@@ -468,6 +468,99 @@ class AuthProvider extends ChangeNotifier {
     return (ok: false, csv: null, error: res.error);
   }
 
+  Future<({bool ok, Map<String, dynamic>? data, String? error})>
+      fetchAdminOverview({String? adminCode}) async {
+    final res = await _api.request(
+      'GET',
+      '/admin/overview',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+    );
+    if (res.ok && res.data != null) {
+      return (ok: true, data: res.data, error: null);
+    }
+    return (ok: false, data: null, error: res.error ?? 'Admin access denied.');
+  }
+
+  Future<({bool ok, Map<String, dynamic>? shelter, String? error})>
+      createOfficialShelter({
+    required Map<String, dynamic> shelter,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'POST',
+      '/admin/shelters',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+      body: shelter,
+    );
+    if (res.ok && res.data?['shelter'] is Map) {
+      return (
+        ok: true,
+        shelter: Map<String, dynamic>.from(res.data!['shelter']),
+        error: null,
+      );
+    }
+    return (
+      ok: false,
+      shelter: null,
+      error: res.error ?? 'Could not add shelter.',
+    );
+  }
+
+  Future<({bool ok, Map<String, dynamic>? shelter, String? error})>
+      updateOfficialShelter({
+    required String id,
+    bool? isOpen,
+    int? capacityPeople,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'PATCH',
+      '/shelters/${Uri.encodeComponent(id)}',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+      body: {
+        if (isOpen != null) 'isOpen': isOpen,
+        if (capacityPeople != null) 'capacityPeople': capacityPeople,
+      },
+    );
+    if (res.ok && res.data?['shelter'] is Map) {
+      return (
+        ok: true,
+        shelter: Map<String, dynamic>.from(res.data!['shelter']),
+        error: null,
+      );
+    }
+    return (
+      ok: false,
+      shelter: null,
+      error: res.error ?? 'Could not update shelter.',
+    );
+  }
+
+  Future<({bool ok, String? error})> deleteOfficialShelter({
+    required String id,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'DELETE',
+      '/admin/shelters/${Uri.encodeComponent(id)}',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+    );
+    if (res.ok) return (ok: true, error: null);
+    return (ok: false, error: res.error ?? 'Could not delete shelter.');
+  }
+
   Future<({bool ok, String? error})> checkHealth() async {
     final res = await _api.request('GET', '/health');
     if (res.ok && res.data?['ok'] == true) {

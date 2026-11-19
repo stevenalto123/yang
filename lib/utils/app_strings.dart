@@ -13,9 +13,8 @@ class AppStrings {
   String get navSafety => fil ? 'Gabay' : 'Safety';
 
   // Dashboard
-  String get appSubtitle => fil
-      ? 'Kahandaan ng Pamilya sa Sakuna'
-      : 'Family Disaster Preparedness';
+  String get appSubtitle =>
+      fil ? 'Kahandaan ng Pamilya' : 'Family Preparedness';
   String get weightedScoreLabel =>
       fil ? 'KAHANDAAN NG GO-BAG' : 'GO-BAG READINESS';
   String get weightedExplain => fil

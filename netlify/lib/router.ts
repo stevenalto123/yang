@@ -515,6 +515,83 @@ export async function handleApiRequest(
       return json({ shelter: updated });
     }
 
+    if (method === 'GET' && path === '/admin/overview') {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required.' }, 403);
+      }
+      const [overview, evaluations] = await Promise.all([
+        store.getAdminOverview(),
+        store.getEvaluations(),
+      ]);
+      return json({
+        ...overview,
+        evaluationSummary: buildEvaluationSummary(evaluations),
+      });
+    }
+
+    if (method === 'POST' && path === '/admin/shelters') {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required to add official shelters.' }, 403);
+      }
+
+      const body = await parseJsonBody(req);
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      if (!name) return json({ error: 'Shelter name is required.' }, 400);
+
+      const shelter: EvacuationCenterRecord = {
+        id:
+          typeof body.id === 'string' && body.id.trim()
+            ? body.id.trim()
+            : `official_${Date.now()}`,
+        name,
+        address:
+          typeof body.address === 'string' && body.address.trim()
+            ? body.address.trim()
+            : 'Metro Manila',
+        city:
+          typeof body.city === 'string' && body.city.trim()
+            ? body.city.trim()
+            : 'Manila',
+        latitude: typeof body.latitude === 'number' ? body.latitude : 14.5822,
+        longitude: typeof body.longitude === 'number' ? body.longitude : 120.9882,
+        contactPerson:
+          typeof body.contactPerson === 'string' && body.contactPerson.trim()
+            ? body.contactPerson.trim()
+            : 'City DRRMO',
+        contactNumber:
+          typeof body.contactNumber === 'string' && body.contactNumber.trim()
+            ? body.contactNumber.trim()
+            : '911',
+        capacityPeople:
+          typeof body.capacityPeople === 'number'
+            ? Math.max(0, Math.round(body.capacityPeople))
+            : 500,
+        isOpen: typeof body.isOpen === 'boolean' ? body.isOpen : true,
+        facilities:
+          typeof body.facilities === 'string' && body.facilities.trim()
+            ? body.facilities.trim()
+            : 'Official Emergency Evacuation Center',
+        isOfficial: true,
+      };
+
+      const saved = await store.addShelter(null, shelter);
+      return json({ shelter: saved }, 201);
+    }
+
+    if (method === 'DELETE' && path.startsWith('/admin/shelters/')) {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required to remove shelters.' }, 403);
+      }
+      const id = decodeURIComponent(path.slice('/admin/shelters/'.length)).trim();
+      if (!id) return json({ error: 'Shelter id is required.' }, 400);
+      const deleted = await store.deleteShelter(id);
+      if (!deleted) return json({ error: 'Shelter not found.' }, 404);
+      return json({ deleted: true, id });
+    }
+
     if (method === 'GET' && path === '/telemetry') {
       const url = new URL(req.url, 'http://localhost');
       const rawLat = Number(url.searchParams.get('lat') ?? 14.5822);

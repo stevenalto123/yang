@@ -230,3 +230,68 @@ test('shelter RBAC and ISO 25010 evaluations summary & CSV export', async () => 
   assert.ok(csvRes.headers.get('content-type').includes('text/csv'));
   assert.ok(csvRes.text.includes("'=HYPERLINK"));
 });
+
+test('admin overview, official shelter publish/delete, and strict RBAC', async () => {
+  const store = new InMemoryStore();
+
+  const hhUser = await callApi(store, '/auth/register', {
+    method: 'POST',
+    body: {
+      email: 'family@manila.ph',
+      password: 'password123',
+      fullName: 'Santos Family',
+      householdName: 'Santos Household',
+    },
+  });
+
+  await callApi(store, '/checkins', {
+    method: 'POST',
+    token: hhUser.json.token,
+    body: {
+      status: 'NEED ASSISTANCE',
+      note: 'Floodwater rising near gate',
+      latitude: 14.58,
+      longitude: 120.98,
+    },
+  });
+
+  // Regular household user blocked from admin overview
+  const blocked = await callApi(store, '/admin/overview', {
+    token: hhUser.json.token,
+  });
+  assert.equal(blocked.status, 403);
+
+  // Valid x-admin-code unlocks admin overview
+  const okOverview = await callApi(store, '/admin/overview', {
+    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+  });
+  assert.equal(okOverview.status, 200);
+  assert.equal(okOverview.json.counts.households, 1);
+  assert.equal(okOverview.json.counts.checkinsNeedingHelp, 1);
+  assert.equal(okOverview.json.recentCheckins.length, 1);
+
+  // Admin can publish and delete official shelter
+  const created = await callApi(store, '/admin/shelters', {
+    method: 'POST',
+    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    body: {
+      name: 'Paco Barangay Gym',
+      address: 'Paco, Manila',
+      city: 'Manila',
+      capacityPeople: 600,
+    },
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.json.shelter.isOfficial, true);
+
+  const deleted = await callApi(
+    store,
+    `/admin/shelters/${encodeURIComponent(created.json.shelter.id)}`,
+    {
+      method: 'DELETE',
+      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    },
+  );
+  assert.equal(deleted.status, 200);
+  assert.equal(deleted.json.deleted, true);
+});

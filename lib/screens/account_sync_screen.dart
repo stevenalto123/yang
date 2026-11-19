@@ -9,6 +9,7 @@ import '../providers/settings_provider.dart';
 import '../utils/app_theme.dart';
 import '../widgets/privacy_notice_dialog.dart';
 import '../widgets/responsive_container.dart';
+import 'admin_dashboard_screen.dart';
 
 class AccountSyncScreen extends StatefulWidget {
   const AccountSyncScreen({super.key});
@@ -775,6 +776,26 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
           ),
           childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                icon: const Icon(Icons.admin_panel_settings_rounded, size: 19),
+                label: Text(
+                  isFil
+                      ? 'Buksan ang Admin & DRRM Portal'
+                      : 'Open Admin & DRRM Portal',
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminDashboardScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const Divider(height: 24),
             Align(
               alignment: Alignment.centerLeft,
               child: Text(

@@ -9,6 +9,7 @@ import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
 import '../widgets/responsive_container.dart';
 import 'account_sync_screen.dart';
+import 'admin_dashboard_screen.dart';
 import 'disaster_guide_screen.dart';
 import 'emergency_plan_screen.dart';
 import 'notifications_screen.dart';
@@ -410,15 +411,61 @@ class HomeDashboardScreen extends StatelessWidget {
 
                       const SizedBox(height: 28),
                       Center(
-                        child: Text(
-                          isFil
-                              ? 'LifeCheckpoint • Gabay ng Pamilya sa Metro Manila (EAC)'
-                              : 'LifeCheckpoint • Metro Manila Family Preparedness • EAC',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: subtleText.withAlpha(180),
-                          ),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              isFil
+                                  ? 'LifeCheckpoint • Gabay ng Pamilya sa Metro Manila (EAC)'
+                                  : 'LifeCheckpoint • Metro Manila Family Preparedness • EAC',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: subtleText.withAlpha(180),
+                              ),
+                            ),
+                            Text(
+                              '•',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: subtleText.withAlpha(140),
+                              ),
+                            ),
+                            TextButton.icon(
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                foregroundColor: subtleText,
+                              ),
+                              icon: const Icon(
+                                Icons.admin_panel_settings_outlined,
+                                size: 15,
+                              ),
+                              label: const Text(
+                                'Admin Portal',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AdminDashboardScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
                         ),
                       ),
                     ],

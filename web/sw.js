@@ -1,5 +1,5 @@
 // LifeCheckpoint Offline-First Service Worker
-const CACHE_NAME = 'lifecheckpoint-pwa-v6';
+const CACHE_NAME = 'lifecheckpoint-pwa-v7';
 
 // Populated cleanly from build/web/ during build (or core fallback shell)
 const PRECACHE_URLS = [
@@ -45,8 +45,13 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
 
-  // Never serve stale sw.js itself
-  if (url.pathname.endsWith('/sw.js') || url.pathname.endsWith('/flutter_service_worker.js')) {
+  // Never intercept API endpoints or stale service worker scripts
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/.netlify/') ||
+    url.pathname.endsWith('/sw.js') ||
+    url.pathname.endsWith('/flutter_service_worker.js')
+  ) {
     return;
   }
 

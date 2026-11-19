@@ -22,7 +22,7 @@ echo [3/4] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Redesign LifeCheckpoint UI for clean, professional, jargon-free household UX"
+git commit -m "Add protected Admin & DRRM Portal with shelter management, check-in monitor, and survey analytics"
 
 echo [4/4] Pushing to GitHub (master)...
 git push origin master
