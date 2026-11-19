@@ -5,43 +5,43 @@ class AppStrings {
 
   const AppStrings(this.fil);
 
-  // Navigation Tabs
+  // Navigation Tabs (Clear, everyday language)
   String get navHome => fil ? 'Tahanan' : 'Home';
-  String get navKit => fil ? 'Go-Bag' : 'Kit';
-  String get navMonitor => fil ? 'Bantay' : 'Monitor';
-  String get navMap => fil ? 'Mapa' : 'Map';
-  String get navSafety => fil ? 'Kaligtasan' : 'Safety';
+  String get navKit => fil ? 'Go-Bag' : 'Go-Bag';
+  String get navMonitor => fil ? 'Alerto' : 'Alerts';
+  String get navMap => fil ? 'Malapit' : 'Nearby';
+  String get navSafety => fil ? 'Gabay' : 'Safety';
 
   // Dashboard
   String get appSubtitle => fil
-      ? 'Bantay-Sakuna at Kahandaan sa Bahay'
-      : 'Emergency Monitoring & Preparedness';
+      ? 'Kahandaan ng Pamilya sa Sakuna'
+      : 'Family Disaster Preparedness';
   String get weightedScoreLabel =>
-      fil ? 'MARKA NG KAHANDAAN' : 'WEIGHTED READINESS SCORE';
+      fil ? 'KAHANDAAN NG GO-BAG' : 'GO-BAG READINESS';
   String get weightedExplain => fil
-      ? 'Mas mabigat ang marka ng Tubig, Pagkain at Gamot (3×)'
-      : 'Critical survival items (Water, Food, Meds) weighted 3×';
+      ? 'Unahin ang Tubig, Pagkain, at Gamot para sa 72 oras'
+      : 'Prioritizes Water, Food, and Medicine for 72 hours';
   String get quickToolsTitle =>
-      fil ? 'Mabilisang Serbisyo' : 'Preparedness Tools';
+      fil ? 'Mabilisang Aksyon' : 'Quick Actions';
   String get replacementAlerts =>
-      fil ? 'Mga Palitan at Abiso' : 'Replacement Alerts';
+      fil ? 'Palitan at Expiration' : 'Expiring & Missing';
   String get readinessAudit =>
-      fil ? 'Pagsusuri at Survey' : 'Self-Assessment & Survey';
+      fil ? 'Pagsusuri at Feedback' : 'Readiness & Feedback';
   String get householdPlan =>
-      fil ? 'Plano ng Pamilya' : 'My Emergency Plan';
+      fil ? 'Plano ng Pamilya' : 'Family Plan';
   String get disasterGuides =>
       fil ? 'Gabay sa Sakuna' : 'Disaster Guides';
 
   // Readiness Status
   String readinessStatus(double score) {
-    if (score >= 90) return fil ? 'Handang-Handa' : 'Fully Prepared';
+    if (score >= 90) return fil ? 'Handang-Handa' : 'Ready for Emergencies';
     if (score >= 70) {
-      return fil ? 'Sapat ang Kahandaan' : 'Substantially Prepared';
+      return fil ? 'Halos Handa Na' : 'Almost Ready';
     }
     if (score >= 40) {
-      return fil ? 'Katamtamang Kahandaan' : 'Moderately Prepared';
+      return fil ? 'May Kulang Pa' : 'In Progress';
     }
-    return fil ? 'Kailangan ng Aksyon' : 'Action Needed';
+    return fil ? 'Kailangan Ihanda' : 'Needs Attention';
   }
 
   // Categories
@@ -65,12 +65,12 @@ class AppStrings {
     }
   }
 
-  // Drill & SOS
+  // Practice Drill & SOS
   String get drillBannerText => fil
-      ? 'PAGSASANAY (DRILL MODE) — HINDI ITO TOTOONG SAKUNA'
-      : 'SIMULATION / DRILL MODE — NOT A REAL EMERGENCY';
-  String get exitDrill => fil ? 'Itigil' : 'Exit Drill';
+      ? 'PRACTICE DRILL LAMANG — HINDI ITO TOTOONG SAKUNA'
+      : 'PRACTICE DRILL ACTIVE — NOT A REAL EMERGENCY';
+  String get exitDrill => fil ? 'Tapusin' : 'End Drill';
   String get sosDispatchTitle =>
-      fil ? 'Mabilisang Tawag at SOS' : 'Instant Emergency Dispatch';
+      fil ? 'Mabilisang Tawag at SOS' : 'Emergency Help & SOS';
   String get sosButtonLabel => 'SOS';
 }

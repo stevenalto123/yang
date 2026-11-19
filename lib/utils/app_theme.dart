@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  // Primary Brand Colors (Calm Navy for daily navigation; Red reserved strictly for Danger/SOS)
-  static const Color primaryNavy = Color(0xFF13294B);
-  static const Color primaryNavyDark = Color(0xFF0B192F);
-  static const Color primaryAccent = Color(0xFF0284C7);
+  // Refined High-Trust Brand Palette
+  static const Color primaryNavy = Color(0xFF0F294A);
+  static const Color primaryNavyDark = Color(0xFF091A32);
+  static const Color primaryAccent = Color(0xFF1D4ED8);
   static const Color eacCrimson = Color(0xFF9E1B32);
 
-  // Semantic Alert Colors
+  // Semantic Status Colors (Calm & Unmistakable)
   static const Color dangerRed = Color(0xFFDC2626);
   static const Color warningAmber = Color(0xFFD97706);
-  static const Color safeGreen = Color(0xFF15803D);
+  static const Color safeGreen = Color(0xFF059669);
 
-  // Light Palette
+  // Light Mode Surfaces (60-30-10 clean whitespace)
   static const Color darkSlate = Color(0xFF0F172A);
-  static const Color mutedSlate = Color(0xFF475569);
-  static const Color surfaceBg = Color(0xFFF4F7FB);
+  static const Color mutedSlate = Color(0xFF64748B);
+  static const Color surfaceBg = Color(0xFFF8FAFC);
   static const Color cardBg = Colors.white;
   static const Color lightBorder = Color(0xFFE2E8F0);
 
-  // Dark / Blackout Battery-Saver Palette
-  static const Color darkBg = Color(0xFF090F1D);
-  static const Color darkCard = Color(0xFF111B2E);
-  static const Color darkElevated = Color(0xFF17233A);
-  static const Color darkBorder = Color(0xFF23334F);
+  // Dark Mode Surfaces (Battery-Saver Blackout Mode)
+  static const Color darkBg = Color(0xFF0B1120);
+  static const Color darkCard = Color(0xFF111827);
+  static const Color darkElevated = Color(0xFF1E293B);
+  static const Color darkBorder = Color(0xFF1F2937);
 
   static ThemeData get lightTheme {
     return ThemeData(
@@ -46,42 +46,42 @@ class AppTheme {
         headlineSmall: TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.w800,
-          letterSpacing: -0.3,
+          letterSpacing: -0.4,
           color: darkSlate,
         ),
         titleLarge: TextStyle(
-          fontSize: 19,
+          fontSize: 18.5,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
           color: darkSlate,
         ),
         titleMedium: TextStyle(
-          fontSize: 16,
+          fontSize: 15.5,
           fontWeight: FontWeight.w700,
           color: darkSlate,
         ),
-        bodyLarge: TextStyle(fontSize: 15, height: 1.4, color: darkSlate),
-        bodyMedium: TextStyle(fontSize: 14, height: 1.4, color: darkSlate),
+        bodyLarge: TextStyle(fontSize: 15, height: 1.45, color: darkSlate),
+        bodyMedium: TextStyle(fontSize: 14, height: 1.45, color: darkSlate),
         labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: primaryNavy,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.white,
+        foregroundColor: darkSlate,
         elevation: 0,
-        scrolledUnderElevation: 2,
+        scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: Colors.white,
+          color: darkSlate,
           fontSize: 18,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.1,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.2,
         ),
+        shape: Border(bottom: BorderSide(color: lightBorder)),
       ),
       cardTheme: CardThemeData(
         color: cardBg,
         elevation: 0,
-        shadowColor: Colors.black12,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
@@ -108,9 +108,24 @@ class AppTheme {
           ),
         ),
       ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: primaryNavy,
+          foregroundColor: Colors.white,
+          minimumSize: const Size(48, 46),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(48, 48),
+          foregroundColor: darkSlate,
+          minimumSize: const Size(48, 46),
           side: const BorderSide(color: lightBorder),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -129,7 +144,8 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: lightBorder),
@@ -140,7 +156,7 @@ class AppTheme {
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: primaryNavy, width: 2),
+          borderSide: BorderSide(color: primaryAccent, width: 1.8),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
@@ -151,7 +167,7 @@ class AppTheme {
   }
 
   static ThemeData get darkTheme {
-    const lightText = Color(0xFFF1F5F9);
+    const lightText = Color(0xFFF8FAFC);
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -173,37 +189,38 @@ class AppTheme {
         headlineSmall: TextStyle(
           fontSize: 22,
           fontWeight: FontWeight.w800,
-          letterSpacing: -0.3,
+          letterSpacing: -0.4,
           color: lightText,
         ),
         titleLarge: TextStyle(
-          fontSize: 19,
+          fontSize: 18.5,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.2,
           color: lightText,
         ),
         titleMedium: TextStyle(
-          fontSize: 16,
+          fontSize: 15.5,
           fontWeight: FontWeight.w700,
           color: lightText,
         ),
-        bodyLarge: TextStyle(fontSize: 15, height: 1.4, color: lightText),
-        bodyMedium: TextStyle(fontSize: 14, height: 1.4, color: lightText),
+        bodyLarge: TextStyle(fontSize: 15, height: 1.45, color: lightText),
+        bodyMedium: TextStyle(fontSize: 14, height: 1.45, color: lightText),
         labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF0E1728),
+        backgroundColor: darkCard,
         foregroundColor: Colors.white,
         elevation: 0,
-        scrolledUnderElevation: 2,
+        scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
         centerTitle: false,
         titleTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 18,
-          fontWeight: FontWeight.w700,
-          letterSpacing: -0.1,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.2,
         ),
+        shape: Border(bottom: BorderSide(color: darkBorder)),
       ),
       cardTheme: CardThemeData(
         color: darkCard,
@@ -234,9 +251,24 @@ class AppTheme {
           ),
         ),
       ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF0284C7),
+          foregroundColor: Colors.white,
+          minimumSize: const Size(48, 46),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(48, 48),
+          foregroundColor: lightText,
+          minimumSize: const Size(48, 46),
           side: const BorderSide(color: darkBorder),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -255,7 +287,8 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: darkElevated,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: darkBorder),
@@ -266,7 +299,7 @@ class AppTheme {
         ),
         focusedBorder: const OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: Color(0xFF38BDF8), width: 2),
+          borderSide: BorderSide(color: Color(0xFF38BDF8), width: 1.8),
         ),
       ),
       snackBarTheme: SnackBarThemeData(

@@ -81,8 +81,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       appBar: AppBar(
         title: Text(
           isFil
-              ? 'Mga Alerto sa Pagpapalit'
-              : 'Replacement Alerts & Restock',
+              ? 'Palitan at Expiration'
+              : 'Expiring & Missing',
         ),
         actions: [
           IconButton(

@@ -21,31 +21,37 @@ class EmergencyMonitoringScreen extends StatelessWidget {
     final isDark = settings.isDarkMode;
     final isFil = settings.isFilipino;
 
-    final threat = mon.currentThreatLevel;
-    final isAlert = mon.drillMode != DrillAlertMode.liveNormal ||
-        threat.contains('ALERT') ||
-        threat.contains('WARNING');
-
+    final isAlert = mon.isHazardActive;
     final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
-    final subtleText = isDark ? Colors.white70 : Colors.grey.shade700;
+    final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
     final accentNavy = isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
+
+    final areaLabel = emergency.hasLiveGps
+        ? (isFil ? 'Iyong Lokasyon' : 'Your Location')
+        : 'Metro Manila';
+
+    final syncText = mon.isOfflineMode
+        ? (isFil ? 'Offline • Naka-save na datos' : 'Offline • Showing saved info')
+        : (isFil
+            ? 'Updated ${mon.lastUpdated != null ? DateFormat('h:mm a').format(mon.lastUpdated!) : 'Ngayon'}'
+            : 'Updated ${mon.lastUpdated != null ? DateFormat('h:mm a').format(mon.lastUpdated!) : 'Just now'}');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isFil ? 'Pagsubaybay sa Sakuna' : 'Emergency Monitoring Hub'),
+        title: Text(isFil ? 'Panahon at Alerto' : 'Weather & Alerts'),
         actions: [
           IconButton(
             icon: mon.isRefreshing
-                ? const SizedBox(
+                ? SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white,
+                      color: accentNavy,
                     ),
                   )
-                : const Icon(Icons.sync),
-            tooltip: isFil ? 'I-sync ang Live Feeds' : 'Sync Live Feeds',
+                : const Icon(Icons.refresh_rounded),
+            tooltip: isFil ? 'I-update ang Alerto' : 'Refresh Weather & Alerts',
             onPressed: mon.isRefreshing
                 ? null
                 : () => mon.refreshLiveFeeds(
@@ -64,477 +70,567 @@ class EmergencyMonitoringScreen extends StatelessWidget {
           maxWidth: 960,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-          children: [
-            // Connectivity / Cache Mode Banner
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: mon.isOfflineMode
-                    ? (isDark
-                        ? Colors.amber.withAlpha(35)
-                        : Colors.amber.shade50)
-                    : (isDark
-                        ? AppTheme.safeGreen.withAlpha(35)
-                        : Colors.green.shade50),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: mon.isOfflineMode
-                      ? (isDark ? Colors.amber.shade400 : Colors.amber.shade300)
-                      : (isDark ? Colors.green.shade400 : Colors.green.shade300),
+            children: [
+              // 1. Clean Top Status Banner
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: isAlert
+                        ? [const Color(0xFF991B1B), AppTheme.dangerRed]
+                        : [const Color(0xFF065F46), AppTheme.safeGreen],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(18),
                 ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    mon.isOfflineMode ? Icons.cloud_off : Icons.cloud_done,
-                    size: 20,
-                    color: mon.isOfflineMode
-                        ? (isDark ? Colors.amber.shade200 : Colors.orange.shade800)
-                        : (isDark ? Colors.green.shade200 : AppTheme.safeGreen),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      mon.isOfflineMode
-                          ? (isFil
-                              ? 'Offline Fallback Aktibo • Gamit ang naka-cache na datos'
-                              : 'Offline Fallback Active • Showing cached hazard telemetry')
-                          : (isFil
-                              ? 'Nakakonekta • Huling sync ${mon.lastUpdated != null ? DateFormat('h:mm a').format(mon.lastUpdated!) : 'Ngayon'}'
-                              : 'Connected • Last synced ${mon.lastUpdated != null ? DateFormat('h:mm a').format(mon.lastUpdated!) : 'Just now'}'),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: mon.isOfflineMode
-                            ? (isDark
-                                ? Colors.amber.shade100
-                                : Colors.orange.shade900)
-                            : (isDark
-                                ? Colors.green.shade100
-                                : Colors.green.shade900),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Threat Status Banner
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isAlert
-                      ? [const Color(0xFF991B1B), AppTheme.dangerRed]
-                      : [const Color(0xFF14532D), AppTheme.safeGreen],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        isAlert
-                            ? Icons.warning_amber_rounded
-                            : Icons.verified_user,
-                        color: Colors.white,
-                        size: 30,
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isFil
-                                  ? 'KASALUKUYANG ANTAS NG PANGANIB'
-                                  : 'CURRENT HAZARD STATUS',
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white70,
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              threat,
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (mon.drillMode.linkedDisaster != null) ...[
-                    const SizedBox(height: 12),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppTheme.dangerRed,
-                        minimumSize: const Size(0, 48),
-                      ),
-                      icon: const Icon(Icons.menu_book, size: 18),
-                      label: Text(
-                        isFil
-                            ? 'Buksan ang Gabay sa Pagtugon'
-                            : 'Open Recommended Action Protocol',
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const DisasterGuideScreen(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Drill / Defense Simulation Mode Selector
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.science_outlined, size: 20, color: accentNavy),
-                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withAlpha(28),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            isAlert
+                                ? Icons.warning_amber_rounded
+                                : Icons.verified_user_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
                         Expanded(
-                          child: Text(
-                            isFil
-                                ? 'Emergency Alert Mode (Live / Pagsasanay)'
-                                : 'Emergency Alert Mode (Live / Defense Drill)',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: headingColor,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                mon.friendlyStatusLabel(isFil),
+                                style: const TextStyle(
+                                  fontSize: 19,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Icon(
+                                    mon.isOfflineMode
+                                        ? Icons.cloud_off_rounded
+                                        : Icons.check_circle_outline_rounded,
+                                    size: 14,
+                                    color: Colors.white70,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Expanded(
+                                    child: Text(
+                                      '$areaLabel • $syncText',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: DrillAlertMode.values.map((mode) {
-                        final selected = mon.drillMode == mode;
-                        return ChoiceChip(
-                          materialTapTargetSize: MaterialTapTargetSize.padded,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 8,
-                          ),
-                          label: Text(
-                            mode.label,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: selected ? Colors.white : headingColor,
-                              fontWeight: selected
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
+                    if (mon.drillMode.linkedDisaster != null) ...[
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: AppTheme.dangerRed,
+                          minimumSize: const Size(0, 44),
+                        ),
+                        icon: const Icon(Icons.menu_book_rounded, size: 18),
+                        label: Text(
+                          isFil
+                              ? 'Tingnan ang Gabay sa Pagtugon'
+                              : 'View What To Do Guide',
+                        ),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DisasterGuideScreen(),
                             ),
-                          ),
-                          selected: selected,
-                          selectedColor: mode == DrillAlertMode.liveNormal
-                              ? AppTheme.safeGreen
-                              : AppTheme.dangerRed,
-                          backgroundColor:
-                              isDark ? AppTheme.darkBg : Colors.grey.shade100,
-                          side: BorderSide(
-                            color: selected
-                                ? (mode == DrillAlertMode.liveNormal
-                                    ? AppTheme.safeGreen
-                                    : AppTheme.dangerRed)
-                                : (isDark
-                                    ? AppTheme.darkBorder
-                                    : Colors.grey.shade300),
-                          ),
-                          onSelected: (_) => mon.setDrillMode(mode),
-                        );
-                      }).toList(),
-                    ),
+                          );
+                        },
+                      ),
+                    ],
                   ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Live Dynamic GPS / Metro Manila Weather Telemetry
-            Text(
-              isFil
-                  ? 'Lokal na Lagay ng Panahon (${emergency.hasLiveGps ? 'Live GPS' : 'Metro Manila'})'
-                  : 'Local Weather Monitoring (${emergency.hasLiveGps ? 'Live GPS' : 'Metro Manila'})',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: headingColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: mon.weather == null
-                    ? Text(
-                        isFil
-                            ? 'Kinukuha ang lagay ng panahon...'
-                            : 'Loading local weather telemetry...',
-                        style: const TextStyle(fontSize: 14),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+              // 2. 1-Tap Family Safety Check-In Card
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          _buildTelemetryMetric(
-                            Icons.thermostat,
-                            '${mon.weather!.temperatureC.toStringAsFixed(1)}°C',
-                            mon.weather!.conditionText,
-                            Colors.orange.shade400,
-                            subtleText,
+                          Icon(
+                            Icons.family_restroom_rounded,
+                            size: 20,
+                            color: accentNavy,
                           ),
-                          _buildTelemetryMetric(
-                            Icons.air,
-                            '${mon.weather!.windSpeedKmh.toStringAsFixed(1)} km/h',
-                            isFil ? 'Hangin' : 'Surface Wind',
-                            Colors.blue.shade400,
-                            subtleText,
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              isFil
+                                  ? 'Check-In ng Pamilya'
+                                  : 'Family Safety Check-In',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: headingColor,
+                              ),
+                            ),
                           ),
-                          _buildTelemetryMetric(
-                            Icons.water_drop,
-                            '${mon.weather!.precipitationMm.toStringAsFixed(1)} mm',
-                            isFil ? 'Ulan' : 'Precipitation',
-                            Colors.teal.shade400,
-                            subtleText,
+                          TextButton(
+                            onPressed: () => _showCheckInDialog(
+                              context,
+                              mon,
+                              emergency,
+                              auth,
+                              isFil,
+                            ),
+                            child: Text(isFil ? '+ Magdagdag' : '+ Add Note'),
                           ),
                         ],
                       ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Philippine Seismic / Earthquake Feed
-            Text(
-              isFil
-                  ? 'Kamakailang Lindol (USGS / Rehiyon ng PH)'
-                  : 'Recent Philippine Seismic Activity (USGS/PH Region)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: headingColor,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (mon.earthquakes.isEmpty)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Text(
-                    isFil
-                        ? 'Walang kamakailang lindol na naitala.'
-                        : 'No recent seismic events recorded.',
-                    style: const TextStyle(fontSize: 14),
+                      Text(
+                        isFil
+                            ? 'Ipaalam sa pamilya kung ligtas ka o kailangan ng tulong (naka-save kahit offline).'
+                            : 'Let your family know your status with one tap — works offline and syncs automatically.',
+                        style: TextStyle(fontSize: 13.5, color: subtleText),
+                      ),
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                backgroundColor: AppTheme.safeGreen,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(0, 48),
+                              ),
+                              icon: const Icon(
+                                Icons.check_circle_rounded,
+                                size: 20,
+                              ),
+                              label: Text(
+                                isFil ? 'Ligtas Kami' : "I'm Safe",
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              onPressed: () async {
+                                await mon.addSafetyCheckIn(
+                                  'SAFE',
+                                  isFil
+                                      ? 'Ligtas ang lahat ng kasama sa bahay.'
+                                      : 'Everyone is safe and accounted for.',
+                                  latitude: emergency.userLat,
+                                  longitude: emergency.userLng,
+                                  authorName:
+                                      auth.fullName ?? 'Family Member',
+                                );
+                                if (!context.mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isFil
+                                          ? 'Naitala: Ligtas kami.'
+                                          : "Check-in saved: I'm Safe.",
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.dangerRed,
+                                side: BorderSide(
+                                  color: AppTheme.dangerRed.withAlpha(160),
+                                ),
+                                minimumSize: const Size(0, 48),
+                              ),
+                              icon: const Icon(Icons.sos_rounded, size: 20),
+                              label: Text(
+                                isFil ? 'Kailangan ng Tulong' : 'Need Help',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              onPressed: () => _showCheckInDialog(
+                                context,
+                                mon,
+                                emergency,
+                                auth,
+                                isFil,
+                                initialStatus: 'NEED ASSISTANCE',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (mon.safetyLog.isNotEmpty) ...[
+                        const Divider(height: 24),
+                        ...mon.safetyLog.take(4).map((entry) {
+                          final ts = DateTime.tryParse(entry['timestamp'] ?? '');
+                          final isSafe = entry['status'] == 'SAFE';
+                          final author = (entry['authorName'] ?? '').trim();
+                          final badgeColor = isSafe
+                              ? AppTheme.safeGreen
+                              : AppTheme.dangerRed;
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  isSafe
+                                      ? Icons.check_circle_rounded
+                                      : Icons.error_rounded,
+                                  size: 20,
+                                  color: badgeColor,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        author.isNotEmpty
+                                            ? '$author • ${entry['status']}'
+                                            : '${entry['status']}',
+                                        style: TextStyle(
+                                          fontSize: 13.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: headingColor,
+                                        ),
+                                      ),
+                                      if ((entry['note'] ?? '').isNotEmpty)
+                                        Text(
+                                          entry['note']!,
+                                          style: TextStyle(
+                                            fontSize: 13.5,
+                                            color: subtleText,
+                                          ),
+                                        ),
+                                      if (ts != null)
+                                        Text(
+                                          DateFormat('MMM d • h:mm a')
+                                              .format(ts),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: subtleText.withAlpha(180),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    ],
                   ),
                 ),
-              )
-            else
-              ...mon.earthquakes.map((q) => Card(
+              ),
+              const SizedBox(height: 18),
+
+              // 3. Local Weather Card
+              Text(
+                isFil
+                    ? 'Panahon Ngayon ($areaLabel)'
+                    : 'Local Weather ($areaLabel)',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: headingColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 16,
+                  ),
+                  child: mon.weather == null
+                      ? Text(
+                          isFil
+                              ? 'Kinukuha ang lagay ng panahon...'
+                              : 'Checking local weather...',
+                          style: TextStyle(fontSize: 14, color: subtleText),
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildWeatherMetric(
+                              Icons.thermostat_rounded,
+                              '${mon.weather!.temperatureC.toStringAsFixed(0)}°C',
+                              mon.weather!.conditionText,
+                              Colors.orange.shade500,
+                              headingColor,
+                              subtleText,
+                            ),
+                            _buildWeatherMetric(
+                              Icons.air_rounded,
+                              '${mon.weather!.windSpeedKmh.toStringAsFixed(0)} km/h',
+                              isFil ? 'Hangin' : 'Wind',
+                              Colors.blue.shade500,
+                              headingColor,
+                              subtleText,
+                            ),
+                            _buildWeatherMetric(
+                              Icons.water_drop_outlined,
+                              '${mon.weather!.precipitationMm.toStringAsFixed(1)} mm',
+                              isFil ? 'Ulan' : 'Rainfall',
+                              Colors.teal.shade500,
+                              headingColor,
+                              subtleText,
+                            ),
+                          ],
+                        ),
+                ),
+              ),
+              const SizedBox(height: 18),
+
+              // 4. Recent Philippine Earthquakes
+              Text(
+                isFil
+                    ? 'Mga Kamakailang Lindol sa Pilipinas'
+                    : 'Recent Philippine Earthquakes',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: headingColor,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (mon.earthquakes.isEmpty)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      isFil
+                          ? 'Walang naitalang lindol kamakailan.'
+                          : 'No recent earthquakes recorded.',
+                      style: TextStyle(fontSize: 14, color: subtleText),
+                    ),
+                  ),
+                )
+              else
+                ...mon.earthquakes.map((q) {
+                  final strong = q.magnitude >= 5.0;
+                  final magColor = strong
+                      ? (isDark ? Colors.red.shade300 : AppTheme.dangerRed)
+                      : (isDark
+                          ? Colors.amber.shade300
+                          : AppTheme.warningAmber);
+                  return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: q.magnitude >= 5.0
-                            ? (isDark
-                                ? AppTheme.dangerRed.withAlpha(60)
-                                : const Color(0xFFFFEBEE))
-                            : (isDark
-                                ? Colors.orange.withAlpha(60)
-                                : Colors.orange.shade50),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 4,
+                      ),
+                      leading: Container(
+                        width: 46,
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: magColor.withAlpha(isDark ? 45 : 22),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: Text(
-                          q.magnitude.toStringAsFixed(1),
+                          'M${q.magnitude.toStringAsFixed(1)}',
                           style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: q.magnitude >= 5.0
-                                ? (isDark
-                                    ? Colors.red.shade200
-                                    : AppTheme.dangerRed)
-                                : (isDark
-                                    ? Colors.orange.shade200
-                                    : Colors.orange.shade800),
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            color: magColor,
                           ),
                         ),
                       ),
                       title: Text(
                         q.place,
                         style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
                           color: headingColor,
                         ),
                       ),
                       subtitle: Text(
-                        'Depth: ${q.depthKm.toStringAsFixed(0)} km • ${DateFormat('MMM d, h:mm a').format(q.time.toLocal())}',
-                        style: TextStyle(fontSize: 14, color: subtleText),
+                        '${isFil ? 'Lalim' : 'Depth'}: ${q.depthKm.toStringAsFixed(0)} km • ${DateFormat('MMM d, h:mm a').format(q.time.toLocal())}',
+                        style: TextStyle(fontSize: 13, color: subtleText),
                       ),
                     ),
-                  )),
+                  );
+                }),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // Household Safety Check-In Log (Offline Persistable)
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    isFil
-                        ? 'Talaan ng Kaligtasan ng Pamilya'
-                        : 'Household Safety Status Log',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: headingColor,
-                    ),
-                  ),
-                ),
-                TextButton.icon(
-                  style: TextButton.styleFrom(
-                    minimumSize: const Size(0, 48),
-                    foregroundColor: accentNavy,
-                  ),
-                  icon: const Icon(Icons.add_task, size: 18),
-                  label: Text(isFil ? 'Mag-check In' : 'Log Check-In'),
-                  onPressed: () =>
-                      _showCheckInDialog(context, mon, emergency, auth, isFil),
-                ),
-              ],
-            ),
-            if (mon.safetyLog.isEmpty)
+              // 5. PAGASA Rainfall & Typhoon Guide (Offline)
               Card(
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Text(
-                    isFil
-                        ? 'Itala ang kalagayan ng pamilya habang may sakuna (naka-save offline).'
-                        : 'Record household status updates during calamities (saved locally & synced).',
-                    style: TextStyle(fontSize: 14, color: subtleText),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline_rounded,
+                            size: 20,
+                            color: accentNavy,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            isFil
+                                ? 'Gabay sa Babala ng PAGASA'
+                                : 'PAGASA Rainfall & Storm Guide',
+                            style: TextStyle(
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w800,
+                              color: headingColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _buildPagasaLegendRow(
+                        color: const Color(0xFFCA8A04),
+                        badge: 'YELLOW',
+                        description: isFil
+                            ? 'Posibleng bumaha sa mabababang lugar — magbantay.'
+                            : 'Flooding possible in low-lying areas — stay alert.',
+                        subtleText: subtleText,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPagasaLegendRow(
+                        color: const Color(0xFFEA580C),
+                        badge: 'ORANGE',
+                        description: isFil
+                            ? 'Nagbabanta ang baha — ihanda ang Go-Bag at ruta.'
+                            : 'Flooding threatening — prepare Go-Bag & evacuation route.',
+                        subtleText: subtleText,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPagasaLegendRow(
+                        color: AppTheme.dangerRed,
+                        badge: 'RED',
+                        description: isFil
+                            ? 'Matinding baha — lumikas agad sa pinakamalapit na shelter.'
+                            : 'Severe flooding imminent — evacuate to nearest shelter.',
+                        subtleText: subtleText,
+                      ),
+                      const SizedBox(height: 8),
+                      _buildPagasaLegendRow(
+                        color: const Color(0xFF7C3AED),
+                        badge: 'SIGNAL #3+',
+                        description: isFil
+                            ? 'Malakas na hangin ng bagyo — manatili sa matibay na silungan.'
+                            : 'Damaging typhoon winds — stay indoors away from windows.',
+                        subtleText: subtleText,
+                      ),
+                    ],
                   ),
                 ),
-              )
-            else
-              ...mon.safetyLog.take(5).map((entry) {
-                final ts = DateTime.tryParse(entry['timestamp'] ?? '');
-                final isSafe = entry['status'] == 'SAFE';
-                final author = (entry['authorName'] ?? '').trim();
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
+              ),
+              const SizedBox(height: 14),
+
+              // 6. Practice a Disaster Drill (Collapsed by default so households never get confused)
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: Theme(
+                  data: Theme.of(context)
+                      .copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    initiallyExpanded:
+                        mon.drillMode != DrillAlertMode.liveNormal,
                     leading: Icon(
-                      isSafe ? Icons.check_circle : Icons.sos,
-                      color:
-                          isSafe ? AppTheme.safeGreen : AppTheme.dangerRed,
+                      Icons.play_circle_outline_rounded,
+                      color: accentNavy,
                     ),
                     title: Text(
-                      author.isNotEmpty
-                          ? '${entry['status']} ($author) — ${entry['note']}'
-                          : '${entry['status']} — ${entry['note']}',
+                      isFil
+                          ? 'Magsanay ng Disaster Drill'
+                          : 'Practice a Disaster Drill',
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                         color: headingColor,
                       ),
                     ),
                     subtitle: Text(
-                      ts != null
-                          ? DateFormat('MMM d, yyyy • h:mm a').format(ts)
-                          : '',
-                      style: TextStyle(fontSize: 14, color: subtleText),
+                      isFil
+                          ? 'Subukan kung paano gumagana ang alerto kasama ang pamilya'
+                          : 'Rehearse emergency alerts safely with your family',
+                      style: TextStyle(fontSize: 12.5, color: subtleText),
                     ),
+                    childrenPadding:
+                        const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: DrillAlertMode.values.map((mode) {
+                          final selected = mon.drillMode == mode;
+                          final isNormal = mode == DrillAlertMode.liveNormal;
+                          return ChoiceChip(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            label: Text(
+                              mode.label,
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                color: selected ? Colors.white : headingColor,
+                                fontWeight: selected
+                                    ? FontWeight.w700
+                                    : FontWeight.w500,
+                              ),
+                            ),
+                            selected: selected,
+                            selectedColor: isNormal
+                                ? AppTheme.safeGreen
+                                : AppTheme.warningAmber,
+                            backgroundColor: isDark
+                                ? AppTheme.darkElevated
+                                : AppTheme.surfaceBg,
+                            onSelected: (_) => mon.setDrillMode(mode),
+                          );
+                        }).toList(),
+                      ),
+                    ],
                   ),
-                );
-              }),
-
-            const SizedBox(height: 16),
-            // PAGASA Rainfall & TCWS Offline Quick Reference
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.info_outline, size: 20, color: accentNavy),
-                        const SizedBox(width: 8),
-                        Text(
-                          isFil
-                              ? 'PAGASA Offline Gabay sa Babala'
-                              : 'PAGASA Offline Warning Legend',
-                          style: TextStyle(
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.bold,
-                            color: headingColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPagasaLegendRow(
-                      color: const Color(0xFFEAB308),
-                      badge: 'YELLOW',
-                      description:
-                          'Flooding possible in low-lying areas — monitor updates.',
-                      headingColor: headingColor,
-                      subtleText: subtleText,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildPagasaLegendRow(
-                      color: const Color(0xFFF97316),
-                      badge: 'ORANGE',
-                      description:
-                          'Flooding threatening — prepare Go-Bag & evacuation route.',
-                      headingColor: headingColor,
-                      subtleText: subtleText,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildPagasaLegendRow(
-                      color: AppTheme.dangerRed,
-                      badge: 'RED',
-                      description:
-                          'Severe flooding imminent — evacuate to designated shelter.',
-                      headingColor: headingColor,
-                      subtleText: subtleText,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildPagasaLegendRow(
-                      color: Colors.purple,
-                      badge: 'TCWS #3–5',
-                      description:
-                          'Destructive typhoon winds — stay inside reinforced shelter.',
-                      headingColor: headingColor,
-                      subtleText: subtleText,
-                    ),
-                  ],
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         ),
       ),
     );
@@ -544,25 +640,24 @@ class EmergencyMonitoringScreen extends StatelessWidget {
     required Color color,
     required String badge,
     required String description,
-    required Color headingColor,
     required Color subtleText,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 82,
+          width: 86,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: color.withAlpha(32),
+            color: color.withAlpha(28),
             borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withAlpha(140)),
+            border: Border.all(color: color.withAlpha(120)),
           ),
           child: Text(
             badge,
             style: TextStyle(
-              fontSize: 11.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               color: color,
             ),
@@ -579,21 +674,33 @@ class EmergencyMonitoringScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTelemetryMetric(
+  Widget _buildWeatherMetric(
     IconData icon,
     String value,
     String label,
     Color color,
+    Color headingColor,
     Color subtleText,
   ) {
     return Expanded(
       child: Column(
         children: [
-          Icon(icon, color: color, size: 26),
-          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withAlpha(24),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 22),
+          ),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+              color: headingColor,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -601,7 +708,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 14, color: subtleText),
+            style: TextStyle(fontSize: 12.5, color: subtleText),
           ),
         ],
       ),
@@ -613,13 +720,18 @@ class EmergencyMonitoringScreen extends StatelessWidget {
     MonitoringProvider mon,
     EmergencyProvider emergency,
     AuthProvider auth,
-    bool isFil,
-  ) {
-    String selectedStatus = 'SAFE';
+    bool isFil, {
+    String initialStatus = 'SAFE',
+  }) {
+    String selectedStatus = initialStatus;
     final noteCtrl = TextEditingController(
-      text: isFil
-          ? 'Ligtas ang lahat ng miyembro ng pamilya sa bahay.'
-          : 'All family members accounted for at home.',
+      text: initialStatus == 'SAFE'
+          ? (isFil
+              ? 'Ligtas ang lahat ng miyembro ng pamilya sa bahay.'
+              : 'Everyone in the household is safe at home.')
+          : (isFil
+              ? 'Kailangan ng tulong o gamit sa aming lokasyon.'
+              : 'Need assistance or supplies at our current location.'),
     );
 
     showDialog(
@@ -627,7 +739,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text(
-            isFil ? 'Itala ang Kalagayan' : 'Log Household Status',
+            isFil ? 'Check-In ng Pamilya' : 'Family Safety Check-In',
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -637,15 +749,23 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                 decoration: InputDecoration(
                   labelText: isFil ? 'Kalagayan' : 'Status',
                 ),
-                items: const [
+                items: [
                   DropdownMenuItem(
-                      value: 'SAFE', child: Text('SAFE / Shelter Secured')),
+                    value: 'SAFE',
+                    child: Text(isFil ? 'Ligtas Kami' : "I'm Safe"),
+                  ),
                   DropdownMenuItem(
-                      value: 'EVACUATING',
-                      child: Text('EVACUATING to Shelter')),
+                    value: 'EVACUATING',
+                    child: Text(
+                      isFil ? 'Lumilikas na sa Shelter' : 'Moving to Shelter',
+                    ),
+                  ),
                   DropdownMenuItem(
-                      value: 'NEED ASSISTANCE',
-                      child: Text('NEED ASSISTANCE / Supplies')),
+                    value: 'NEED ASSISTANCE',
+                    child: Text(
+                      isFil ? 'Kailangan ng Tulong' : 'Need Help / Supplies',
+                    ),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v != null) setState(() => selectedStatus = v);
@@ -656,7 +776,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                 controller: noteCtrl,
                 maxLines: 2,
                 decoration: InputDecoration(
-                  labelText: isFil ? 'Tala' : 'Status Note',
+                  labelText: isFil ? 'Mensahe (Opsyonal)' : 'Note (Optional)',
                 ),
               ),
             ],
@@ -666,18 +786,18 @@ class EmergencyMonitoringScreen extends StatelessWidget {
               onPressed: () => Navigator.pop(ctx),
               child: Text(isFil ? 'Kanselahin' : 'Cancel'),
             ),
-            ElevatedButton(
+            FilledButton(
               onPressed: () {
                 mon.addSafetyCheckIn(
                   selectedStatus,
                   noteCtrl.text.trim(),
                   latitude: emergency.userLat,
                   longitude: emergency.userLng,
-                  authorName: auth.fullName ?? 'Household Member',
+                  authorName: auth.fullName ?? 'Family Member',
                 );
                 Navigator.pop(ctx);
               },
-              child: Text(isFil ? 'I-save' : 'Save Log'),
+              child: Text(isFil ? 'I-save' : 'Save Check-In'),
             ),
           ],
         ),

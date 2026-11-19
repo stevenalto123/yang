@@ -115,8 +115,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
     final navBg = isDark ? AppTheme.darkCard : Colors.white;
     final indicatorColor = isDark
-        ? Colors.lightBlue.shade200.withAlpha(45)
-        : AppTheme.primaryNavy.withAlpha(28);
+        ? Colors.lightBlue.shade200.withAlpha(36)
+        : AppTheme.primaryNavy.withAlpha(22);
 
     final List<Widget> screens = [
       HomeDashboardScreen(onNavigateTab: _onNavigateTab),
@@ -151,7 +151,6 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           )
         : indexedBody;
 
-    // Desktop / Web Sidebar Shell (>= 860px)
     if (isDesktop) {
       return Scaffold(
         body: Row(
@@ -176,21 +175,20 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       );
     }
 
-    // Mobile / Compact Bottom Navigation Shell (< 860px)
     return Scaffold(
       body: contentWithDrill,
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'global_sos_fab',
         backgroundColor: AppTheme.dangerRed,
         foregroundColor: Colors.white,
-        elevation: 4,
+        elevation: 3,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.sos_rounded, size: 22),
+        icon: const Icon(Icons.sos_rounded, size: 21),
         label: Text(
           s.sosButtonLabel,
           style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
+            fontSize: 14.5,
+            fontWeight: FontWeight.w800,
             letterSpacing: 0.6,
           ),
         ),
@@ -205,7 +203,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ),
         child: NavigationBar(
-          height: 68,
+          height: 66,
           elevation: 0,
           selectedIndex: _currentIndex,
           onDestinationSelected: _onNavigateTab,
@@ -213,8 +211,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           indicatorColor: indicatorColor,
           destinations: [
             NavigationDestination(
-              icon: const Icon(Icons.dashboard_outlined),
-              selectedIcon: Icon(Icons.dashboard, color: selectedColor),
+              icon: const Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded, color: selectedColor),
               label: s.navHome,
             ),
             NavigationDestination(
@@ -222,30 +220,32 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                   ? Badge(
                       label: Text('$alertCount'),
                       backgroundColor: AppTheme.dangerRed,
-                      child: const Icon(Icons.checklist_rtl_outlined),
+                      child: const Icon(Icons.backpack_outlined),
                     )
-                  : const Icon(Icons.checklist_rtl_outlined),
-              selectedIcon: Icon(Icons.checklist_rtl, color: selectedColor),
+                  : const Icon(Icons.backpack_outlined),
+              selectedIcon: Icon(Icons.backpack_rounded, color: selectedColor),
               label: s.navKit,
             ),
             NavigationDestination(
               icon: isDrillActive
                   ? const Badge(
                       backgroundColor: AppTheme.dangerRed,
-                      child: Icon(Icons.radar_outlined),
+                      child: Icon(Icons.notifications_active_outlined),
                     )
-                  : const Icon(Icons.radar_outlined),
-              selectedIcon: Icon(Icons.radar, color: selectedColor),
+                  : const Icon(Icons.notifications_active_outlined),
+              selectedIcon:
+                  Icon(Icons.notifications_active_rounded, color: selectedColor),
               label: s.navMonitor,
             ),
             NavigationDestination(
-              icon: const Icon(Icons.map_outlined),
-              selectedIcon: Icon(Icons.map, color: selectedColor),
+              icon: const Icon(Icons.location_on_outlined),
+              selectedIcon:
+                  Icon(Icons.location_on_rounded, color: selectedColor),
               label: s.navMap,
             ),
             NavigationDestination(
-              icon: const Icon(Icons.health_and_safety_outlined),
-              selectedIcon: Icon(Icons.health_and_safety, color: selectedColor),
+              icon: const Icon(Icons.shield_outlined),
+              selectedIcon: Icon(Icons.shield_rounded, color: selectedColor),
               label: s.navSafety,
             ),
           ],
@@ -278,41 +278,41 @@ class _DesktopSidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = isDark ? const Color(0xFF0D1627) : Colors.white;
+    final bg = isDark ? AppTheme.darkCard : Colors.white;
     final subtle = isDark ? Colors.white60 : AppTheme.mutedSlate;
 
     final navItems = [
       (
-        icon: Icons.dashboard_outlined,
-        selectedIcon: Icons.dashboard,
+        icon: Icons.home_outlined,
+        selectedIcon: Icons.home_rounded,
         label: s.navHome,
         badgeCount: 0,
         showDot: false,
       ),
       (
-        icon: Icons.checklist_rtl_outlined,
-        selectedIcon: Icons.checklist_rtl,
+        icon: Icons.backpack_outlined,
+        selectedIcon: Icons.backpack_rounded,
         label: s.navKit,
         badgeCount: alertCount,
         showDot: false,
       ),
       (
-        icon: Icons.radar_outlined,
-        selectedIcon: Icons.radar,
+        icon: Icons.notifications_active_outlined,
+        selectedIcon: Icons.notifications_active_rounded,
         label: s.navMonitor,
         badgeCount: 0,
         showDot: isDrillActive,
       ),
       (
-        icon: Icons.map_outlined,
-        selectedIcon: Icons.map,
+        icon: Icons.location_on_outlined,
+        selectedIcon: Icons.location_on_rounded,
         label: s.navMap,
         badgeCount: 0,
         showDot: false,
       ),
       (
-        icon: Icons.health_and_safety_outlined,
-        selectedIcon: Icons.health_and_safety,
+        icon: Icons.shield_outlined,
+        selectedIcon: Icons.shield_rounded,
         label: s.navSafety,
         badgeCount: 0,
         showDot: false,
@@ -320,20 +320,20 @@ class _DesktopSidebar extends StatelessWidget {
     ];
 
     return Container(
-      width: 248,
+      width: 244,
       color: bg,
-      padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+      padding: const EdgeInsets.fromLTRB(14, 20, 14, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Brand Header
+          // Brand Logo Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 6),
             child: Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 38,
+                  height: 38,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
                       colors: [AppTheme.primaryNavy, AppTheme.primaryAccent],
@@ -343,9 +343,9 @@ class _DesktopSidebar extends StatelessWidget {
                     borderRadius: BorderRadius.circular(11),
                   ),
                   child: const Icon(
-                    Icons.shield_outlined,
+                    Icons.health_and_safety_rounded,
                     color: Colors.white,
-                    size: 22,
+                    size: 21,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -358,13 +358,15 @@ class _DesktopSidebar extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 16.5,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: -0.2,
+                          letterSpacing: -0.3,
                           color: isDark ? Colors.white : AppTheme.primaryNavy,
                         ),
                       ),
                       Text(
-                        'EAC • Metro Manila',
-                        style: TextStyle(fontSize: 12, color: subtle),
+                        s.appSubtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 11.5, color: subtle),
                       ),
                     ],
                   ),
@@ -374,14 +376,14 @@ class _DesktopSidebar extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // Prominent Emergency SOS Action
+          // Prominent Panic-Proof Emergency SOS Button
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppTheme.dangerRed,
                 foregroundColor: Colors.white,
-                minimumSize: const Size(0, 48),
+                minimumSize: const Size(0, 46),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -390,8 +392,8 @@ class _DesktopSidebar extends StatelessWidget {
               label: Text(
                 settings.isFilipino ? 'Tawag SOS / 911' : 'Emergency SOS',
                 style: const TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               onPressed: () => SosSheet.show(context),
@@ -399,21 +401,7 @@ class _DesktopSidebar extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Text(
-              settings.isFilipino ? 'NABIGASYON' : 'NAVIGATION',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.9,
-                color: subtle,
-              ),
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // Navigation Destinations
+          // Clean Nav Items
           Expanded(
             child: ListView.separated(
               itemCount: navItems.length,
@@ -422,11 +410,11 @@ class _DesktopSidebar extends StatelessWidget {
                 final item = navItems[idx];
                 final active = currentIndex == idx;
                 final activeBg = isDark
-                    ? Colors.lightBlue.shade200.withAlpha(32)
-                    : AppTheme.primaryNavy.withAlpha(18);
+                    ? Colors.lightBlue.shade200.withAlpha(28)
+                    : AppTheme.primaryNavy.withAlpha(14);
                 final activeFg =
                     isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
-                final idleFg = isDark ? Colors.white70 : AppTheme.mutedSlate;
+                final idleFg = isDark ? Colors.white60 : AppTheme.mutedSlate;
 
                 return Material(
                   color: active ? activeBg : Colors.transparent,
@@ -486,8 +474,8 @@ class _DesktopSidebar extends StatelessWidget {
                             )
                           else if (item.showDot)
                             Container(
-                              width: 9,
-                              height: 9,
+                              width: 8,
+                              height: 8,
                               decoration: const BoxDecoration(
                                 color: AppTheme.dangerRed,
                                 shape: BoxShape.circle,
@@ -502,9 +490,9 @@ class _DesktopSidebar extends StatelessWidget {
             ),
           ),
 
-          const Divider(height: 20),
+          const Divider(height: 18),
 
-          // Cloud Sync Quick Status Card
+          // Family Backup & Sync Tile
           InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () {
@@ -526,22 +514,22 @@ class _DesktopSidebar extends StatelessWidget {
                 children: [
                   Icon(
                     auth.isAuthenticated
-                        ? Icons.cloud_done
-                        : Icons.cloud_off_outlined,
-                    size: 18,
-                    color: auth.isAuthenticated
-                        ? AppTheme.safeGreen
-                        : subtle,
+                        ? Icons.cloud_done_rounded
+                        : Icons.person_outline_rounded,
+                    size: 19,
+                    color: auth.isAuthenticated ? AppTheme.safeGreen : subtle,
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 9),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           auth.isAuthenticated
-                              ? (auth.householdName ?? 'Synced')
-                              : 'Offline Guest',
+                              ? (auth.householdName ?? 'Family Synced')
+                              : (settings.isFilipino
+                                  ? 'I-save sa Cloud'
+                                  : 'Family Backup'),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -553,13 +541,15 @@ class _DesktopSidebar extends StatelessWidget {
                         Text(
                           auth.isAuthenticated
                               ? 'Code: ${auth.inviteCode ?? '-'}'
-                              : 'Tap to Sign In & Sync',
+                              : (settings.isFilipino
+                                  ? 'Mag-sign in o mag-sync'
+                                  : 'Sign in to share & sync'),
                           style: TextStyle(fontSize: 11.5, color: subtle),
                         ),
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, size: 18, color: subtle),
+                  Icon(Icons.chevron_right_rounded, size: 18, color: subtle),
                 ],
               ),
             ),
@@ -572,13 +562,16 @@ class _DesktopSidebar extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
+                    minimumSize: const Size(0, 38),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                   onPressed: () => settings.toggleLanguage(),
                   child: Text(
                     settings.isFilipino ? 'FIL' : 'EN',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
               ),
@@ -586,12 +579,14 @@ class _DesktopSidebar extends StatelessWidget {
               Expanded(
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, 40),
+                    minimumSize: const Size(0, 38),
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                   ),
                   onPressed: () => settings.toggleDarkMode(),
                   child: Icon(
-                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    isDark
+                        ? Icons.light_mode_outlined
+                        : Icons.dark_mode_outlined,
                     size: 18,
                   ),
                 ),
@@ -617,84 +612,59 @@ class _DrillModeBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _HazardStripePainter(),
+    return Container(
+      width: double.infinity,
+      color: const Color(0xFFFEF3C7),
       child: SafeArea(
         bottom: false,
         child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xE60F172A),
-              borderRadius: BorderRadius.circular(8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFF59E0B), width: 1.5),
             ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.science_rounded,
-                  color: Colors.amberAccent,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.info_outline_rounded,
+                color: Color(0xFF92400E),
+                size: 19,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF78350F),
                   ),
                 ),
-                TextButton(
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.amberAccent,
-                    minimumSize: const Size(48, 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                  ),
-                  onPressed: onExit,
-                  child: Text(
-                    exitLabel,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF92400E),
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                onPressed: onExit,
+                child: Text(
+                  exitLabel,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
-}
-
-class _HazardStripePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final bgPaint = Paint()..color = const Color(0xFF1E293B);
-    canvas.drawRect(Offset.zero & size, bgPaint);
-
-    final stripePaint = Paint()..color = AppTheme.warningAmber;
-    const stripeWidth = 14.0;
-    for (double x = -size.height;
-        x < size.width + size.height;
-        x += stripeWidth * 2) {
-      final path = Path()
-        ..moveTo(x, 0)
-        ..lineTo(x + stripeWidth, 0)
-        ..lineTo(x + stripeWidth - size.height, size.height)
-        ..lineTo(x - size.height, size.height)
-        ..close();
-      canvas.drawPath(path, stripePaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

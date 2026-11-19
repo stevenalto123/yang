@@ -22,214 +22,229 @@ class EvacuationMapScreen extends StatelessWidget {
 
     final centers = emergency.filteredEvacuationCenters;
     final cities = emergency.availableCities;
+    final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
+    final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isFil ? 'GPS at Mapa ng Evacuation' : 'GPS & Evacuation Map'),
+        title: Text(
+          isFil ? 'Malapit na Tulong at Shelter' : 'Nearby Help & Shelters',
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_location_alt),
+            icon: const Icon(Icons.add_location_alt_outlined),
             tooltip: isFil
                 ? 'Magdagdag ng Barangay Shelter'
-                : 'Add Local Barangay Shelter',
+                : 'Add Local Shelter',
             onPressed: () => _showAddShelterDialog(context, emergency, isFil),
           ),
         ],
       ),
       body: Column(
         children: [
-          // GPS Location & Offline Status Bar
+          // Clean GPS Location Bar
           Container(
-            color: isDark ? const Color(0xFF0F2E2C) : const Color(0xFFE0F2F1),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                Icon(
-                  emergency.hasLiveGps ? Icons.gps_fixed : Icons.gps_not_fixed,
-                  size: 20,
-                  color: isDark ? Colors.tealAccent : Colors.teal.shade800,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            color: isDark ? AppTheme.darkCard : Colors.white,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+            child: ResponsiveContainer(
+              maxWidth: 1120,
+              child: Column(
+                children: [
+                  Row(
                     children: [
-                      Text(
-                        emergency.hasLiveGps
-                            ? 'Live GPS Active (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)'
-                            : (isFil
-                                ? 'Reference GPS: Paco, Manila (Offline Ready)'
-                                : 'Reference GPS: Paco, Manila (Offline Ready)'),
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
+                      Container(
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color: Colors.teal.withAlpha(isDark ? 45 : 22),
+                          borderRadius: BorderRadius.circular(11),
+                        ),
+                        child: Icon(
+                          emergency.hasLiveGps
+                              ? Icons.gps_fixed_rounded
+                              : Icons.location_on_outlined,
+                          size: 20,
                           color: isDark
-                              ? Colors.teal.shade100
-                              : Colors.teal.shade900,
+                              ? Colors.tealAccent
+                              : Colors.teal.shade700,
                         ),
                       ),
-                      Text(
-                        'Lat: ${emergency.userLat.toStringAsFixed(4)}, Lng: ${emergency.userLng.toStringAsFixed(4)}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDark
-                              ? Colors.teal.shade200
-                              : Colors.teal.shade800,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              emergency.hasLiveGps
+                                  ? (isFil
+                                      ? 'Aktibo ang GPS (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)'
+                                      : 'Live GPS Active (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)')
+                                  : (isFil
+                                      ? 'Malapit sa Paco, Manila (Offline Ready)'
+                                      : 'Near Paco, Manila (Offline Ready)'),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: headingColor,
+                              ),
+                            ),
+                            Text(
+                              '${emergency.userLat.toStringAsFixed(4)}, ${emergency.userLng.toStringAsFixed(4)}',
+                              style: TextStyle(fontSize: 12.5, color: subtleText),
+                            ),
+                          ],
                         ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.teal.shade700,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 42),
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                        ),
+                        icon: emergency.isLocating
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.my_location_rounded, size: 17),
+                        label: Text(
+                          emergency.isLocating
+                              ? (isFil ? 'Hinahanap...' : 'Locating...')
+                              : (isFil ? 'GPS Ko' : 'Update GPS'),
+                          style: const TextStyle(fontSize: 13.5),
+                        ),
+                        onPressed: emergency.isLocating
+                            ? null
+                            : () async {
+                                final ok = await emergency.detectLiveGps();
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        ok
+                                            ? 'Location updated! Showing nearest help first.'
+                                            : 'GPS unavailable. Showing Metro Manila reference.',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal.shade700,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(0, 48),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  icon: emergency.isLocating
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                  const SizedBox(height: 10),
+
+                  // Facility Type Filter Chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _buildFacilityChip(
+                          label: isFil ? 'Lahat' : 'All Places',
+                          icon: Icons.layers_outlined,
+                          selected: emergency.selectedFacilityType == null,
+                          color: AppTheme.primaryNavy,
+                          isDark: isDark,
+                          onTap: () => emergency.setSelectedFacilityType(null),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFacilityChip(
+                          label: isFil ? 'Shelters' : 'Shelters',
+                          icon: Icons.roofing_rounded,
+                          selected: emergency.selectedFacilityType ==
+                              FacilityType.evacuationShelter,
+                          color: Colors.teal.shade700,
+                          isDark: isDark,
+                          onTap: () => emergency.setSelectedFacilityType(
+                            FacilityType.evacuationShelter,
                           ),
-                        )
-                      : const Icon(Icons.my_location, size: 18),
-                  label: Text(
-                    emergency.isLocating
-                        ? (isFil ? 'Hinahanap...' : 'Locating...')
-                        : (isFil ? 'Lokasyon' : 'Locate Me'),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFacilityChip(
+                          label: isFil ? 'Ospital' : 'Hospitals',
+                          icon: Icons.local_hospital_rounded,
+                          selected: emergency.selectedFacilityType ==
+                              FacilityType.hospital,
+                          color: AppTheme.dangerRed,
+                          isDark: isDark,
+                          onTap: () => emergency
+                              .setSelectedFacilityType(FacilityType.hospital),
+                        ),
+                        const SizedBox(width: 8),
+                        _buildFacilityChip(
+                          label: isFil ? 'Pulis at Bumbero' : 'Police & Fire',
+                          icon: Icons.local_police_rounded,
+                          selected: emergency.selectedFacilityType ==
+                              FacilityType.policeFire,
+                          color: Colors.indigo.shade600,
+                          isDark: isDark,
+                          onTap: () => emergency
+                              .setSelectedFacilityType(FacilityType.policeFire),
+                        ),
+                      ],
+                    ),
                   ),
-                  onPressed: emergency.isLocating
-                      ? null
-                      : () async {
-                          final ok = await emergency.detectLiveGps();
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  ok
-                                      ? 'GPS location updated! Shelters sorted by nearest distance.'
-                                      : 'GPS unavailable or permission denied. Using cached reference coordinates.',
-                                ),
-                              ),
-                            );
-                          }
-                        },
-                ),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 8),
 
-          // Facility Type Filter Chips (Shelters, Hospitals, Police & Fire)
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: Row(
-              children: [
-                _buildFacilityChip(
-                  label: isFil ? 'Lahat' : 'All Facilities',
-                  icon: Icons.layers_outlined,
-                  selected: emergency.selectedFacilityType == null,
-                  color: AppTheme.primaryNavy,
-                  isDark: isDark,
-                  onTap: () => emergency.setSelectedFacilityType(null),
-                ),
-                const SizedBox(width: 8),
-                _buildFacilityChip(
-                  label: isFil ? 'Evacuation' : 'Shelters',
-                  icon: Icons.roofing_rounded,
-                  selected: emergency.selectedFacilityType ==
-                      FacilityType.evacuationShelter,
-                  color: Colors.teal.shade700,
-                  isDark: isDark,
-                  onTap: () => emergency
-                      .setSelectedFacilityType(FacilityType.evacuationShelter),
-                ),
-                const SizedBox(width: 8),
-                _buildFacilityChip(
-                  label: isFil ? 'Ospital' : 'Hospitals',
-                  icon: Icons.local_hospital_rounded,
-                  selected:
-                      emergency.selectedFacilityType == FacilityType.hospital,
-                  color: AppTheme.dangerRed,
-                  isDark: isDark,
-                  onTap: () =>
-                      emergency.setSelectedFacilityType(FacilityType.hospital),
-                ),
-                const SizedBox(width: 8),
-                _buildFacilityChip(
-                  label: isFil ? 'Pulis at Bumbero' : 'Police & Fire',
-                  icon: Icons.local_police_rounded,
-                  selected: emergency.selectedFacilityType ==
-                      FacilityType.policeFire,
-                  color: Colors.indigo.shade600,
-                  isDark: isDark,
-                  onTap: () => emergency
-                      .setSelectedFacilityType(FacilityType.policeFire),
-                ),
-              ],
-            ),
-          ),
-
-          // City Filter Chips
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-            child: Row(
-              children: cities.map((city) {
-                final isSelected = emergency.selectedCity == city;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    materialTapTargetSize: MaterialTapTargetSize.padded,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
+                  // City Filter Row
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: cities.map((city) {
+                        final isSelected = emergency.selectedCity == city;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChoiceChip(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            label: Text(
+                              city == 'All'
+                                  ? (isFil ? 'Lahat ng Lungsod' : 'All Cities')
+                                  : city,
+                            ),
+                            selected: isSelected,
+                            selectedColor: Colors.teal.shade700,
+                            backgroundColor: isDark
+                                ? AppTheme.darkElevated
+                                : AppTheme.surfaceBg,
+                            side: BorderSide(
+                              color: isSelected
+                                  ? Colors.teal.shade700
+                                  : (isDark
+                                      ? AppTheme.darkBorder
+                                      : AppTheme.lightBorder),
+                            ),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark
+                                      ? Colors.white
+                                      : AppTheme.darkSlate),
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              fontSize: 13,
+                            ),
+                            onSelected: (_) => emergency.setSelectedCity(city),
+                          ),
+                        );
+                      }).toList(),
                     ),
-                    label: Text(
-                      city == 'All'
-                          ? (isFil ? 'Lahat ng Lugar' : 'All Locations')
-                          : city,
-                    ),
-                    selected: isSelected,
-                    selectedColor: Colors.teal.shade700,
-                    backgroundColor:
-                        isDark ? AppTheme.darkCard : Colors.grey.shade100,
-                    side: BorderSide(
-                      color: isSelected
-                          ? Colors.teal.shade700
-                          : (isDark
-                              ? AppTheme.darkBorder
-                              : Colors.grey.shade300),
-                    ),
-                    labelStyle: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : (isDark ? Colors.white : AppTheme.darkSlate),
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
-                      fontSize: 14,
-                    ),
-                    onSelected: (_) => emergency.setSelectedCity(city),
                   ),
-                );
-              }).toList(),
+                ],
+              ),
             ),
           ),
           const Divider(height: 1),
 
-          // Scrollable Radar + Sorted Evacuation Shelters (Split Command View on Desktop)
+          // Radar + Sorted Nearby List
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -237,7 +252,7 @@ class EvacuationMapScreen extends StatelessWidget {
                 final radarCard = Card(
                   color: const Color(0xFF0F172A),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -248,27 +263,29 @@ class EvacuationMapScreen extends StatelessWidget {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
-                              'OFFLINE SHELTER RADAR',
-                              style: TextStyle(
+                            Text(
+                              isFil
+                                  ? 'OFFLINE NA RADAR'
+                                  : 'OFFLINE NEARBY RADAR',
+                              style: const TextStyle(
                                 color: Colors.tealAccent,
-                                fontSize: 13.5,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.6,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.7,
                               ),
                             ),
                             Text(
-                              isFil ? 'Pinakamalapit Una' : 'Nearest First',
+                              isFil ? 'Pinakamalapit una' : 'Nearest first',
                               style: TextStyle(
                                 color: Colors.grey.shade300,
-                                fontSize: 12.5,
+                                fontSize: 12,
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
-                          height: isSplit ? 280 : 190,
+                          height: isSplit ? 270 : 185,
                           width: double.infinity,
                           child: CustomPaint(
                             painter: _OfflineShelterRadarPainter(
@@ -278,17 +295,17 @@ class EvacuationMapScreen extends StatelessWidget {
                             ),
                           ),
                         ),
-                        if (isSplit) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            'Blue center = Your GPS • Cyan/Amber = Shelters • Red = Hospitals • Indigo = Police & Fire.',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: Colors.blueGrey.shade200,
-                              height: 1.4,
-                            ),
+                        const SizedBox(height: 10),
+                        Text(
+                          isFil
+                              ? 'Asul = Ikaw • Berde/Dilaw = Shelter • Pula = Ospital • Lila = Pulis/Bumbero'
+                              : 'Blue = You • Teal/Amber = Shelters • Red = Hospitals • Indigo = Police & Fire',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blueGrey.shade200,
+                            height: 1.35,
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
@@ -301,9 +318,9 @@ class EvacuationMapScreen extends StatelessWidget {
                             padding: const EdgeInsets.all(24),
                             child: Text(
                               isFil
-                                  ? 'Walang nahanap na evacuation shelter sa napiling lugar.'
-                                  : 'No evacuation shelters found for selected area.',
-                              style: const TextStyle(fontSize: 14),
+                                  ? 'Walang nahanap na lugar sa napiling filter.'
+                                  : 'No places match your selected filters.',
+                              style: TextStyle(fontSize: 14, color: subtleText),
                             ),
                           ),
                         ),
@@ -322,11 +339,11 @@ class EvacuationMapScreen extends StatelessWidget {
                 if (isSplit) {
                   return ResponsiveContainer(
                     maxWidth: 1120,
-                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(width: 360, child: radarCard),
+                        SizedBox(width: 350, child: radarCard),
                         const SizedBox(width: 18),
                         Expanded(
                           child: ListView(
@@ -340,7 +357,7 @@ class EvacuationMapScreen extends StatelessWidget {
                 }
 
                 return ListView(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 96),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
                   children: [
                     radarCard,
                     const SizedBox(height: 12),
@@ -364,8 +381,7 @@ class EvacuationMapScreen extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return ChoiceChip(
-      materialTapTargetSize: MaterialTapTargetSize.padded,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       avatar: Icon(
         icon,
         size: 16,
@@ -374,17 +390,17 @@ class EvacuationMapScreen extends StatelessWidget {
       label: Text(label),
       selected: selected,
       selectedColor: color,
-      backgroundColor: isDark ? AppTheme.darkCard : Colors.grey.shade100,
+      backgroundColor: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
       side: BorderSide(
         color: selected
             ? color
-            : (isDark ? AppTheme.darkBorder : Colors.grey.shade300),
+            : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
       ),
       labelStyle: TextStyle(
         color: selected
             ? Colors.white
             : (isDark ? Colors.white : AppTheme.darkSlate),
-        fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+        fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
         fontSize: 13.5,
       ),
       onSelected: (_) => onTap(),
@@ -402,53 +418,75 @@ class EvacuationMapScreen extends StatelessWidget {
     final distKm = emergency.distanceToCenterKm(center);
     final cardinal = emergency.bearingToCenter(center);
 
-    final isCampusRef = center.id == 'eac_campus_reference';
-    final isOfficialLgu =
-        center.id.startsWith('manila_') || center.id.startsWith('qc_');
     final isHospital = center.facilityType == FacilityType.hospital;
     final isPoliceFire = center.facilityType == FacilityType.policeFire;
 
     final Color facilityAccent = isHospital
         ? AppTheme.dangerRed
-        : (isPoliceFire ? Colors.indigo : Colors.teal.shade700);
+        : (isPoliceFire ? Colors.indigo.shade600 : Colors.teal.shade700);
     final IconData facilityIcon = isHospital
         ? Icons.local_hospital_rounded
         : (isPoliceFire
             ? Icons.local_police_rounded
             : Icons.roofing_rounded);
-    final String badgeLabel = isHospital
-        ? (isFil ? 'OSPITAL / MEDIKAL' : 'HOSPITAL / ER')
+    final String typeLabel = isHospital
+        ? (isFil ? 'Ospital' : 'Hospital')
         : (isPoliceFire
-            ? (isFil ? 'PULIS / BUMBERO' : 'POLICE & FIRE')
-            : (isCampusRef
-                ? (isFil ? 'CAMPUS ASSEMBLY REFERENCE' : 'CAMPUS REFERENCE')
-                : (isOfficialLgu
-                    ? (isFil ? 'OPISYAL NA LGU CENTER' : 'OFFICIAL LGU CENTER')
-                    : (isFil ? 'BARANGAY / SARILING TALA' : 'SAVED LOCAL SHELTER'))));
+            ? (isFil ? 'Pulis at Bumbero' : 'Police & Fire')
+            : (isFil ? 'Evacuation Shelter' : 'Evacuation Shelter'));
 
     final titleColor = isDark ? Colors.white : AppTheme.darkSlate;
-    final subtleText = isDark ? Colors.white70 : Colors.grey.shade700;
+    final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         side: isNearest
-            ? BorderSide(color: facilityAccent, width: 1.5)
+            ? BorderSide(color: facilityAccent.withAlpha(180), width: 1.5)
             : BorderSide(
-                color: isDark ? AppTheme.darkBorder : Colors.grey.shade200,
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
               ),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+            // Clean single-row header: Type pill + Nearest + Distance
+            Row(
               children: [
-                if (isNearest)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: facilityAccent.withAlpha(isDark ? 45 : 20),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        facilityIcon,
+                        size: 13,
+                        color: isDark ? Colors.white : facilityAccent,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        typeLabel,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? Colors.white : facilityAccent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isNearest) ...[
+                  const SizedBox(width: 6),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -456,220 +494,103 @@ class EvacuationMapScreen extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: facilityAccent,
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(7),
                     ),
                     child: Text(
-                      isFil ? 'PINAKAMALAPIT' : 'NEAREST',
+                      isFil ? 'Pinakamalapit' : 'Nearest',
                       style: const TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (isCampusRef ? AppTheme.eacCrimson : facilityAccent)
-                        .withAlpha(isDark ? 65 : 22),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(
-                      color: (isCampusRef ? AppTheme.eacCrimson : facilityAccent)
-                          .withAlpha(120),
-                    ),
-                  ),
-                  child: Text(
-                    badgeLabel,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? Colors.white
-                          : (isCampusRef
-                              ? AppTheme.eacCrimson
-                              : facilityAccent),
-                    ),
+                ],
+                const Spacer(),
+                Text(
+                  '${distKm.toStringAsFixed(1)} km • $cardinal',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: isDark ? Colors.tealAccent : Colors.teal.shade800,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
+
+            // Title + Open status
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundColor: facilityAccent.withAlpha(isDark ? 55 : 24),
-                  radius: 22,
-                  child: Icon(
-                    facilityIcon,
-                    color: isDark ? Colors.white : facilityAccent,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        center.name,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: titleColor,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.place, size: 16, color: subtleText),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              center.address,
-                              style: TextStyle(fontSize: 14, color: subtleText),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  child: Text(
+                    center.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: titleColor,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+                      width: 8,
+                      height: 8,
                       decoration: BoxDecoration(
                         color: center.isOpen
-                            ? (isDark
-                                ? AppTheme.safeGreen.withAlpha(45)
-                                : const Color(0xFFE8F5E9))
-                            : (isDark
-                                ? AppTheme.dangerRed.withAlpha(45)
-                                : const Color(0xFFFFEBEE)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        center.isOpen ? 'ACTIVE' : 'STANDBY',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: center.isOpen
-                              ? (isDark
-                                  ? Colors.green.shade200
-                                  : AppTheme.safeGreen)
-                              : (isDark
-                                  ? Colors.red.shade200
-                                  : AppTheme.dangerRed),
-                        ),
+                            ? AppTheme.safeGreen
+                            : AppTheme.dangerRed,
+                        shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(width: 5),
                     Text(
-                      '${distKm.toStringAsFixed(1)} km • $cardinal',
+                      center.isOpen
+                          ? (isFil ? 'Bukas' : 'Open')
+                          : (isFil ? 'Standby' : 'Standby'),
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: isDark
-                            ? Colors.tealAccent
-                            : Colors.teal.shade800,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: center.isOpen
+                            ? AppTheme.safeGreen
+                            : AppTheme.dangerRed,
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: isDark ? AppTheme.darkBg : Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(
-                  color: isDark ? AppTheme.darkBorder : Colors.grey.shade200,
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.people_outline,
-                              size: 16,
-                              color: subtleText,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                '${isFil ? 'Kapasidad' : 'Capacity'}: ${center.capacityPeople}',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: titleColor,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text(
-                        center.city,
-                        style: TextStyle(fontSize: 14, color: subtleText),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(
-                        Icons.check_circle_outline,
-                        size: 16,
-                        color: Colors.teal,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          '${isFil ? 'Pasilidad' : 'Facilities'}: ${center.facilities}',
-                          style: TextStyle(fontSize: 14, color: subtleText),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            const SizedBox(height: 4),
+            Text(
+              '${center.address} (${center.city})',
+              style: TextStyle(fontSize: 13.5, color: subtleText),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${center.facilities}${center.capacityPeople > 0 ? ' • ${isFil ? 'Kapasidad' : 'Capacity'}: ${center.capacityPeople}' : ''}',
+              style: TextStyle(
+                fontSize: 13,
+                color: subtleText.withAlpha(210),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
 
+            // 2 Clean Equal Action Buttons
             Row(
               children: [
                 Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
                       backgroundColor: Colors.teal.shade700,
                       foregroundColor: Colors.white,
-                      minimumSize: const Size(0, 48),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      minimumSize: const Size(0, 44),
                     ),
-                    icon: const Icon(Icons.directions, size: 18),
-                    label: Text(
-                      isFil ? 'Ruta sa Mapa' : 'Open Map Route',
-                      style: const TextStyle(fontSize: 14),
-                    ),
+                    icon: const Icon(Icons.directions_rounded, size: 18),
+                    label: Text(isFil ? 'Direksyon' : 'Directions'),
                     onPressed: () => ActionFeedback.openMapWithFeedback(
                       context,
                       emergency,
@@ -679,33 +600,20 @@ class EvacuationMapScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor:
-                        isDark ? Colors.tealAccent : Colors.teal.shade800,
-                    side: BorderSide(
-                      color: isDark ? Colors.tealAccent : Colors.teal.shade700,
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, 44),
                     ),
-                    minimumSize: const Size(0, 48),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
+                    icon: const Icon(Icons.call_rounded, size: 18),
+                    label: Text(isFil ? 'Tumawag' : 'Call'),
+                    onPressed: () => ActionFeedback.callWithFeedback(
+                      context,
+                      emergency,
+                      center.contactNumber,
+                      center.contactPerson,
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.call, size: 18),
-                  label: Text(
-                    isFil ? 'Tumawag' : 'Call Officer',
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                  onPressed: () => ActionFeedback.callWithFeedback(
-                    context,
-                    emergency,
-                    center.contactNumber,
-                    center.contactPerson,
                   ),
                 ),
               ],
@@ -747,8 +655,8 @@ class EvacuationMapScreen extends StatelessWidget {
               const SizedBox(height: 10),
               TextField(
                 controller: addrCtrl,
-                decoration: InputDecoration(
-                  labelText: isFil ? 'Address *' : 'Address *',
+                decoration: const InputDecoration(
+                  labelText: 'Address *',
                 ),
               ),
               const SizedBox(height: 10),
@@ -762,8 +670,8 @@ class EvacuationMapScreen extends StatelessWidget {
               const SizedBox(height: 10),
               TextField(
                 controller: contactCtrl,
-                decoration: InputDecoration(
-                  labelText: isFil ? 'Barangay Hotline' : 'Barangay Hotline',
+                decoration: const InputDecoration(
+                  labelText: 'Barangay Hotline',
                 ),
               ),
             ],
@@ -774,7 +682,7 @@ class EvacuationMapScreen extends StatelessWidget {
             onPressed: () => Navigator.pop(ctx),
             child: Text(isFil ? 'Kanselahin' : 'Cancel'),
           ),
-          ElevatedButton(
+          FilledButton(
             onPressed: () {
               if (nameCtrl.text.trim().isEmpty) return;
               emergency.addCustomEvacuationCenter(
@@ -792,12 +700,12 @@ class EvacuationMapScreen extends StatelessWidget {
                   contactPerson: 'Barangay DRRM Officer',
                   contactNumber: contactCtrl.text.trim(),
                   capacityPeople: 400,
-                  facilities: 'Custom Saved Local Shelter',
+                  facilities: 'Saved Local Shelter',
                 ),
               );
               Navigator.pop(ctx);
             },
-            child: Text(isFil ? 'I-save Offline' : 'Save Offline'),
+            child: Text(isFil ? 'I-save' : 'Save Offline'),
           ),
         ],
       ),

@@ -83,13 +83,13 @@ extension DrillAlertModeExt on DrillAlertMode {
   String get label {
     switch (this) {
       case DrillAlertMode.liveNormal:
-        return 'Live Telemetry';
+        return 'Live Monitoring (Normal)';
       case DrillAlertMode.typhoonSignal3:
-        return 'Drill: Typhoon Signal #3';
+        return 'Typhoon Signal #3';
       case DrillAlertMode.earthquakeAlert:
-        return 'Drill: Earthquake (M6.2)';
+        return 'Earthquake (M6.2)';
       case DrillAlertMode.floodRedWarning:
-        return 'Drill: Red Flood Warning';
+        return 'Red Flood Warning';
     }
   }
 
@@ -137,6 +137,36 @@ class MonitoringProvider extends ChangeNotifier {
   DrillAlertMode get drillMode => _drillMode;
   List<Map<String, String>> get safetyLog => List.unmodifiable(_safetyLog);
 
+  bool get isHazardActive {
+    if (_drillMode != DrillAlertMode.liveNormal) return true;
+    if (_weather != null &&
+        (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
+      return true;
+    }
+    if (_earthquakes.any((q) => q.magnitude >= 5.5)) return true;
+    return false;
+  }
+
+  String friendlyStatusLabel(bool isFil) {
+    if (_drillMode == DrillAlertMode.earthquakeAlert) {
+      return isFil ? 'Practice: Alerto sa Lindol' : 'Practice: Earthquake Alert';
+    }
+    if (_drillMode == DrillAlertMode.typhoonSignal3) {
+      return isFil ? 'Practice: Bagyo Signal #3' : 'Practice: Typhoon Signal #3';
+    }
+    if (_drillMode == DrillAlertMode.floodRedWarning) {
+      return isFil ? 'Practice: Red Flood Warning' : 'Practice: Red Flood Warning';
+    }
+    if (_weather != null &&
+        (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
+      return isFil ? 'Babala sa Masamang Panahon' : 'Weather Advisory';
+    }
+    if (_earthquakes.any((q) => q.magnitude >= 5.5)) {
+      return isFil ? 'Malakas na Lindol Naitala' : 'Recent Strong Earthquake';
+    }
+    return isFil ? 'Walang Aktibong Alerto' : 'All Clear • No Active Alerts';
+  }
+
   String get currentThreatLevel {
     if (_drillMode == DrillAlertMode.earthquakeAlert) return 'CRITICAL ALERT';
     if (_drillMode == DrillAlertMode.typhoonSignal3) return 'HIGH ALERT (TCWS #3)';
@@ -148,7 +178,7 @@ class MonitoringProvider extends ChangeNotifier {
     if (_earthquakes.any((q) => q.magnitude >= 5.5)) {
       return 'SIGNIFICANT SEISMIC ACTIVITY';
     }
-    return 'NORMAL / MONITORING';
+    return 'All Clear';
   }
 
   void setDrillMode(DrillAlertMode mode) {

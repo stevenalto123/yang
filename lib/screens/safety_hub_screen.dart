@@ -19,23 +19,26 @@ class SafetyHubScreen extends StatelessWidget {
     final isFil = settings.isFilipino;
     final s = AppStrings(isFil);
 
+    final activeColor =
+        isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
+    final idleColor = isDark ? Colors.white60 : AppTheme.mutedSlate;
+
     return DefaultTabController(
       length: 3,
       initialIndex: initialTabIndex.clamp(0, 2),
       child: Scaffold(
         appBar: AppBar(
-          backgroundColor: isDark ? AppTheme.darkCard : AppTheme.primaryNavy,
-          foregroundColor: Colors.white,
           title: Text(
             isFil ? 'Kaligtasan, Hotline at Plano' : 'Safety, Hotlines & Plan',
           ),
           bottom: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.center,
-            indicatorColor: Colors.white,
+            indicatorColor: activeColor,
             indicatorWeight: 3,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
+            labelColor: activeColor,
+            unselectedLabelColor: idleColor,
+            dividerColor: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
             labelStyle: const TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
@@ -46,19 +49,37 @@ class SafetyHubScreen extends StatelessWidget {
             ),
             tabs: [
               Tab(
-                height: 54,
-                icon: const Icon(Icons.phone_in_talk_rounded, size: 20),
-                text: isFil ? 'Mga Hotline' : 'Hotlines',
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.phone_in_talk_rounded, size: 18),
+                    const SizedBox(width: 6),
+                    Text(isFil ? 'Mga Hotline' : 'Hotlines'),
+                  ],
+                ),
               ),
               Tab(
-                height: 54,
-                icon: const Icon(Icons.menu_book_rounded, size: 20),
-                text: s.disasterGuides,
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.menu_book_rounded, size: 18),
+                    const SizedBox(width: 6),
+                    Text(s.disasterGuides),
+                  ],
+                ),
               ),
               Tab(
-                height: 54,
-                icon: const Icon(Icons.family_restroom_rounded, size: 20),
-                text: isFil ? 'Aking Plano' : 'My Plan',
+                height: 48,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.family_restroom_rounded, size: 18),
+                    const SizedBox(width: 6),
+                    Text(isFil ? 'Plano' : 'Family Plan'),
+                  ],
+                ),
               ),
             ],
           ),

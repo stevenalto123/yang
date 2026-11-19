@@ -36,7 +36,6 @@ class HomeDashboardScreen extends StatelessWidget {
     final s = AppStrings(isFil);
 
     final readiness = kit.readinessPercentage;
-    final rawReadiness = kit.rawCompletionPercentage;
     final expiredCount = kit.expiredItemsCount;
     final expiringSoonCount = kit.expiringSoonItemsCount;
     final missingCount = kit.missingItemsCount;
@@ -51,31 +50,35 @@ class HomeDashboardScreen extends StatelessWidget {
       heroScoreColor = const Color(0xFFF87171);
     }
 
-    final isHazardAlert =
-        monitoring.drillMode != DrillAlertMode.liveNormal ||
-            monitoring.currentThreatLevel.contains('ALERT') ||
-            monitoring.currentThreatLevel.contains('WARNING');
-
+    final isHazardAlert = monitoring.isHazardActive;
     final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
     final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
+    final appBarIconColor = isDark ? Colors.white : AppTheme.darkSlate;
+    final chipBg = isDark ? AppTheme.darkElevated : AppTheme.surfaceBg;
+    final chipBorder = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
 
     return Scaffold(
       appBar: isDesktop
           ? null
           : AppBar(
-              titleSpacing: 12,
+              titleSpacing: 16,
               title: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    width: 34,
+                    height: 34,
                     decoration: BoxDecoration(
-                      color: Colors.white.withAlpha(30),
-                      borderRadius: BorderRadius.circular(9),
+                      gradient: const LinearGradient(
+                        colors: [AppTheme.primaryNavy, AppTheme.primaryAccent],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Icon(
-                      Icons.shield_outlined,
+                      Icons.health_and_safety_rounded,
                       color: Colors.white,
-                      size: 21,
+                      size: 19,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -84,22 +87,23 @@ class HomeDashboardScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
+                        Text(
                           'LifeCheckpoint',
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
-                            fontSize: 17.5,
-                            letterSpacing: -0.2,
+                            fontSize: 17,
+                            letterSpacing: -0.3,
+                            color: headingColor,
                           ),
                         ),
                         Text(
                           s.appSubtitle,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11.5,
-                            fontWeight: FontWeight.normal,
-                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                            color: subtleText,
                           ),
                         ),
                       ],
@@ -109,26 +113,26 @@ class HomeDashboardScreen extends StatelessWidget {
               ),
               actions: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   child: InkWell(
                     onTap: () => settings.toggleLanguage(),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(10),
                     child: Container(
                       constraints:
-                          const BoxConstraints(minWidth: 46, minHeight: 38),
+                          const BoxConstraints(minWidth: 42, minHeight: 34),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
-                        color: Colors.white.withAlpha(28),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white30),
+                        color: chipBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: chipBorder),
                       ),
                       child: Text(
                         isFil ? 'FIL' : 'EN',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: headingColor,
                         ),
                       ),
                     ),
@@ -139,7 +143,7 @@ class HomeDashboardScreen extends StatelessWidget {
                     isDark
                         ? Icons.light_mode_outlined
                         : Icons.dark_mode_outlined,
-                    color: Colors.white,
+                    color: appBarIconColor,
                   ),
                   tooltip:
                       isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
@@ -153,18 +157,19 @@ class HomeDashboardScreen extends StatelessWidget {
                           child: Icon(
                             auth.isAuthenticated
                                 ? Icons.cloud_sync_outlined
-                                : Icons.account_circle_outlined,
-                            color: Colors.white,
+                                : Icons.person_outline_rounded,
+                            color: appBarIconColor,
                           ),
                         )
                       : Icon(
                           auth.isAuthenticated
                               ? Icons.cloud_done_outlined
-                              : Icons.account_circle_outlined,
-                          color: Colors.white,
+                              : Icons.person_outline_rounded,
+                          color: auth.isAuthenticated
+                              ? AppTheme.safeGreen
+                              : appBarIconColor,
                         ),
-                  tooltip:
-                      isFil ? 'Account at Cloud Sync' : 'Account & Cloud Sync',
+                  tooltip: isFil ? 'Family Backup' : 'Family Backup & Sync',
                   onPressed: () {
                     Navigator.push(
                       context,
@@ -179,14 +184,14 @@ class HomeDashboardScreen extends StatelessWidget {
                       ? Badge(
                           label: Text('$alertCount'),
                           backgroundColor: AppTheme.dangerRed,
-                          child: const Icon(
+                          child: Icon(
                             Icons.notifications_outlined,
-                            color: Colors.white,
+                            color: appBarIconColor,
                           ),
                         )
-                      : const Icon(
+                      : Icon(
                           Icons.notifications_outlined,
-                          color: Colors.white,
+                          color: appBarIconColor,
                         ),
                   tooltip: s.replacementAlerts,
                   onPressed: () {
@@ -198,6 +203,7 @@ class HomeDashboardScreen extends StatelessWidget {
                     );
                   },
                 ),
+                const SizedBox(width: 4),
               ],
             ),
       body: kit.isLoading
@@ -216,17 +222,17 @@ class HomeDashboardScreen extends StatelessWidget {
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: EdgeInsets.fromLTRB(
+                  isDesktop ? 32 : 16,
                   isDesktop ? 28 : 16,
-                  isDesktop ? 24 : 14,
-                  isDesktop ? 28 : 16,
+                  isDesktop ? 32 : 16,
                   isDesktop ? 40 : 96,
                 ),
                 child: ResponsiveContainer(
-                  maxWidth: 1020,
+                  maxWidth: 980,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Desktop Welcome Header
+                      // Clean Desktop Header
                       if (isDesktop) ...[
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
@@ -237,18 +243,20 @@ class HomeDashboardScreen extends StatelessWidget {
                                 children: [
                                   Text(
                                     isFil
-                                        ? 'Sentro ng Kahandaan sa Sakuna'
-                                        : 'Household Preparedness Command Center',
+                                        ? 'Kahandaan ng Pamilya'
+                                        : 'Family Preparedness',
                                     style: TextStyle(
-                                      fontSize: 24,
+                                      fontSize: 26,
                                       fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.4,
+                                      letterSpacing: -0.5,
                                       color: headingColor,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    s.appSubtitle,
+                                    isFil
+                                        ? 'Suriin ang Go-Bag, lagay ng panahon, at plano ng pamilya kahit walang internet.'
+                                        : 'Track your emergency supplies, local alerts, and family plan — even offline.',
                                     style: TextStyle(
                                       fontSize: 14.5,
                                       color: subtleText,
@@ -264,12 +272,12 @@ class HomeDashboardScreen extends StatelessWidget {
                                       backgroundColor: AppTheme.dangerRed,
                                       child: const Icon(
                                         Icons.notifications_outlined,
-                                        size: 20,
+                                        size: 19,
                                       ),
                                     )
                                   : const Icon(
                                       Icons.notifications_outlined,
-                                      size: 20,
+                                      size: 19,
                                     ),
                               label: Text(s.replacementAlerts),
                               onPressed: () {
@@ -282,9 +290,9 @@ class HomeDashboardScreen extends StatelessWidget {
                               },
                             ),
                             const SizedBox(width: 10),
-                            ElevatedButton.icon(
-                              icon: const Icon(Icons.sync, size: 18),
-                              label: Text(isFil ? 'I-refresh' : 'Refresh'),
+                            FilledButton.icon(
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: Text(isFil ? 'I-update' : 'Refresh'),
                               onPressed: () async {
                                 await monitoring.refreshLiveFeeds(
                                   lat: emergency.userLat,
@@ -297,33 +305,33 @@ class HomeDashboardScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 22),
                       ],
 
-                      // Hero Readiness Command Card
+                      // Hero Go-Bag Readiness Card
                       _buildHeroReadinessCard(
                         context,
                         kit: kit,
                         auth: auth,
                         s: s,
                         readiness: readiness,
-                        rawReadiness: rawReadiness,
                         scoreColor: heroScoreColor,
                         missingCount: missingCount,
                         alertCount: alertCount,
                         isDesktop: isDesktop,
                         isFil: isFil,
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 16),
 
-                      // Live Hazard Telemetry Strip
-                      _buildHazardStrip(
+                      // Today's Local Status Card
+                      _buildLocalStatusCard(
                         context,
                         monitoring: monitoring,
                         emergency: emergency,
                         isHazardAlert: isHazardAlert,
                         isDark: isDark,
                         isFil: isFil,
+                        headingColor: headingColor,
                         subtleText: subtleText,
                       ),
 
@@ -339,25 +347,49 @@ class HomeDashboardScreen extends StatelessWidget {
                         ),
                       ],
 
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             s.quickToolsTitle,
                             style: TextStyle(
-                              fontSize: 17.5,
+                              fontSize: 17,
                               fontWeight: FontWeight.w800,
                               letterSpacing: -0.2,
                               color: headingColor,
                             ),
                           ),
-                          Text(
-                            isFil ? 'Offline-Ready' : '100% Offline-Ready',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: subtleText,
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.safeGreen
+                                  .withAlpha(isDark ? 36 : 18),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.offline_pin_outlined,
+                                  size: 14,
+                                  color: AppTheme.safeGreen,
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  isFil
+                                      ? 'Gumagana Offline'
+                                      : 'Works Offline',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.safeGreen,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -375,6 +407,20 @@ class HomeDashboardScreen extends StatelessWidget {
                         headingColor: headingColor,
                         subtleText: subtleText,
                       ),
+
+                      const SizedBox(height: 28),
+                      Center(
+                        child: Text(
+                          isFil
+                              ? 'LifeCheckpoint • Gabay ng Pamilya sa Metro Manila (EAC)'
+                              : 'LifeCheckpoint • Metro Manila Family Preparedness • EAC',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: subtleText.withAlpha(180),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -389,24 +435,24 @@ class HomeDashboardScreen extends StatelessWidget {
     required AuthProvider auth,
     required AppStrings s,
     required double readiness,
-    required double rawReadiness,
     required Color scoreColor,
     required int missingCount,
     required int alertCount,
     required bool isDesktop,
     required bool isFil,
   }) {
+    final totalMembers = kit.householdProfile.totalPeople;
     return Container(
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF152F56), Color(0xFF0C1D36)],
+          colors: [AppTheme.primaryNavy, AppTheme.primaryNavyDark],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryNavy.withAlpha(45),
+            color: AppTheme.primaryNavy.withAlpha(38),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -416,7 +462,7 @@ class HomeDashboardScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top institutional + cloud sync badges
+          // Top row: Family size pill + Cloud Backup pill
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -426,24 +472,27 @@ class HomeDashboardScreen extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: AppTheme.eacCrimson.withAlpha(180),
+                  color: Colors.white.withAlpha(20),
                   borderRadius: BorderRadius.circular(99),
                   border: Border.all(color: Colors.white24),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.school, size: 14, color: Colors.white),
-                    SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Emilio Aguinaldo College • Disaster Preparedness',
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
+                    const Icon(
+                      Icons.groups_outlined,
+                      size: 15,
+                      color: Colors.white,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isFil
+                          ? 'Kit para sa $totalMembers miyembro'
+                          : 'Kit for $totalMembers ${totalMembers == 1 ? 'person' : 'people'}',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
                       ),
                     ),
                   ],
@@ -464,8 +513,8 @@ class HomeDashboardScreen extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: auth.isAuthenticated
-                        ? AppTheme.safeGreen.withAlpha(150)
-                        : Colors.white.withAlpha(22),
+                        ? AppTheme.safeGreen.withAlpha(160)
+                        : Colors.white.withAlpha(18),
                     borderRadius: BorderRadius.circular(99),
                     border: Border.all(
                       color: auth.isAuthenticated
@@ -478,8 +527,8 @@ class HomeDashboardScreen extends StatelessWidget {
                     children: [
                       Icon(
                         auth.isAuthenticated
-                            ? Icons.cloud_done
-                            : Icons.cloud_off_outlined,
+                            ? Icons.cloud_done_rounded
+                            : Icons.cloud_outlined,
                         size: 14,
                         color: Colors.white,
                       ),
@@ -487,10 +536,16 @@ class HomeDashboardScreen extends StatelessWidget {
                       Flexible(
                         child: Text(
                           auth.isAuthenticated
-                              ? 'Synced • Family Code: ${auth.inviteCode ?? '-'}'
+                              ? (isFil
+                                  ? 'Naka-sync • Code: ${auth.inviteCode ?? '-'}'
+                                  : 'Synced • Family Code: ${auth.inviteCode ?? '-'}')
                               : (auth.pendingSyncCount > 0
-                                  ? 'Offline Mode (${auth.pendingSyncCount} pending) • Tap to Sync'
-                                  : 'Offline-Ready • Tap to Sign In & Sync'),
+                                  ? (isFil
+                                      ? 'Naka-save dito (${auth.pendingSyncCount} naghihintay)'
+                                      : 'Saved on device (${auth.pendingSyncCount} pending)')
+                                  : (isFil
+                                      ? 'Naka-save dito • Mag-sign in para sa backup'
+                                      : 'Saved on device • Sign in to back up')),
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 12.5,
@@ -507,19 +562,19 @@ class HomeDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 20),
 
-          // Main Radial Score + Action
+          // Main Radial Score + Clear Action
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               SizedBox(
-                width: isDesktop ? 116 : 98,
-                height: isDesktop ? 116 : 98,
+                width: isDesktop ? 112 : 94,
+                height: isDesktop ? 112 : 94,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     CircularProgressIndicator(
                       value: (readiness / 100).clamp(0.0, 1.0),
-                      strokeWidth: 10,
+                      strokeWidth: 9,
                       backgroundColor: Colors.white.withAlpha(24),
                       color: scoreColor,
                       strokeCap: StrokeCap.round,
@@ -531,17 +586,17 @@ class HomeDashboardScreen extends StatelessWidget {
                           Text(
                             '${readiness.toStringAsFixed(0)}%',
                             style: TextStyle(
-                              fontSize: isDesktop ? 28 : 24,
+                              fontSize: isDesktop ? 27 : 23,
                               fontWeight: FontWeight.w800,
                               color: Colors.white,
                               height: 1.0,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const SizedBox(height: 3),
                           Text(
                             isFil ? 'HANDA' : 'READY',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 10,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 1.0,
                               color: scoreColor,
@@ -561,9 +616,9 @@ class HomeDashboardScreen extends StatelessWidget {
                     Text(
                       s.weightedScoreLabel,
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
-                        letterSpacing: 0.8,
+                        letterSpacing: 0.9,
                         color: Colors.white70,
                       ),
                     ),
@@ -578,36 +633,32 @@ class HomeDashboardScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      s.weightedExplain,
+                      isFil
+                          ? '${kit.packedItemsCount} sa ${kit.totalItemsCount} gamit ang handa na. $missingCount pa ang kulang.'
+                          : '${kit.packedItemsCount} of ${kit.totalItemsCount} essentials packed • $missingCount left to pack.',
                       style: const TextStyle(
                         fontSize: 13.5,
                         color: Colors.white70,
                         height: 1.35,
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: AppTheme.primaryNavy,
-                            minimumSize: const Size(0, 42),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                          ),
-                          icon: const Icon(Icons.checklist_rtl, size: 18),
-                          label: Text(
-                            isFil ? 'Ayusin ang Kit' : 'Update Go-Bag Kit',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          onPressed: () => onNavigateTab(1),
+                    const SizedBox(height: 14),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppTheme.primaryNavy,
+                        minimumSize: const Size(0, 42),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 10,
                         ),
-                      ],
+                      ),
+                      icon: const Icon(Icons.backpack_outlined, size: 18),
+                      label: Text(
+                        isFil ? 'Buksan ang Go-Bag' : 'Update Go-Bag',
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: () => onNavigateTab(1),
                     ),
                   ],
                 ),
@@ -616,15 +667,15 @@ class HomeDashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 18),
 
-          // 3 KPI Mini-Tiles inside Hero
+          // 3 Clean KPI Mini-Tiles
           Row(
             children: [
               Expanded(
                 child: _buildHeroMetricTile(
-                  icon: Icons.inventory_2_outlined,
-                  label: isFil ? 'Kumpleto' : 'Packed Items',
+                  icon: Icons.check_circle_outline_rounded,
+                  label: isFil ? 'Handa Na' : 'Packed',
                   value: '${kit.packedItemsCount}/${kit.totalItemsCount}',
-                  sub: '${rawReadiness.toStringAsFixed(0)}% raw',
+                  sub: isFil ? 'mga gamit' : 'items ready',
                   accent: const Color(0xFF38BDF8),
                   onTap: () => onNavigateTab(1),
                 ),
@@ -632,10 +683,10 @@ class HomeDashboardScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildHeroMetricTile(
-                  icon: Icons.playlist_remove_rounded,
-                  label: isFil ? 'Kulang' : 'Missing',
+                  icon: Icons.playlist_add_outlined,
+                  label: isFil ? 'Kulang Pa' : 'To Pack',
                   value: '$missingCount',
-                  sub: '${kit.householdProfile.totalPeople} pax kit',
+                  sub: isFil ? 'i-tap para makita' : 'tap to view',
                   accent: const Color(0xFFFBBF24),
                   onTap: () {
                     kit.setFilterStatus(ItemFilterStatus.missing);
@@ -646,12 +697,12 @@ class HomeDashboardScreen extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildHeroMetricTile(
-                  icon: Icons.event_busy_outlined,
-                  label: isFil ? 'Palitan' : 'Expiry Alerts',
+                  icon: Icons.schedule_rounded,
+                  label: isFil ? 'Palitan' : 'Expiring',
                   value: '$alertCount',
                   sub: alertCount > 0
-                      ? (isFil ? 'Kailangan palitan' : 'Action needed')
-                      : (isFil ? 'Lahat sariwa' : 'All fresh'),
+                      ? (isFil ? 'kailangan palitan' : 'needs review')
+                      : (isFil ? 'lahat maayos' : 'all good'),
                   accent: alertCount > 0
                       ? const Color(0xFFF87171)
                       : const Color(0xFF4ADE80),
@@ -686,9 +737,9 @@ class HomeDashboardScreen extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.white.withAlpha(16),
+          color: Colors.white.withAlpha(14),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white.withAlpha(24)),
+          border: Border.all(color: Colors.white.withAlpha(22)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -732,23 +783,34 @@ class HomeDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHazardStrip(
+  Widget _buildLocalStatusCard(
     BuildContext context, {
     required MonitoringProvider monitoring,
     required EmergencyProvider emergency,
     required bool isHazardAlert,
     required bool isDark,
     required bool isFil,
+    required Color headingColor,
     required Color subtleText,
   }) {
     final accent = isHazardAlert
         ? (isDark ? Colors.red.shade300 : AppTheme.dangerRed)
         : (isDark ? Colors.green.shade300 : AppTheme.safeGreen);
 
+    final areaName = emergency.hasLiveGps
+        ? (isFil ? 'Iyong Lokasyon' : 'Your Area')
+        : 'Metro Manila';
+
+    final weatherLine = monitoring.weather != null
+        ? '$areaName • ${monitoring.weather!.temperatureC.toStringAsFixed(0)}°C • ${monitoring.weather!.conditionText}'
+        : (isFil
+            ? 'I-tap para makita ang panahon, lindol, at family check-in'
+            : 'Tap to view local weather, earthquakes & family check-in');
+
     return Material(
       color: isHazardAlert
           ? (isDark
-              ? AppTheme.dangerRed.withAlpha(38)
+              ? AppTheme.dangerRed.withAlpha(36)
               : const Color(0xFFFEF2F2))
           : (isDark ? AppTheme.darkCard : Colors.white),
       borderRadius: BorderRadius.circular(16),
@@ -761,23 +823,25 @@ class HomeDashboardScreen extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isHazardAlert
-                  ? AppTheme.dangerRed.withAlpha(160)
+                  ? AppTheme.dangerRed.withAlpha(150)
                   : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
             ),
           ),
           child: Row(
             children: [
               Container(
-                width: 42,
-                height: 42,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: accent.withAlpha(isDark ? 45 : 22),
-                  borderRadius: BorderRadius.circular(11),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  isHazardAlert ? Icons.warning_amber_rounded : Icons.radar,
+                  isHazardAlert
+                      ? Icons.warning_amber_rounded
+                      : Icons.wb_sunny_outlined,
                   color: accent,
-                  size: 22,
+                  size: 23,
                 ),
               ),
               const SizedBox(width: 14),
@@ -798,11 +862,10 @@ class HomeDashboardScreen extends StatelessWidget {
                         const SizedBox(width: 7),
                         Expanded(
                           child: Text(
-                            monitoring.currentThreatLevel,
+                            monitoring.friendlyStatusLabel(isFil),
                             style: TextStyle(
-                              fontSize: 13.5,
+                              fontSize: 14.5,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 0.2,
                               color: accent,
                             ),
                           ),
@@ -811,11 +874,7 @@ class HomeDashboardScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      monitoring.weather != null
-                          ? '${emergency.hasLiveGps ? 'Local GPS' : 'Metro Manila'}: ${monitoring.weather!.temperatureC.toStringAsFixed(0)}°C • ${monitoring.weather!.conditionText} • ${monitoring.earthquakes.length} PH quakes'
-                          : (isFil
-                              ? 'I-tap para sa lagay ng panahon at lindol'
-                              : 'Tap for live weather, PH seismic feed & check-in'),
+                      weatherLine,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 13.5, color: subtleText),
@@ -824,7 +883,11 @@ class HomeDashboardScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.arrow_forward_ios_rounded, size: 16, color: subtleText),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 22,
+                color: subtleText,
+              ),
             ],
           ),
         ),
@@ -846,22 +909,22 @@ class HomeDashboardScreen extends StatelessWidget {
         : (isDark ? Colors.amber.shade300 : AppTheme.warningAmber);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: hasExpired
             ? (isDark
-                ? AppTheme.dangerRed.withAlpha(40)
+                ? AppTheme.dangerRed.withAlpha(38)
                 : const Color(0xFFFEF2F2))
             : (isDark
-                ? AppTheme.warningAmber.withAlpha(40)
+                ? AppTheme.warningAmber.withAlpha(38)
                 : const Color(0xFFFFFBEB)),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: accent.withAlpha(140)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent.withAlpha(130)),
       ),
       child: Row(
         children: [
           Icon(
-            hasExpired ? Icons.error_outline : Icons.schedule,
+            hasExpired ? Icons.error_outline_rounded : Icons.schedule_rounded,
             color: accent,
             size: 24,
           ),
@@ -873,13 +936,13 @@ class HomeDashboardScreen extends StatelessWidget {
                 Text(
                   hasExpired
                       ? (isFil
-                          ? '$expired paso at $expiringSoon malapit ma-expire!'
-                          : '$expired expired & $expiringSoon expiring item(s)!')
+                          ? '$expired paso at $expiringSoon malapit ma-expire'
+                          : '$expired expired & $expiringSoon expiring soon')
                       : (isFil
-                          ? '$expiringSoon gamit ang malapit ma-expire sa ${kit.expiryAlertDays} araw!'
-                          : '$expiringSoon item(s) expiring within ${kit.expiryAlertDays} days!'),
+                          ? '$expiringSoon gamit ang malapit ma-expire'
+                          : '$expiringSoon item(s) expiring within ${kit.expiryAlertDays} days'),
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w700,
                     color: accent,
                   ),
@@ -887,8 +950,8 @@ class HomeDashboardScreen extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   isFil
-                      ? 'Pindutin ang Palitan para mag-update ng shelf-life.'
-                      : 'Review and rotate expiring emergency supplies.',
+                      ? 'Palitan ang lumang tubig, pagkain, o gamot sa Go-Bag.'
+                      : 'Check and replace old food, water, or medicine.',
                   style: TextStyle(
                     fontSize: 13,
                     color: isDark ? Colors.white70 : AppTheme.mutedSlate,
@@ -897,10 +960,11 @@ class HomeDashboardScreen extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: hasExpired ? AppTheme.dangerRed : AppTheme.warningAmber,
+              backgroundColor:
+                  hasExpired ? AppTheme.dangerRed : AppTheme.warningAmber,
               foregroundColor: Colors.white,
               minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -912,8 +976,8 @@ class HomeDashboardScreen extends StatelessWidget {
               );
             },
             child: Text(
-              isFil ? 'Palitan' : 'Replace',
-              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+              isFil ? 'Tingnan' : 'Review',
+              style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -940,7 +1004,9 @@ class HomeDashboardScreen extends StatelessWidget {
         icon: Icons.menu_book_rounded,
         iconColor: isDark ? Colors.purple.shade200 : const Color(0xFF7C3AED),
         title: s.disasterGuides,
-        subtitle: isFil ? 'Bagyo, Lindol, Sunog' : 'Typhoon, Quake, Fire',
+        subtitle: isFil
+            ? 'Bagyo, Baha, Lindol, Sunog'
+            : 'Typhoon, Flood, Quake, Fire',
         onTap: () {
           Navigator.push(
             context,
@@ -955,7 +1021,9 @@ class HomeDashboardScreen extends StatelessWidget {
         icon: Icons.home_work_outlined,
         iconColor: isDark ? Colors.lightBlue.shade200 : AppTheme.primaryAccent,
         title: s.householdPlan,
-        subtitle: isFil ? 'Tagpuan at mga shutoff' : 'Meeting spots & shutoffs',
+        subtitle: isFil
+            ? 'Tagpuan at mga emergency roles'
+            : 'Meeting places & family roles',
         onTap: () {
           Navigator.push(
             context,
@@ -967,14 +1035,14 @@ class HomeDashboardScreen extends StatelessWidget {
         isDark: isDark,
         headingColor: headingColor,
         subtleText: subtleText,
-        icon: Icons.notifications_active_outlined,
+        icon: Icons.event_repeat_rounded,
         iconColor: alertCount > 0
             ? (isDark ? Colors.red.shade300 : AppTheme.dangerRed)
             : (isDark ? Colors.amber.shade300 : AppTheme.warningAmber),
         title: s.replacementAlerts,
         subtitle: alertCount > 0
-            ? (isFil ? '$alertCount paalala ngayon' : '$alertCount active alerts')
-            : (isFil ? '$missingCount kulang pa' : '$missingCount items missing'),
+            ? (isFil ? '$alertCount kailangan palitan' : '$alertCount items need review')
+            : (isFil ? '$missingCount kulang pa' : '$missingCount left to pack'),
         onTap: () {
           Navigator.push(
             context,
@@ -989,7 +1057,9 @@ class HomeDashboardScreen extends StatelessWidget {
         icon: Icons.fact_check_outlined,
         iconColor: isDark ? Colors.tealAccent : const Color(0xFF0F766E),
         title: s.readinessAudit,
-        subtitle: isFil ? 'ISO survey at grado' : 'Category score & survey',
+        subtitle: isFil
+            ? 'Suriin ang handa at mag-rate'
+            : 'Category breakdown & feedback',
         onTap: () {
           Navigator.push(
             context,
@@ -1083,8 +1153,8 @@ class HomeDashboardScreen extends StatelessWidget {
                     child: Icon(icon, color: iconColor, size: 22),
                   ),
                   Icon(
-                    Icons.arrow_outward_rounded,
-                    size: 16,
+                    Icons.arrow_forward_rounded,
+                    size: 17,
                     color: subtleText.withAlpha(150),
                   ),
                 ],

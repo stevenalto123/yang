@@ -20,7 +20,6 @@ class AccountSyncScreen extends StatefulWidget {
 class _AccountSyncScreenState extends State<AccountSyncScreen> {
   bool _isRegisterMode = false;
   bool _isSubmitting = false;
-  bool _showAdvancedServer = false;
   bool _acceptedPrivacy = false;
 
   final _emailCtrl = TextEditingController();
@@ -70,7 +69,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
 
   Future<void> _submitAuth(AuthProvider auth) async {
     if (_emailCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
-      _showSnack('Please enter email and password.', isError: true);
+      _showSnack('Please enter your email and password.', isError: true);
       return;
     }
     if (_isRegisterMode && !_acceptedPrivacy) {
@@ -87,7 +86,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             email: _emailCtrl.text,
             password: _passwordCtrl.text,
             fullName: _nameCtrl.text.trim().isEmpty
-                ? 'Household Member'
+                ? 'Family Member'
                 : _nameCtrl.text,
             householdName: _householdCtrl.text,
             inviteCode: _inviteCtrl.text,
@@ -103,12 +102,12 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     if (res.ok) {
       _showSnack(
         _isRegisterMode
-            ? 'Account created & household synced!'
-            : 'Signed in & household synced!',
+            ? 'Account created and synced with your family!'
+            : 'Signed in and synced!',
       );
       if (auth.isAdmin) _loadEvaluationSummary();
     } else {
-      _showSnack(res.error ?? 'Authentication failed.', isError: true);
+      _showSnack(res.error ?? 'Sign in failed. Please try again.', isError: true);
     }
   }
 
@@ -122,7 +121,10 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
       if (res.ok) _evalSummary = res.summary;
     });
     if (!res.ok) {
-      _showSnack(res.error ?? 'Unable to load evaluation summary.', isError: true);
+      _showSnack(
+        res.error ?? 'Unable to load evaluation summary.',
+        isError: true,
+      );
     }
   }
 
@@ -146,85 +148,106 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     final isFil = settings.isFilipino;
 
     final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
-    final subtleText = isDark ? Colors.white70 : Colors.grey.shade700;
+    final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
     final accentNavy = isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isFil ? 'Account at Cloud Sync' : 'Account & Cloud Sync',
+          isFil ? 'Family Backup at Sync' : 'Family Backup & Sync',
         ),
       ),
       body: ResponsiveContainer(
-        maxWidth: 780,
+        maxWidth: 740,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
-        children: [
-          // 1. Sync Status Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        auth.isAuthenticated
-                            ? Icons.cloud_done
-                            : Icons.cloud_off_outlined,
-                        color: auth.isAuthenticated
-                            ? AppTheme.safeGreen
-                            : AppTheme.warningAmber,
-                        size: 26,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              auth.isAuthenticated
-                                  ? (isFil
-                                      ? 'Aktibo ang Cloud Sync'
-                                      : 'Household Cloud Sync Active')
-                                  : (isFil
-                                      ? 'Offline Guest Mode (Lokal na Imbakan)'
-                                      : 'Offline Guest Mode (Device Local)'),
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: headingColor,
+          children: [
+            // 1. Clean Sync Status Card
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: (auth.isAuthenticated
+                                    ? AppTheme.safeGreen
+                                    : AppTheme.primaryAccent)
+                                .withAlpha(isDark ? 45 : 20),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            auth.isAuthenticated
+                                ? Icons.cloud_done_rounded
+                                : Icons.smartphone_rounded,
+                            color: auth.isAuthenticated
+                                ? AppTheme.safeGreen
+                                : accentNavy,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                auth.isAuthenticated
+                                    ? (isFil
+                                        ? 'Naka-sync sa Iyong Pamilya'
+                                        : 'Synced with Your Family')
+                                    : (isFil
+                                        ? 'Naka-save sa Device na Ito'
+                                        : 'Saved on This Device'),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: headingColor,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              auth.lastSyncedAt != null
-                                  ? 'Last synced: ${DateFormat('MMM d, h:mm a').format(auth.lastSyncedAt!)}'
-                                  : 'Pending offline updates: ${auth.pendingSyncCount}',
-                              style: TextStyle(fontSize: 13.5, color: subtleText),
-                            ),
-                          ],
+                              const SizedBox(height: 2),
+                              Text(
+                                auth.lastSyncedAt != null
+                                    ? (isFil
+                                        ? 'Huling sync: ${DateFormat('MMM d, h:mm a').format(auth.lastSyncedAt!)}'
+                                        : 'Last synced: ${DateFormat('MMM d, h:mm a').format(auth.lastSyncedAt!)}')
+                                    : (auth.pendingSyncCount > 0
+                                        ? (isFil
+                                            ? '${auth.pendingSyncCount} pagbabago ang naghihintay i-sync'
+                                            : '${auth.pendingSyncCount} change(s) ready to sync')
+                                        : (isFil
+                                            ? 'Gumagana offline — opsyonal ang pag-sign in'
+                                            : 'Works offline — sign in anytime to back up')),
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  color: subtleText,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (auth.lastSyncError != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        auth.lastSyncError!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: AppTheme.warningAmber,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
-                  ),
-                  if (auth.lastSyncError != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      auth.lastSyncError!,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.warningAmber,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
+                    if (auth.isAuthenticated) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
                           icon: auth.isSyncing
                               ? const SizedBox(
                                   width: 16,
@@ -234,10 +257,10 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                                     color: Colors.white,
                                   ),
                                 )
-                              : const Icon(Icons.sync, size: 18),
+                              : const Icon(Icons.sync_rounded, size: 18),
                           label: Text(
                             auth.isSyncing
-                                ? 'Syncing...'
+                                ? (isFil ? 'Nagsi-sync...' : 'Syncing...')
                                 : (isFil ? 'I-sync Ngayon' : 'Sync Now'),
                           ),
                           onPressed: auth.isSyncing
@@ -246,96 +269,64 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                                   final res = await auth.syncNow();
                                   _showSnack(
                                     res.ok
-                                        ? 'Synced cleanly with Netlify + Supabase!'
-                                        : (res.error ?? 'Sync queued offline.'),
+                                        ? 'Everything is up to date!'
+                                        : (res.error ??
+                                            'Saved offline. Will sync when online.'),
                                     isError: !res.ok,
                                   );
                                 },
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.settings_ethernet, size: 18),
-                        label: const Text('Server'),
-                        onPressed: () {
-                          setState(() => _showAdvancedServer = !_showAdvancedServer);
-                        },
-                      ),
                     ],
-                  ),
-                  if (_showAdvancedServer) ...[
-                    const Divider(height: 24),
-                    Text(
-                      'Backend API URL (${auth.resolvedApiBaseUrl ?? 'Not set on mobile'})',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: subtleText,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _serverUrlCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Netlify Site URL (e.g. https://lifecheckpoint.netlify.app)',
-                        hintText: 'Leave blank on Web PWA for same-origin /api',
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () async {
-                              await auth.setCustomServerUrl(_serverUrlCtrl.text);
-                              final health = await auth.checkHealth();
-                              _showSnack(
-                                health.ok
-                                    ? 'Connected to Netlify + Supabase API!'
-                                    : (health.error ?? 'Could not reach server.'),
-                                isError: !health.ok,
-                              );
-                            },
-                            child: const Text('Save & Test Connection'),
-                          ),
-                        ),
-                      ],
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // 2. Signed-In Household Card OR Login/Register Form
-          if (auth.isAuthenticated)
-            _buildSignedInCard(auth, isDark, headingColor, subtleText, accentNavy)
-          else
-            _buildAuthFormCard(auth, isDark, headingColor, subtleText, accentNavy),
+            // 2. Signed-In Household Card OR Clean Sign In / Create Account Card
+            if (auth.isAuthenticated)
+              _buildSignedInCard(
+                auth,
+                isDark,
+                isFil,
+                headingColor,
+                subtleText,
+                accentNavy,
+              )
+            else
+              _buildAuthFormCard(
+                auth,
+                isDark,
+                isFil,
+                headingColor,
+                subtleText,
+                accentNavy,
+              ),
 
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // 3. Researcher Chapter 4 Analytics Card (for Admin or Researcher Code)
-          _buildResearcherPortalCard(
-            auth,
-            isDark,
-            headingColor,
-            subtleText,
-            accentNavy,
-          ),
-          const SizedBox(height: 16),
+            // 3. Data Privacy & User Rights (RA 10173)
+            _buildPrivacyComplianceCard(
+              auth,
+              isFil,
+              headingColor,
+              subtleText,
+              accentNavy,
+            ),
+            const SizedBox(height: 16),
 
-          // 4. RA 10173 Data Privacy & Local Erasure Card
-          _buildPrivacyComplianceCard(
-            auth,
-            isFil,
-            headingColor,
-            subtleText,
-            accentNavy,
-          ),
-        ],
-      ),
+            // 4. Collapsed Researcher & Advanced Tools (hidden from regular household clutter)
+            _buildResearcherAndAdvancedTile(
+              auth,
+              isDark,
+              isFil,
+              headingColor,
+              subtleText,
+              accentNavy,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -343,6 +334,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   Widget _buildSignedInCard(
     AuthProvider auth,
     bool isDark,
+    bool isFil,
     Color headingColor,
     Color subtleText,
     Color accentNavy,
@@ -357,7 +349,10 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
               children: [
                 CircleAvatar(
                   backgroundColor: AppTheme.primaryNavy,
-                  child: const Icon(Icons.family_restroom, color: Colors.white),
+                  child: const Icon(
+                    Icons.family_restroom_rounded,
+                    color: Colors.white,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -365,16 +360,16 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        auth.fullName ?? 'Household Member',
+                        auth.fullName ?? 'Family Member',
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w800,
                           color: headingColor,
                         ),
                       ),
                       Text(
-                        '${auth.email ?? ''} • ${auth.role.toUpperCase()}',
-                        style: TextStyle(fontSize: 13, color: subtleText),
+                        auth.email ?? '',
+                        style: TextStyle(fontSize: 13.5, color: subtleText),
                       ),
                     ],
                   ),
@@ -383,21 +378,21 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             ),
             const Divider(height: 24),
             Text(
-              'Household: ${auth.householdName ?? 'My Household'}',
+              '${isFil ? 'Pamilya' : 'Household'}: ${auth.householdName ?? 'My Family'}',
               style: TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: headingColor,
               ),
             ),
             const SizedBox(height: 8),
             Container(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: isDark ? AppTheme.darkBg : Colors.blue.shade50,
-                borderRadius: BorderRadius.circular(10),
+                color: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isDark ? AppTheme.darkBorder : Colors.blue.shade200,
+                  color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
                 ),
               ),
               child: Row(
@@ -407,19 +402,22 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'FAMILY INVITE CODE',
+                          isFil
+                              ? 'FAMILY INVITE CODE (IBAHAGI SA PAMILYA)'
+                              : 'FAMILY INVITE CODE (SHARE WITH RELATIVES)',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
                             color: subtleText,
                           ),
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         SelectableText(
                           auth.inviteCode ?? '------',
                           style: TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w800,
                             letterSpacing: 3,
                             color: accentNavy,
                           ),
@@ -428,13 +426,13 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                     ),
                   ),
                   IconButton.filledTonal(
-                    icon: const Icon(Icons.copy),
-                    tooltip: 'Copy Invite Code',
+                    icon: const Icon(Icons.copy_rounded),
+                    tooltip: isFil ? 'Kopyahin ang Code' : 'Copy Code',
                     onPressed: () {
                       final code = auth.inviteCode ?? '';
                       if (code.isNotEmpty) {
                         Clipboard.setData(ClipboardData(text: code));
-                        _showSnack('Invite code $code copied!');
+                        _showSnack('Family code $code copied!');
                       }
                     },
                   ),
@@ -448,24 +446,26 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   child: TextField(
                     controller: _joinCodeCtrl,
                     textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: 'Join another family invite code',
+                    decoration: InputDecoration(
+                      labelText: isFil
+                          ? 'Sumali sa ibang Family Code'
+                          : 'Join another family code',
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                ElevatedButton(
+                FilledButton(
                   onPressed: () async {
                     if (_joinCodeCtrl.text.trim().isEmpty) return;
                     final res = await auth.joinHousehold(_joinCodeCtrl.text);
                     _showSnack(
                       res.ok
-                          ? 'Joined household & synced supplies!'
-                          : (res.error ?? 'Invalid invite code.'),
+                          ? 'Joined household and synced supplies!'
+                          : (res.error ?? 'Invalid family code.'),
                       isError: !res.ok,
                     );
                   },
-                  child: const Text('Join'),
+                  child: Text(isFil ? 'Sumali' : 'Join'),
                 ),
               ],
             ),
@@ -473,10 +473,15 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                icon: const Icon(Icons.logout, color: AppTheme.dangerRed),
-                label: const Text(
-                  'Sign Out (Keep Local Offline Data)',
-                  style: TextStyle(color: AppTheme.dangerRed),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  color: AppTheme.dangerRed,
+                ),
+                label: Text(
+                  isFil
+                      ? 'Mag-sign Out (Mananatili ang Offline Data)'
+                      : 'Sign Out (Keep Offline Data on Device)',
+                  style: const TextStyle(color: AppTheme.dangerRed),
                 ),
                 onPressed: () => auth.logout(),
               ),
@@ -490,6 +495,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   Widget _buildAuthFormCard(
     AuthProvider auth,
     bool isDark,
+    bool isFil,
     Color headingColor,
     Color subtleText,
     Color accentNavy,
@@ -502,84 +508,107 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
           children: [
             Text(
               _isRegisterMode
-                  ? 'Create Household Cloud Account'
-                  : 'Sign In to Sync Across Devices',
+                  ? (isFil
+                      ? 'Gumawa ng Family Account'
+                      : 'Create a Family Account')
+                  : (isFil
+                      ? 'Mag-sign In para sa Backup'
+                      : 'Sign In to Back Up & Share'),
               style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+                fontSize: 16.5,
+                fontWeight: FontWeight.w800,
                 color: headingColor,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              'Optional: Continue using LifeCheckpoint offline anytime, or sign in to share your Go-Bag, expiry alerts, and family check-ins across Web & Android.',
-              style: TextStyle(fontSize: 13.5, color: subtleText),
+              isFil
+                  ? 'Opsyonal: Gamitin ang app nang offline kahit walang account, o mag-sign in para maibahagi ang Go-Bag checklist at safety check-ins sa buong pamilya.'
+                  : 'Optional: Use LifeCheckpoint offline without an account, or sign in to share your Go-Bag list and safety check-ins across family phones.',
+              style: TextStyle(fontSize: 13.5, color: subtleText, height: 1.4),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
                   child: ChoiceChip(
-                    label: const Center(child: Text('Sign In')),
+                    label: Center(
+                      child: Text(isFil ? 'Mag-sign In' : 'Sign In'),
+                    ),
                     selected: !_isRegisterMode,
+                    selectedColor: AppTheme.primaryNavy,
+                    labelStyle: TextStyle(
+                      color: !_isRegisterMode ? Colors.white : headingColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                     onSelected: (_) => setState(() => _isRegisterMode = false),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: ChoiceChip(
-                    label: const Center(child: Text('Register')),
+                    label: Center(
+                      child: Text(isFil ? 'Gumawa ng Account' : 'Create Account'),
+                    ),
                     selected: _isRegisterMode,
+                    selectedColor: AppTheme.primaryNavy,
+                    labelStyle: TextStyle(
+                      color: _isRegisterMode ? Colors.white : headingColor,
+                      fontWeight: FontWeight.w700,
+                    ),
                     onSelected: (_) => setState(() => _isRegisterMode = true),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             if (_isRegisterMode) ...[
               TextField(
                 controller: _nameCtrl,
-                decoration: const InputDecoration(labelText: 'Full Name *'),
+                decoration: InputDecoration(
+                  labelText: isFil ? 'Buong Pangalan *' : 'Your Name *',
+                ),
               ),
               const SizedBox(height: 10),
             ],
             TextField(
               controller: _emailCtrl,
               keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(labelText: 'Email Address *'),
+              decoration: InputDecoration(
+                labelText: isFil ? 'Email Address *' : 'Email Address *',
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _passwordCtrl,
               obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Password (min 6 characters) *',
+              decoration: InputDecoration(
+                labelText: isFil
+                    ? 'Password (hindi bababa sa 6 na karakter) *'
+                    : 'Password (at least 6 characters) *',
               ),
             ),
             if (_isRegisterMode) ...[
               const SizedBox(height: 10),
               TextField(
                 controller: _householdCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Household Name (optional, e.g. Dela Cruz Family)',
+                decoration: InputDecoration(
+                  labelText: isFil
+                      ? 'Pangalan ng Pamilya (hal. Pamilya Dela Cruz)'
+                      : 'Family Name (optional, e.g. Dela Cruz Family)',
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _inviteCtrl,
                 textCapitalization: TextCapitalization.characters,
-                decoration: const InputDecoration(
-                  labelText: 'Family Invite Code (optional — to join existing kit)',
+                decoration: InputDecoration(
+                  labelText: isFil
+                      ? 'Family Invite Code (opsyonal — kung sasali sa pamilya)'
+                      : 'Family Invite Code (optional — to join an existing kit)',
                 ),
               ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _adminCodeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'EAC Researcher / Admin Code (optional)',
-                ),
-              ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
@@ -594,7 +623,9 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          'I agree to the RA 10173 Data Privacy Notice.',
+                          isFil
+                              ? 'Sumasang-ayon ako sa RA 10173 Data Privacy Notice.'
+                              : 'I agree to the RA 10173 Data Privacy Notice.',
                           style: TextStyle(fontSize: 13, color: subtleText),
                         ),
                         TextButton(
@@ -602,10 +633,11 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 6),
                             minimumSize: const Size(0, 32),
                           ),
-                          onPressed: () => PrivacyNoticeDialog.show(context),
-                          child: const Text(
-                            'Read Notice',
-                            style: TextStyle(fontSize: 13),
+                          onPressed: () =>
+                              PrivacyNoticeDialog.show(context, isFil: isFil),
+                          child: Text(
+                            isFil ? 'Basahin' : 'Read Notice',
+                            style: const TextStyle(fontSize: 13),
                           ),
                         ),
                       ],
@@ -617,114 +649,19 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             const SizedBox(height: 14),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: FilledButton(
                 onPressed: _isSubmitting ? null : () => _submitAuth(auth),
                 child: Text(
                   _isSubmitting
-                      ? 'Please wait...'
+                      ? (isFil ? 'Sandali lang...' : 'Please wait...')
                       : (_isRegisterMode
-                          ? 'Create Account & Sync'
-                          : 'Sign In & Sync'),
+                          ? (isFil
+                              ? 'Gumawa ng Account at I-sync'
+                              : 'Create Account & Back Up')
+                          : (isFil ? 'Mag-sign In' : 'Sign In')),
                 ),
               ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResearcherPortalCard(
-    AuthProvider auth,
-    bool isDark,
-    Color headingColor,
-    Color subtleText,
-    Color accentNavy,
-  ) {
-    final means = _evalSummary?['means'] as Map<String, dynamic>?;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.analytics_outlined, color: accentNavy),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Chapter 4 Research Survey Analytics (ISO/IEC 25010)',
-                    style: TextStyle(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.bold,
-                      color: headingColor,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              auth.isAdmin
-                  ? 'Admin access verified. View aggregated Metro Manila respondent scores or export CSV.'
-                  : 'For EAC researchers: Sign in as Admin (or enter Admin Code above) to pull aggregated survey data.',
-              style: TextStyle(fontSize: 13.5, color: subtleText),
-            ),
-            const SizedBox(height: 10),
-            if (!auth.isAdmin) ...[
-              TextField(
-                controller: _adminCodeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Researcher Admin Code (for Chapter 4 Export)',
-                ),
-              ),
-              const SizedBox(height: 10),
-            ],
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.refresh, size: 18),
-                    label: Text(_loadingSummary ? 'Loading...' : 'Load Summary'),
-                    onPressed: _loadingSummary
-                        ? null
-                        : () => _loadEvaluationSummary(
-                              adminCode: _adminCodeCtrl.text,
-                            ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.download, size: 18),
-                    label: const Text('Copy CSV'),
-                    onPressed: () => _copyCsv(adminCode: _adminCodeCtrl.text),
-                  ),
-                ),
-              ],
-            ),
-            if (means != null) ...[
-              const Divider(height: 20),
-              Text(
-                'Total Respondents: ${_evalSummary?['totalRespondents'] ?? 0}',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: accentNavy,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '• Functionality Mean: ${means['functionality']} / 5.00\n'
-                '• Usability Mean: ${means['usability']} / 5.00\n'
-                '• Offline Reliability Mean: ${means['offlineReliability']} / 5.00\n'
-                '• Preparedness Effectiveness Mean: ${means['effectiveness']} / 5.00\n'
-                '• Overall Weighted Mean: ${means['overallMean']} / 5.00\n'
-                '• Avg Kit Readiness: ${means['averageReadinessPct']}%',
-                style: TextStyle(fontSize: 14, height: 1.45, color: headingColor),
-              ),
-            ],
           ],
         ),
       ),
@@ -751,11 +688,11 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 Expanded(
                   child: Text(
                     isFil
-                        ? 'Data Privacy Act ng Pilipinas (RA 10173)'
-                        : 'Data Privacy & User Rights (RA 10173)',
+                        ? 'Privacy at Seguridad ng Datos (RA 10173)'
+                        : 'Privacy & Your Data Rights (RA 10173)',
                     style: TextStyle(
                       fontSize: 15.5,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w800,
                       color: headingColor,
                     ),
                   ),
@@ -765,8 +702,8 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             const SizedBox(height: 6),
             Text(
               isFil
-                  ? 'Protektado ang iyong impormasyon sa HTTPS, scrypt hashing, at database Row-Level Security. Maaari mong tingnan ang patakaran o burahin ang lokal na datos anumang oras.'
-                  : 'Your household records are protected via HTTPS/TLS, scrypt password hashing, and PostgreSQL Row-Level Security. Review our privacy notice or erase local device storage anytime.',
+                  ? 'Ligtas na naka-encrypt ang iyong impormasyon. Maaari mong basahin ang privacy notice o burahin ang naka-save na datos sa device anumang oras.'
+                  : 'Your household details are encrypted and private. You can read our Data Privacy Notice or clear local device storage anytime.',
               style: TextStyle(fontSize: 13.5, color: subtleText, height: 1.4),
             ),
             const SizedBox(height: 12),
@@ -785,11 +722,13 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.dangerRed,
-                      side: const BorderSide(color: AppTheme.dangerRed),
+                      side: BorderSide(
+                        color: AppTheme.dangerRed.withAlpha(150),
+                      ),
                     ),
-                    icon: const Icon(Icons.delete_outline, size: 18),
+                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
                     label: Text(
-                      isFil ? 'Burahin ang Datos' : 'Erase Local Data',
+                      isFil ? 'Burahin Datos' : 'Erase Local Data',
                     ),
                     onPressed: () => _confirmEraseLocalData(auth, isFil),
                   ),
@@ -802,25 +741,179 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     );
   }
 
+  Widget _buildResearcherAndAdvancedTile(
+    AuthProvider auth,
+    bool isDark,
+    bool isFil,
+    Color headingColor,
+    Color subtleText,
+    Color accentNavy,
+  ) {
+    final means = _evalSummary?['means'] as Map<String, dynamic>?;
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: auth.isAdmin,
+          leading: Icon(Icons.tune_rounded, color: subtleText),
+          title: Text(
+            isFil
+                ? 'Para sa Researcher at Advanced Settings'
+                : 'Researcher & Advanced Tools',
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w700,
+              color: headingColor,
+            ),
+          ),
+          subtitle: Text(
+            isFil
+                ? 'EAC Survey Export (CSV) at Server Settings'
+                : 'EAC Chapter 4 Survey Analytics (CSV) & Server URL',
+            style: TextStyle(fontSize: 12.5, color: subtleText),
+          ),
+          childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'ISO/IEC 25010 Survey Analytics (EAC Researchers)',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: headingColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (!auth.isAdmin) ...[
+              TextField(
+                controller: _adminCodeCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Researcher Admin Code',
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: Text(_loadingSummary ? 'Loading...' : 'Load Summary'),
+                    onPressed: _loadingSummary
+                        ? null
+                        : () => _loadEvaluationSummary(
+                              adminCode: _adminCodeCtrl.text,
+                            ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    icon: const Icon(Icons.download_rounded, size: 18),
+                    label: const Text('Copy CSV'),
+                    onPressed: () => _copyCsv(adminCode: _adminCodeCtrl.text),
+                  ),
+                ),
+              ],
+            ),
+            if (means != null) ...[
+              const Divider(height: 20),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total Respondents: ${_evalSummary?['totalRespondents'] ?? 0}',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.bold,
+                        color: accentNavy,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '• Functionality: ${means['functionality']} / 5.00\n'
+                      '• Usability: ${means['usability']} / 5.00\n'
+                      '• Offline Reliability: ${means['offlineReliability']} / 5.00\n'
+                      '• Effectiveness: ${means['effectiveness']} / 5.00\n'
+                      '• Overall Mean: ${means['overallMean']} / 5.00\n'
+                      '• Avg Kit Readiness: ${means['averageReadinessPct']}%',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        height: 1.45,
+                        color: headingColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const Divider(height: 24),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Custom Cloud Server URL (Optional for Android APK)',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: headingColor,
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _serverUrlCtrl,
+              decoration: const InputDecoration(
+                labelText: 'Server URL (leave blank on Web)',
+                hintText: 'https://yangjd.netlify.app',
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () async {
+                  await auth.setCustomServerUrl(_serverUrlCtrl.text);
+                  final health = await auth.checkHealth();
+                  _showSnack(
+                    health.ok
+                        ? 'Connected to cloud server!'
+                        : (health.error ?? 'Could not reach server.'),
+                    isError: !health.ok,
+                  );
+                },
+                child: const Text('Save & Test Connection'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<void> _confirmEraseLocalData(AuthProvider auth, bool isFil) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isFil ? 'Burahin ang Lokal na Datos?' : 'Erase All Local Device Data?',
+          isFil ? 'Burahin ang Lokal na Datos?' : 'Erase Local Device Data?',
         ),
         content: Text(
           isFil
-              ? 'Aalisin nito ang iyong session, lokal na plano, at naka-save na impormasyon sa device na ito alinsunod sa iyong karapatan sa RA 10173.'
-              : 'This signs you out and wipes locally stored household plans, contacts, and offline data from this device under your RA 10173 Right to Erasure.',
+              ? 'Aalisin nito ang iyong session at naka-save na plano sa device na ito alinsunod sa RA 10173.'
+              : 'This signs you out and clears locally stored plans, contacts, and offline data from this device under RA 10173.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(isFil ? 'Kanselahin' : 'Cancel'),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
+          FilledButton(
+            style: FilledButton.styleFrom(
               backgroundColor: AppTheme.dangerRed,
               foregroundColor: Colors.white,
             ),
@@ -839,7 +932,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
       await kit.loadItems();
       _showSnack(
         isFil
-            ? 'Nabura na ang lahat ng lokal na datos.'
+            ? 'Nabura na ang lokal na datos.'
             : 'All local device data has been erased.',
       );
     }
