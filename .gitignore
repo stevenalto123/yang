@@ -44,10 +44,13 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Node / Netlify / Env secrets
+# Node / Netlify / Env secrets / Local utilities
 node_modules/
 .netlify/
 .test-dist/
+android/.gradle/
+free_space.bat
+move_to_d.bat
 .env
 .env.local
 .env.*.local
