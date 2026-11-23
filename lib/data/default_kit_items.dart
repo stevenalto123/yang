@@ -1,10 +1,272 @@
 import '../models/kit_item.dart';
 
+/// Clean starter 72-hour Philippine NDRRMC / Red Cross Go-Bag checklist for new users.
+/// All 22 recommended essentials start honestly unpacked (0% Ready, no fake expiry dates)
+/// with quantities sized for the default 2-adult household profile.
 List<KitItem> getDefaultKitItems() {
+  return [
+    // 1. Water & Food (72-hour targets synced for default Family of 2)
+    KitItem(
+      id: 'water_bottles',
+      name: 'Drinking Water (1 Gallon / person / day for 3 days)',
+      category: KitCategory.waterAndFood,
+      quantity: 0,
+      targetQuantity: 6,
+      unit: 'gallons',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Rotate stored water every 6 months.',
+    ),
+    KitItem(
+      id: 'canned_goods',
+      name: 'Easy-Open Canned Goods (Tuna, Corned Beef, Sardines)',
+      category: KitCategory.waterAndFood,
+      quantity: 0,
+      targetQuantity: 12,
+      unit: 'cans',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'No can opener needed; ready to eat.',
+    ),
+    KitItem(
+      id: 'energy_biscuits',
+      name: 'High-Energy Biscuits / Crackers & Granola Bars',
+      category: KitCategory.waterAndFood,
+      quantity: 0,
+      targetQuantity: 8,
+      unit: 'packs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Long shelf-life and high carbohydrate.',
+    ),
+    KitItem(
+      id: 'water_purification',
+      name: 'Water Purification Tablets or Drops',
+      category: KitCategory.waterAndFood,
+      quantity: 0,
+      targetQuantity: 20,
+      unit: 'tablets',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'For emergency drinking water purification.',
+    ),
+
+    // 2. First Aid & Medicine
+    KitItem(
+      id: 'first_aid_kit',
+      name: 'Standard First-Aid Kit (Bandages, Gauze, Medical Tape)',
+      category: KitCategory.medicalAndFirstAid,
+      quantity: 0,
+      targetQuantity: 1,
+      unit: 'set',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Check sterile dressing seals regularly.',
+    ),
+    KitItem(
+      id: 'antiseptic_solution',
+      name: 'Povidone-Iodine & 70% Isopropyl Alcohol',
+      category: KitCategory.medicalAndFirstAid,
+      quantity: 0,
+      targetQuantity: 1,
+      unit: 'bottle',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Set expiry date once packed to track antiseptic potency.',
+    ),
+    KitItem(
+      id: 'paracetamol',
+      name: 'Paracetamol / Pain Relievers & Fever Meds',
+      category: KitCategory.medicalAndFirstAid,
+      quantity: 0,
+      targetQuantity: 10,
+      unit: 'tablets',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Store in airtight waterproof container.',
+    ),
+    KitItem(
+      id: 'antidiarrheal',
+      name: 'Oral Rehydration Salts (ORS) & Loperamide',
+      category: KitCategory.medicalAndFirstAid,
+      quantity: 0,
+      targetQuantity: 6,
+      unit: 'packs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Crucial for water contamination outbreaks.',
+    ),
+    KitItem(
+      id: 'maintenance_meds',
+      name: 'Personal Maintenance Medications (7-day supply)',
+      category: KitCategory.medicalAndFirstAid,
+      quantity: 0,
+      targetQuantity: 1,
+      unit: 'weekly pouch',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Blood pressure, asthma inhalers, diabetes insulin.',
+    ),
+
+    // 3. Tools & Lighting
+    KitItem(
+      id: 'flashlight',
+      name: 'LED Flashlight (Heavy Duty Waterproof)',
+      category: KitCategory.toolsAndLighting,
+      quantity: 0,
+      targetQuantity: 2,
+      unit: 'pcs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Keep with spare alkaline batteries.',
+    ),
+    KitItem(
+      id: 'spare_batteries',
+      name: 'Spare AA & AAA Batteries',
+      category: KitCategory.toolsAndLighting,
+      quantity: 0,
+      targetQuantity: 8,
+      unit: 'pcs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Check for battery leakage twice a year.',
+    ),
+    KitItem(
+      id: 'emergency_whistle',
+      name: 'Emergency Whistle (High Decibel)',
+      category: KitCategory.toolsAndLighting,
+      quantity: 0,
+      targetQuantity: 2,
+      unit: 'pcs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'For signaling rescuers if trapped.',
+    ),
+    KitItem(
+      id: 'portable_radio',
+      name: 'Battery-Operated or Hand-Crank AM/FM Radio',
+      category: KitCategory.toolsAndLighting,
+      quantity: 0,
+      targetQuantity: 1,
+      unit: 'unit',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Crucial when cellular towers are down.',
+    ),
+    KitItem(
+      id: 'power_bank',
+      name: 'High Capacity Power Bank (20,000mAh) + Cables',
+      category: KitCategory.toolsAndLighting,
+      quantity: 0,
+      targetQuantity: 2,
+      unit: 'units',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Keep charged at 100% capacity.',
+    ),
+    KitItem(
+      id: 'multi_tool',
+      name: 'Multi-Tool Knife / Swiss Army Knife',
+      category: KitCategory.toolsAndLighting,
+      quantity: 0,
+      targetQuantity: 1,
+      unit: 'pc',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Includes blade, scissors, pliers, can opener.',
+    ),
+
+    // 4. Documents & Cash
+    KitItem(
+      id: 'waterproof_docs',
+      name: 'Waterproof Pouch for IDs, Birth Certificates, Passports',
+      category: KitCategory.documentsAndCash,
+      quantity: 0,
+      targetQuantity: 1,
+      unit: 'pouch',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Include photocopies and a backup USB drive.',
+    ),
+    KitItem(
+      id: 'emergency_cash',
+      name: 'Emergency Cash in Small Bills & Coins (₱1,000 - ₱3,000)',
+      category: KitCategory.documentsAndCash,
+      quantity: 0,
+      targetQuantity: 1,
+      unit: 'envelope',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'ATMs and digital e-wallets will not work during blackouts.',
+    ),
+
+    // 5. Sanitation & Hygiene
+    KitItem(
+      id: 'n95_masks',
+      name: 'N95 / KN95 Face Masks (Ashfall & Smoke Protection)',
+      category: KitCategory.sanitationAndHygiene,
+      quantity: 0,
+      targetQuantity: 6,
+      unit: 'pcs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Essential during volcanic ash or fire smoke.',
+    ),
+    KitItem(
+      id: 'wet_wipes',
+      name: 'Antibacterial Wet Wipes & Toilet Paper',
+      category: KitCategory.sanitationAndHygiene,
+      quantity: 0,
+      targetQuantity: 2,
+      unit: 'packs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'For waterless personal sanitation.',
+    ),
+    KitItem(
+      id: 'garbage_bags',
+      name: 'Heavy Duty Trash Bags & Ziplocs',
+      category: KitCategory.sanitationAndHygiene,
+      quantity: 0,
+      targetQuantity: 5,
+      unit: 'pcs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Can also be used as makeshift poncho or water barrier.',
+    ),
+
+    // 6. Clothing & Bedding
+    KitItem(
+      id: 'thermal_blanket',
+      name: 'Emergency Foil Thermal Blanket (Space Blanket)',
+      category: KitCategory.clothingAndBedding,
+      quantity: 0,
+      targetQuantity: 2,
+      unit: 'pcs',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Retains body heat in wet conditions.',
+    ),
+    KitItem(
+      id: 'extra_clothes',
+      name: 'Spare Clothes in Waterproof Bag & Raincoats',
+      category: KitCategory.clothingAndBedding,
+      quantity: 0,
+      targetQuantity: 2,
+      unit: 'sets',
+      expirationDate: null,
+      isPacked: false,
+      notes: 'Quick-dry shirts, underwear, socks.',
+    ),
+  ];
+}
+
+/// Optional 1-tap sample demo kit (accessible from Go-Bag Reset menu) pre-populated with
+/// packed items, partial stock, 1 expired item, and 1 expiring-soon item for quick demos.
+List<KitItem> getDemoSampleKitItems() {
   final now = DateTime.now();
 
   return [
-    // 1. Water & Food (72-hour targets synced for default Family of 2)
     KitItem(
       id: 'water_bottles',
       name: 'Drinking Water (1 Gallon / person / day for 3 days)',
@@ -35,7 +297,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 8,
       unit: 'packs',
       expirationDate: now.add(const Duration(days: 45)),
-      isPacked: false, // Partial quantity (4/8): needs 4 more packs
+      isPacked: false,
       notes: 'Long shelf-life and high carbohydrate.',
     ),
     KitItem(
@@ -49,8 +311,6 @@ List<KitItem> getDefaultKitItems() {
       isPacked: false,
       notes: 'For emergency drinking water purification.',
     ),
-
-    // 2. First Aid & Medicine
     KitItem(
       id: 'first_aid_kit',
       name: 'Standard First-Aid Kit (Bandages, Gauze, Medical Tape)',
@@ -69,7 +329,7 @@ List<KitItem> getDefaultKitItems() {
       quantity: 1,
       targetQuantity: 1,
       unit: 'bottle',
-      expirationDate: now.subtract(const Duration(days: 5)), // Sample expired item for alert demo
+      expirationDate: now.subtract(const Duration(days: 5)),
       isPacked: true,
       notes: 'Expired antiseptic loses potency; replace immediately.',
     ),
@@ -80,7 +340,7 @@ List<KitItem> getDefaultKitItems() {
       quantity: 10,
       targetQuantity: 10,
       unit: 'tablets',
-      expirationDate: now.add(const Duration(days: 14)), // Sample expiring soon item
+      expirationDate: now.add(const Duration(days: 14)),
       isPacked: true,
       notes: 'Store in airtight waterproof container.',
     ),
@@ -92,7 +352,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 6,
       unit: 'packs',
       expirationDate: now.add(const Duration(days: 300)),
-      isPacked: false, // Partial (4/6)
+      isPacked: false,
       notes: 'Crucial for water contamination outbreaks.',
     ),
     KitItem(
@@ -106,8 +366,6 @@ List<KitItem> getDefaultKitItems() {
       isPacked: false,
       notes: 'Blood pressure, asthma inhalers, diabetes insulin.',
     ),
-
-    // 3. Tools & Lighting
     KitItem(
       id: 'flashlight',
       name: 'LED Flashlight (Heavy Duty Waterproof)',
@@ -127,7 +385,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 8,
       unit: 'pcs',
       expirationDate: now.add(const Duration(days: 700)),
-      isPacked: false, // Partial (4/8)
+      isPacked: false,
       notes: 'Check for battery leakage twice a year.',
     ),
     KitItem(
@@ -160,7 +418,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 2,
       unit: 'units',
       expirationDate: null,
-      isPacked: false, // Partial (1/2)
+      isPacked: false,
       notes: 'Keep charged at 100% capacity.',
     ),
     KitItem(
@@ -174,8 +432,6 @@ List<KitItem> getDefaultKitItems() {
       isPacked: true,
       notes: 'Includes blade, scissors, pliers, can opener.',
     ),
-
-    // 4. Documents & Cash
     KitItem(
       id: 'waterproof_docs',
       name: 'Waterproof Pouch for IDs, Birth Certificates, Passports',
@@ -198,8 +454,6 @@ List<KitItem> getDefaultKitItems() {
       isPacked: false,
       notes: 'ATMs and digital e-wallets will not work during blackouts.',
     ),
-
-    // 5. Sanitation & Hygiene
     KitItem(
       id: 'n95_masks',
       name: 'N95 / KN95 Face Masks (Ashfall & Smoke Protection)',
@@ -233,8 +487,6 @@ List<KitItem> getDefaultKitItems() {
       isPacked: true,
       notes: 'Can also be used as makeshift poncho or water barrier.',
     ),
-
-    // 6. Clothing & Bedding
     KitItem(
       id: 'thermal_blanket',
       name: 'Emergency Foil Thermal Blanket (Space Blanket)',
@@ -254,7 +506,7 @@ List<KitItem> getDefaultKitItems() {
       targetQuantity: 2,
       unit: 'sets',
       expirationDate: null,
-      isPacked: false, // Partial (1/2)
+      isPacked: false,
       notes: 'Quick-dry shirts, underwear, socks.',
     ),
   ];

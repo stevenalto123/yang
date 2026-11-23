@@ -1,5 +1,5 @@
 // LifeCheckpoint Offline-Ready Service Worker (Network-First for App Shell, Cache-First for Map Tiles & Assets)
-const CACHE_NAME = 'lifecheckpoint-pwa-v24';
+const CACHE_NAME = 'lifecheckpoint-pwa-v25';
 const TILE_CACHE_NAME = 'lifecheckpoint-map-tiles-v1';
 
 // Core app shell precached for instant offline launch

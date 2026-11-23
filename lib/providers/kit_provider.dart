@@ -490,6 +490,14 @@ class KitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void loadDemoSampleKit() {
+    _items = getDemoSampleKitItems();
+    _householdProfile = const HouseholdProfile();
+    _saveToStorage();
+    _notifyCloudSync();
+    notifyListeners();
+  }
+
   /// Smart Kit Recommender: scales essential quantities by household size & adds specialized gear
   Future<({int updatedCount, int addedCount})> applySmartRecommendations(
       HouseholdProfile profile) async {

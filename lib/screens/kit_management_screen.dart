@@ -863,6 +863,8 @@ class _KitManagementScreenState extends State<KitManagementScreen> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         _buildExpiryBadge(
+                          context,
+                          kit,
                           item,
                           kit.expiryAlertDays,
                           isDark,
@@ -995,25 +997,94 @@ class _KitManagementScreenState extends State<KitManagementScreen> {
     );
   }
 
+  Future<void> _pickItemExpiryDate(
+    BuildContext context,
+    KitProvider kit,
+    KitItem item,
+    bool isFil,
+  ) async {
+    final picked = await showDatePicker(
+      context: context,
+      helpText: isFil
+          ? 'Piliin ang Expiration Date (${item.name})'
+          : 'Set Expiration Date (${item.name})',
+      initialDate:
+          item.expirationDate ?? DateTime.now().add(const Duration(days: 180)),
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+    );
+    if (picked != null) {
+      kit.updateExpirationDate(item.id, picked);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppTheme.safeGreen,
+            content: Text(
+              isFil
+                  ? 'Naitakda ang expiry: ${DateFormat('MMM d, yyyy').format(picked)}'
+                  : 'Expiry set: ${DateFormat('MMM d, yyyy').format(picked)}',
+            ),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _buildExpiryBadge(
+    BuildContext context,
+    KitProvider kit,
     KitItem item,
     int thresholdDays,
     bool isDark,
     bool isFil,
   ) {
+    final isPerishableCategory =
+        item.category == KitCategory.waterAndFood ||
+            item.category == KitCategory.medicalAndFirstAid ||
+            item.category == KitCategory.sanitationAndHygiene ||
+            item.category == KitCategory.specialNeeds;
+
     if (item.expirationDate == null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          isFil ? 'Hindi napapanis' : 'No expiry',
-          style: TextStyle(
-            fontSize: 12,
-            color: isDark ? Colors.white60 : AppTheme.mutedSlate,
-            fontWeight: FontWeight.w600,
+      return InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _pickItemExpiryDate(context, kit, item, isFil),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
+            borderRadius: BorderRadius.circular(8),
+            border: isPerishableCategory
+                ? Border.all(
+                    color: (isDark ? AppTheme.darkBorder : AppTheme.lightBorder),
+                  )
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isPerishableCategory) ...[
+                Icon(
+                  Icons.event_outlined,
+                  size: 13,
+                  color: isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy,
+                ),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                isPerishableCategory
+                    ? (isFil ? '+ Petsa ng expiry' : '+ Set expiry')
+                    : (isFil ? 'Hindi napapanis' : 'No expiry'),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isPerishableCategory
+                      ? (isDark
+                          ? Colors.lightBlue.shade200
+                          : AppTheme.primaryNavy)
+                      : (isDark ? Colors.white60 : AppTheme.mutedSlate),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -1055,18 +1126,22 @@ class _KitManagementScreenState extends State<KitManagementScreen> {
         ),
       );
     } else {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppTheme.safeGreen.withAlpha(isDark ? 40 : 18),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          'Exp: $formattedDate',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isDark ? Colors.green.shade200 : AppTheme.safeGreen,
+      return InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _pickItemExpiryDate(context, kit, item, isFil),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.safeGreen.withAlpha(isDark ? 40 : 18),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            'Exp: $formattedDate',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isDark ? Colors.green.shade200 : AppTheme.safeGreen,
+            ),
           ),
         ),
       );
@@ -1449,27 +1524,80 @@ class _KitManagementScreenState extends State<KitManagementScreen> {
       builder: (ctx) => AlertDialog(
         title: Text(
           isFil
-              ? 'I-reset sa Standard 72-Hour Kit?'
-              : 'Reset to Standard 72-Hour Kit?',
+              ? 'I-reset o Mag-load ng Demo Kit'
+              : 'Reset or Load Demo Checklist',
         ),
-        content: Text(
-          isFil
-              ? 'Ibabalik nito ang standard na Philippine NDRRMC / Red Cross Go-Bag checklist.'
-              : 'This will restore the standard Philippine NDRRMC / Red Cross emergency Go-Bag checklist.',
-          style: const TextStyle(fontSize: 14),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              isFil
+                  ? 'Piliin kung gusto mong magsimula sa 0% na standard Go-Bag checklist, o mag-load ng sample demo data (may halimbawa ng pasong gamit) para sa testing.'
+                  : 'Start fresh with a clean 0% Philippine NDRRMC / Red Cross checklist, or load a sample demo kit (with sample expiry alerts) for testing & presentations.',
+              style: const TextStyle(fontSize: 13.5, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(0, 44),
+                alignment: Alignment.centerLeft,
+              ),
+              icon: const Icon(Icons.science_outlined, size: 19),
+              label: Text(
+                isFil
+                    ? 'Mag-load ng Sample Demo Kit'
+                    : 'Load Sample Demo Kit (With Alerts)',
+              ),
+              onPressed: () {
+                kit.loadDemoSampleKit();
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    backgroundColor: AppTheme.primaryNavy,
+                    content: Text(
+                      isFil
+                          ? 'Na-load ang sample demo Go-Bag (may sample expiry alerts).'
+                          : 'Loaded sample demo Go-Bag (includes sample expiry alerts).',
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: AppTheme.dangerRed,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(0, 44),
+                alignment: Alignment.centerLeft,
+              ),
+              icon: const Icon(Icons.restart_alt_rounded, size: 19),
+              label: Text(
+                isFil
+                    ? 'I-reset sa Walang Laman (0%)'
+                    : 'Reset to Clean Checklist (0%)',
+              ),
+              onPressed: () {
+                kit.resetToDefault();
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      isFil
+                          ? 'Na-reset ang Go-Bag checklist sa 0%.'
+                          : 'Go-Bag checklist reset to 0%.',
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text(isFil ? 'Kanselahin' : 'Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppTheme.dangerRed),
-            onPressed: () {
-              kit.resetToDefault();
-              Navigator.pop(ctx);
-            },
-            child: Text(isFil ? 'I-reset' : 'Reset List'),
           ),
         ],
       ),
