@@ -19,7 +19,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     companion object {
-        private const val CHANNEL = "com.eac.lifecheckpoint/native"
+        private const val CHANNEL = "com.lifecheckpoint.app/native"
         private const val REQ_LOCATION = 4001
         private const val REQ_NOTIF = 4002
         private const val NOTIF_CHANNEL_ID = "lifecheckpoint_alerts"

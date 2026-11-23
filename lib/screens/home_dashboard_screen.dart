@@ -485,8 +485,8 @@ class HomeDashboardScreen extends StatelessWidget {
                       Center(
                         child: Text(
                           isFil
-                              ? 'LifeCheckpoint • Gabay ng Pamilya sa Metro Manila (EAC)'
-                              : 'LifeCheckpoint • Metro Manila Family Preparedness • EAC',
+                              ? 'LifeCheckpoint • Gabay ng Pamilya sa Metro Manila'
+                              : 'LifeCheckpoint • Metro Manila Family Preparedness',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 12,

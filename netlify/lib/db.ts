@@ -185,12 +185,12 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Large Indoor Arena, Medical Staging Area, Relief Distribution Hub', TRUE
       ),
       (
-        'eac_campus_reference',
-        'Emilio Aguinaldo College (Campus Assembly Reference)',
-        '1113-1117 San Marcelino St, Paco, Manila',
-        'Manila', 14.5822, 120.9882,
+        'manila_paco_arena',
+        'Paco Arena & Sports Complex (City Evacuation Center)',
+        'Paz St. cor. Perdigon St., Paco, Manila',
+        'Manila', 14.5794, 120.9936,
         'Manila DRRMO Dispatch', '(02) 8527-5174', 1000, TRUE,
-        'Campus Open Grounds, Verify active shelter status with LGU/Admin', TRUE
+        'Multi-Purpose Covered Arena, Community Assembly & Relief Staging', TRUE
       ),
       (
         'manila_delpan_complex',

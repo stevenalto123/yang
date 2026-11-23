@@ -23,7 +23,7 @@ class _CityPreset {
 }
 
 const List<_CityPreset> _metroManilaPresets = [
-  _CityPreset('Manila (EAC / Paco)', 'Manila', LatLng(14.5822, 120.9882)),
+  _CityPreset('Manila (Paco / Ermita)', 'Manila', LatLng(14.5822, 120.9882)),
   _CityPreset('Quezon City', 'Quezon City', LatLng(14.6301, 121.0267)),
   _CityPreset('Makati', 'Makati', LatLng(14.5547, 121.0244)),
   _CityPreset('Pasig', 'Pasig', LatLng(14.5764, 121.0851)),
@@ -416,7 +416,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                             TileLayer(
                               urlTemplate:
                                   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.eac.lifecheckpoint',
+                              userAgentPackageName: 'com.lifecheckpoint.app',
                             ),
                             MarkerLayer(
                               markers: [
@@ -1118,7 +1118,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                   ),
                                 ),
                                 Text(
-                                  'DRRM Staff & EAC Capstone Researchers',
+                                  'Authorized DRRM Staff & System Administrators',
                                   style: TextStyle(
                                     fontSize: 12.5,
                                     color: subtleText,
@@ -2615,7 +2615,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       controller: _advisoryAreaCtrl,
                       decoration: const InputDecoration(
                         labelText: 'Affected Area',
-                        hintText: 'Metro Manila, Manila / Paco, EAC Campus',
+                        hintText: 'Metro Manila, Manila / Paco, Quezon City',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2625,7 +2625,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       children: [
                         'Metro Manila',
                         'Manila / Paco',
-                        'EAC Campus',
+                        'Makati',
                         'Quezon City',
                         'Marikina',
                       ].map((preset) {

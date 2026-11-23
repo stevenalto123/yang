@@ -1,0 +1,70 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<meta name="ProgId" content="Word.Document">
+<meta name="Generator" content="Microsoft Word 15">
+<title>Application Letter - Jhon Steven Altoveros</title>
+<!--[if gte mso 9]>
+<xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+@page WordSection1 {
+  size: 8.5in 11.0in;
+  margin: 1.0in 1.0in 1.0in 1.0in;
+  mso-header-margin: .5in;
+  mso-footer-margin: .5in;
+}
+div.WordSection1 { page: WordSection1; }
+body, p {
+  font-family: "Calibri", sans-serif;
+  font-size: 11.0pt;
+  color: #1F1F1F;
+}
+p { margin: 0in 0in 10.0pt 0in; line-height: 115%; }
+p.Name {
+  font-size: 18.0pt; font-weight: bold; color: #2F3B57;
+  letter-spacing: .5pt; margin-bottom: 2.0pt;
+}
+p.Contact { font-size: 8.5pt; color: #595959; margin-bottom: 18.0pt; }
+p.Meta { color: #333333; margin-bottom: 8.0pt; }
+p.Subject { font-weight: bold; color: #2F3B57; margin-bottom: 8.0pt; }
+p.Closing { margin-top: 6.0pt; margin-bottom: 30.0pt; }
+p.Signature { font-weight: bold; letter-spacing: .3pt; }
+</style>
+</head>
+<body lang="EN-US">
+<div class="WordSection1">
+
+<p class="Name">JHON STEVEN ALTOVEROS</p>
+<p class="Contact">Roxas City, Capiz, Philippines | <span style="background:yellow;mso-highlight:yellow">+63 9XX XXX XXXX</span> | <span style="background:yellow;mso-highlight:yellow">youremail@gmail.com</span></p>
+
+<p class="Meta">November 19, 2026</p>
+<p class="Meta">The University Librarian</p>
+<p class="Meta">Filamer Christian University Library</p>
+<p class="Meta">Barangay Punta Tabuc, Roxas City, Capiz</p>
+
+<p class="Subject">Application for On-the-Job Training (OJT)</p>
+
+<p>Dear Sir/Madam,</p>
+
+<p>I am writing to apply for an On-the-Job Training (OJT) position at the Filamer Christian University Library. I am currently pursuing a Bachelor of Science in Information Technology at Filamer Christian University, with an expected graduation year of 2027.</p>
+
+<p>Through my academic projects, I have gained experience working with computer systems, web development technologies, and database systems, including HTML, CSS, JavaScript, PHP, and MySQL. These experiences have helped me practice organizing and managing records, using software applications efficiently, and applying problem-solving skills. I believe these skills can help me assist the library with tasks such as encoding and organizing records, maintaining digital catalogs, and providing technical support for library computers and systems.</p>
+
+<p>I am eager to learn from experienced library staff, improve my technical and organizational abilities, and gain practical experience in a professional work environment. I am willing to take on assigned tasks, assist library users, work well with a team, and follow the policies and procedures of the library.</p>
+
+<p>Thank you for considering my application. I would appreciate the opportunity to discuss how I can contribute to the library while completing my OJT requirements. I look forward to hearing from you.</p>
+
+<p class="Closing">Sincerely yours,</p>
+
+<p class="Signature">JHON STEVEN ALTOVEROS</p>
+
+</div>
+</body>
+</html>

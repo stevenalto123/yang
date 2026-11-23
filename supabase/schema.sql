@@ -1,5 +1,5 @@
 -- LifeCheckpoint Supabase PostgreSQL Schema
--- Aligned with Emilio Aguinaldo College (EAC) Metro Manila Research Proposal (Slides 1-7)
+-- Multi-Platform Application in Emergency Monitoring and Disaster Preparedness
 -- Apply in Supabase SQL Editor (or let netlify/lib/db.ts auto-bootstrap on first API call).
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -132,7 +132,7 @@ REVOKE ALL ON TABLE evacuation_centers FROM anon, authenticated;
 REVOKE ALL ON TABLE telemetry_cache FROM anon, authenticated;
 REVOKE ALL ON TABLE iso_evaluations FROM anon, authenticated;
 
--- Seed Official Metro Manila / EAC Paco / Quezon City Evacuation Centers
+-- Seed Official Metro Manila / Quezon City Evacuation Centers
 INSERT INTO evacuation_centers (
   id, name, address, city, latitude, longitude,
   contact_person, contact_number, capacity_people, is_open, facilities, is_official
@@ -147,13 +147,13 @@ INSERT INTO evacuation_centers (
     'Large Indoor Arena, Medical Staging Area, Relief Distribution Hub', TRUE
   ),
   (
-    'eac_campus_reference',
-    'Emilio Aguinaldo College (Campus Assembly Reference)',
-    '1113-1117 San Marcelino St, Paco, Manila',
+    'manila_paco_arena',
+    'Paco Arena & Sports Complex (City Evacuation Center)',
+    'Paz St. cor. Perdigon St., Paco, Manila',
     'Manila',
-    14.5822, 120.9882,
+    14.5794, 120.9936,
     'Manila DRRMO Dispatch', '(02) 8527-5174', 1000, TRUE,
-    'Campus Open Grounds, Verify active shelter status with LGU/Admin', TRUE
+    'Multi-Purpose Covered Arena, Community Assembly & Relief Staging', TRUE
   ),
   (
     'manila_delpan_complex',

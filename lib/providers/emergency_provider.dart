@@ -27,7 +27,7 @@ class EmergencyProvider extends ChangeNotifier {
   FacilityType? _selectedFacilityType;
   bool _isLoading = true;
 
-  // GPS state (defaults to EAC Paco Manila reference until live GPS is fetched)
+  // GPS state (defaults to Paco, Manila reference until live GPS is fetched)
   double _userLat = 14.5822;
   double _userLng = 120.9882;
   bool _hasLiveGps = false;
@@ -301,8 +301,10 @@ class EmergencyProvider extends ChangeNotifier {
     if (officialList.isNotEmpty) {
       final mergedDefaults = {for (final c in _defaultCenters) c.id: c};
       for (final c in officialList) {
+        if (c.id == 'eac_campus_reference') continue;
         mergedDefaults[c.id] = c;
       }
+      mergedDefaults.remove('eac_campus_reference');
       _defaultCenters = mergedDefaults.values.toList();
     }
     if (customList.isNotEmpty) {

@@ -50,7 +50,7 @@ class HouseholdEmergencyPlan {
     this.householdName = 'My Household',
     this.homeAddress = '',
     this.primaryMeetingPoint = 'Outside front gate / Barangay Covered Court',
-    this.secondaryEvacuationSite = 'EAC Sports Gymnasium / Local School Shelter',
+    this.secondaryEvacuationSite = 'Rizal Memorial Sports Complex / Local School Shelter',
     this.goBagLocation = 'Hallway closet beside the main exit door',
     this.mainBreakerLocation = 'Near kitchen / utility panel',
     this.lpgValveLocation = 'Under kitchen counter stove',
@@ -73,13 +73,17 @@ class HouseholdEmergencyPlan {
       };
 
   factory HouseholdEmergencyPlan.fromMap(Map<String, dynamic> map) {
+    final rawSecondary = (map['secondaryEvacuationSite'] ?? '').toString();
+    final cleanedSecondary =
+        rawSecondary.isEmpty || rawSecondary.contains('EAC Sports Gymnasium')
+            ? 'Rizal Memorial Sports Complex / Local School Shelter'
+            : rawSecondary;
     return HouseholdEmergencyPlan(
       householdName: map['householdName'] ?? 'My Household',
       homeAddress: map['homeAddress'] ?? '',
       primaryMeetingPoint: map['primaryMeetingPoint'] ??
           'Outside front gate / Barangay Covered Court',
-      secondaryEvacuationSite: map['secondaryEvacuationSite'] ??
-          'EAC Sports Gymnasium / Local School Shelter',
+      secondaryEvacuationSite: cleanedSecondary,
       goBagLocation: map['goBagLocation'] ??
           'Hallway closet beside the main exit door',
       mainBreakerLocation:

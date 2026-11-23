@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 const MethodChannel _nativeChannel =
-    MethodChannel('com.eac.lifecheckpoint/native');
+    MethodChannel('com.lifecheckpoint.app/native');
 
 Future<({double lat, double lng, double? accuracy})?> getCurrentGpsPosition() async {
   if (!Platform.isAndroid) return null;

@@ -600,7 +600,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
           children: [
             TileLayer(
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.eac.lifecheckpoint',
+              userAgentPackageName: 'com.lifecheckpoint.app',
             ),
             MarkerLayer(markers: markers),
           ],
@@ -1586,7 +1586,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                             TileLayer(
                               urlTemplate:
                                   'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.eac.lifecheckpoint',
+                              userAgentPackageName: 'com.lifecheckpoint.app',
                             ),
                             MarkerLayer(
                               markers: [

@@ -1,6 +1,5 @@
 # LifeCheckpoint: Multi-Platform Application in Emergency Monitoring and Disaster Preparedness
 
-**Institution:** Emilio Aguinaldo College (EAC)  
 **Authors:** Dela Cruz, A.K.A., Domado, H.D., Guiang, J.A.A., Jumaquio, I.M.A., Manese, L.M.S., Olidan, A.E., Zuniega, H.P.  
 **Approved Proposal Reference:** Slides 1–7  
 
@@ -49,7 +48,7 @@
 3. In **Netlify** (`Site configuration -> Environment variables`, scope: **Functions**), set:
    - `SUPABASE_DB_URL` = your Supabase Postgres pooler URI
    - `JWT_SECRET` = a random 32+ character secret string
-   - `ADMIN_INVITE_CODE` = e.g. `EAC-DRRM-2026` (used by researchers to register as Admin and export CSV)
+   - `ADMIN_INVITE_CODE` = e.g. `LC-DRRM-2026` (used by administrators to register as Admin and export CSV)
 4. Deploy with Netlify CLI:
    ```bash
    npx netlify deploy --prod

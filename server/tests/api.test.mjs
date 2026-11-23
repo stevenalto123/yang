@@ -4,7 +4,7 @@ import { InMemoryStore } from '../../.test-dist/netlify/lib/repository.js';
 import { handleApiRequest } from '../../.test-dist/netlify/lib/router.js';
 
 process.env.JWT_SECRET = 'test_jwt_secret_for_lifecheckpoint_unit_tests_2026';
-process.env.ADMIN_INVITE_CODE = 'EAC-TEST-ADMIN';
+process.env.ADMIN_INVITE_CODE = 'DRRM-TEST-ADMIN';
 
 async function callApi(store, path, { method = 'GET', token = null, headers = {}, body = null } = {}) {
   const reqHeaders = { ...headers };
@@ -43,7 +43,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
   const reg1 = await callApi(store, '/auth/register', {
     method: 'POST',
     body: {
-      email: 'juan@eac.edu.ph',
+      email: 'juan@lifecheckpoint.ph',
       password: 'password123',
       fullName: 'Juan Dela Cruz',
       householdName: 'Dela Cruz Family',
@@ -59,7 +59,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
   const reg2 = await callApi(store, '/auth/register', {
     method: 'POST',
     body: {
-      email: 'maria@eac.edu.ph',
+      email: 'maria@lifecheckpoint.ph',
       password: 'password123',
       fullName: 'Maria Dela Cruz',
       inviteCode,
@@ -125,7 +125,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
     token: reg1.json.token,
     body: {
       householdName: 'Dela Cruz Paco Household',
-      primaryMeetingPoint: 'EAC Main Gate',
+      primaryMeetingPoint: 'Paco Arena Main Gate',
     },
   });
   assert.equal(planPut.status, 200);
@@ -145,7 +145,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
   const bundle = await callApi(store, '/sync/bundle', { token: reg2.json.token });
   assert.equal(bundle.status, 200);
   assert.equal(bundle.json.household.expiryAlertDays, 14);
-  assert.equal(bundle.json.household.plan.primaryMeetingPoint, 'EAC Main Gate');
+  assert.equal(bundle.json.household.plan.primaryMeetingPoint, 'Paco Arena Main Gate');
   assert.equal(bundle.json.checkins.length, 1);
   assert.equal(bundle.json.checkins[0].authorName, 'Juan Dela Cruz');
 });
@@ -165,17 +165,17 @@ test('shelter RBAC and ISO 25010 evaluations summary & CSV export', async () => 
   const adminUser = await callApi(store, '/auth/register', {
     method: 'POST',
     body: {
-      email: 'researcher@eac.edu.ph',
+      email: 'admin@lifecheckpoint.ph',
       password: 'password123',
-      fullName: 'EAC Researcher',
-      adminCode: 'EAC-TEST-ADMIN',
+      fullName: 'DRRM Admin',
+      adminCode: 'DRRM-TEST-ADMIN',
     },
   });
   assert.equal(adminUser.status, 201);
   assert.equal(adminUser.json.user.role, 'admin');
 
   // Household user cannot update official shelter status
-  const forbiddenPatch = await callApi(store, '/shelters/eac_campus_reference', {
+  const forbiddenPatch = await callApi(store, '/shelters/manila_paco_arena', {
     method: 'PATCH',
     token: hhUser.json.token,
     body: { isOpen: false },
@@ -199,7 +199,7 @@ test('shelter RBAC and ISO 25010 evaluations summary & CSV export', async () => 
 
   const cantDeleteOfficial = await callApi(
     store,
-    '/shelters/eac_campus_reference',
+    '/shelters/manila_paco_arena',
     { method: 'DELETE', token: hhUser.json.token },
   );
   assert.equal(cantDeleteOfficial.status, 404);
@@ -213,7 +213,7 @@ test('shelter RBAC and ISO 25010 evaluations summary & CSV export', async () => 
   assert.equal(canDeleteOwn.json.deleted, true);
 
   // Admin can update shelter status
-  const okPatch = await callApi(store, '/shelters/eac_campus_reference', {
+  const okPatch = await callApi(store, '/shelters/manila_paco_arena', {
     method: 'PATCH',
     token: adminUser.json.token,
     body: { isOpen: false, capacityPeople: 950 },
@@ -293,7 +293,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
 
   // Valid x-admin-code unlocks admin overview
   const okOverview = await callApi(store, '/admin/overview', {
-    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
   });
   assert.equal(okOverview.status, 200);
   assert.equal(okOverview.json.counts.households, 1);
@@ -303,7 +303,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
   // Admin can publish, edit, and delete official shelter
   const created = await callApi(store, '/admin/shelters', {
     method: 'POST',
-    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
     body: {
       name: 'Paco Barangay Gym',
       address: 'Paco, Manila',
@@ -319,7 +319,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
     `/shelters/${encodeURIComponent(created.json.shelter.id)}`,
     {
       method: 'PATCH',
-      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
       body: {
         name: 'Paco Covered Court & DRRM Hub',
         capacityPeople: 750,
@@ -340,7 +340,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
     `/admin/checkins/${encodeURIComponent(checkinId)}`,
     {
       method: 'PATCH',
-      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
       body: { acknowledged: true },
     },
   );
@@ -348,7 +348,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
   assert.ok(acked.json.checkin.acknowledgedAt);
 
   const overviewAfterAck = await callApi(store, '/admin/overview', {
-    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
   });
   assert.equal(overviewAfterAck.status, 200);
   assert.equal(overviewAfterAck.json.counts.checkinsNeedingHelp, 0);
@@ -364,7 +364,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
 
   const createdAdv = await callApi(store, '/admin/advisories', {
     method: 'POST',
-    headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+    headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
     body: {
       title: 'Paco Flood Watch',
       message: 'Rizal Memorial Sports Complex is open for evacuees.',
@@ -384,7 +384,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
     `/admin/advisories/${encodeURIComponent(createdAdv.json.advisory.id)}`,
     {
       method: 'PATCH',
-      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
       body: { isActive: false },
     },
   );
@@ -399,7 +399,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
     `/admin/advisories/${encodeURIComponent(createdAdv.json.advisory.id)}`,
     {
       method: 'DELETE',
-      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
     },
   );
   assert.equal(deletedAdv.status, 200);
@@ -410,7 +410,7 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
     `/admin/shelters/${encodeURIComponent(created.json.shelter.id)}`,
     {
       method: 'DELETE',
-      headers: { 'x-admin-code': 'EAC-TEST-ADMIN' },
+      headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
     },
   );
   assert.equal(deleted.status, 200);

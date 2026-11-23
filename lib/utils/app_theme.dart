@@ -5,7 +5,7 @@ class AppTheme {
   static const Color primaryNavy = Color(0xFF0F294A);
   static const Color primaryNavyDark = Color(0xFF091A32);
   static const Color primaryAccent = Color(0xFF1D4ED8);
-  static const Color eacCrimson = Color(0xFF9E1B32);
+  static const Color crimsonRed = Color(0xFF9E1B32);
 
   // Semantic Status Colors (Calm & Unmistakable)
   static const Color dangerRed = Color(0xFFDC2626);

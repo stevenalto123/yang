@@ -29,8 +29,8 @@ class PrivacyNoticeDialog {
             children: [
               Text(
                 isFil
-                    ? 'Sumusunod ang LifeCheckpoint (Emilio Aguinaldo College) sa Republic Act No. 10173 (Data Privacy Act of 2012).'
-                    : 'LifeCheckpoint (Emilio Aguinaldo College) complies with Republic Act No. 10173 (Philippine Data Privacy Act of 2012).',
+                    ? 'Sumusunod ang LifeCheckpoint sa Republic Act No. 10173 (Data Privacy Act of 2012).'
+                    : 'LifeCheckpoint complies with Republic Act No. 10173 (Philippine Data Privacy Act of 2012).',
                 style: const TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
@@ -48,7 +48,7 @@ class PrivacyNoticeDialog {
                     : '• Optional Account: Full name and email (only if you enable Cloud Sync).\n'
                       '• Household Data: Go-Bag supplies, expiry dates, emergency plan, and safety check-ins.\n'
                       '• GPS Coordinates: Accessed only on demand for nearest shelters, local weather, or Emergency SMS.\n'
-                      '• ISO/IEC 25010 Evaluation: Anonymized ratings used solely for EAC capstone evaluation.',
+                      '• ISO/IEC 25010 Evaluation: Anonymized ratings used solely for system quality and preparedness evaluation.',
               ),
               const SizedBox(height: 10),
               _section(

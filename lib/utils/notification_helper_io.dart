@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 
 const MethodChannel _nativeChannel =
-    MethodChannel('com.eac.lifecheckpoint/native');
+    MethodChannel('com.lifecheckpoint.app/native');
 
 String getWebNotificationPermissionStatus() {
   if (!Platform.isAndroid) return 'unsupported';

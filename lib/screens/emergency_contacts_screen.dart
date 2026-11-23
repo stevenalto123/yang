@@ -69,7 +69,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   number: '143',
                   title: 'PH Red Cross',
                   subtitle: isFil ? 'Ambulansya at Rescue' : 'Ambulance & Rescue',
-                  color: AppTheme.eacCrimson,
+                  color: AppTheme.crimsonRed,
                   icon: Icons.medical_services_rounded,
                   onTap: () => ActionFeedback.callWithFeedback(
                     context,
