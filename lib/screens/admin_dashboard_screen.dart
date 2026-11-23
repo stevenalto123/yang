@@ -13,6 +13,7 @@ import '../providers/settings_provider.dart';
 import '../utils/action_feedback.dart';
 import '../utils/app_theme.dart';
 import '../utils/csv_download.dart';
+import '../widgets/manila_map_picker.dart';
 import '../widgets/responsive_container.dart';
 
 class _CityPreset {
@@ -294,8 +295,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         : 120.9882;
     final latCtrl = TextEditingController(text: initialLat.toStringAsFixed(5));
     final lngCtrl = TextEditingController(text: initialLng.toStringAsFixed(5));
+    final mapSearchCtrl = TextEditingController();
+    final dialogScrollCtrl = ScrollController();
     final miniMapController = MapController();
     LatLng pickedPoint = LatLng(initialLat, initialLng);
+    bool isPanningMap = false;
+    bool isSearchingPlace = false;
+    List<ManilaPlaceResult> placeResults = [];
+    String? nameError;
+    String? placeSearchHint;
 
     final submitted = await showDialog<bool>(
       context: context,
@@ -308,8 +316,43 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               lngCtrl.text = point.longitude.toStringAsFixed(5);
             });
             try {
-              miniMapController.move(point, zoom);
+              miniMapController.move(point, zoom.clamp(10.0, 18.5));
             } catch (_) {}
+          }
+
+          void zoomMiniMap(double delta) {
+            try {
+              final cam = miniMapController.camera;
+              miniMapController.move(
+                cam.center,
+                (cam.zoom + delta).clamp(10.0, 18.5),
+              );
+            } catch (_) {}
+          }
+
+          Future<void> runPlaceSearch() async {
+            final q = mapSearchCtrl.text.trim();
+            if (q.isEmpty) {
+              setDialogState(() {
+                placeResults = [];
+                placeSearchHint = null;
+              });
+              return;
+            }
+            setDialogState(() {
+              isSearchingPlace = true;
+              placeSearchHint = null;
+            });
+            final matches = await searchManilaPlaces(q);
+            if (!ctx.mounted) return;
+            setDialogState(() {
+              isSearchingPlace = false;
+              placeResults = matches;
+              if (matches.isEmpty) {
+                placeSearchHint =
+                    'No match found in Manila. Try Full-Screen Map or tap a district.';
+              }
+            });
           }
 
           return AlertDialog(
@@ -319,16 +362,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   : 'Add Official Evacuation Center',
             ),
             content: SizedBox(
-              width: 520,
+              width: 540,
               child: SingleChildScrollView(
+                controller: dialogScrollCtrl,
+                physics: isPanningMap
+                    ? const NeverScrollableScrollPhysics()
+                    : const ClampingScrollPhysics(),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(
+                      onChanged: (_) {
+                        if (nameError != null) {
+                          setDialogState(() => nameError = null);
+                        }
+                      },
+                      decoration: InputDecoration(
                         labelText: 'Shelter / Facility Name *',
+                        errorText: nameError,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -389,73 +442,304 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                     ),
                     const SizedBox(height: 14),
-                    const Text(
-                      'Pin Location on Map (Tap map or choose a City of Manila district)',
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: _manilaPresets.map((preset) {
-                        return ActionChip(
-                          visualDensity: VisualDensity.compact,
-                          label: Text(
-                            preset.label,
-                            style: const TextStyle(fontSize: 11.5),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Pin Location in City of Manila',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
-                          onPressed: () {
-                            cityCtrl.text = preset.city;
-                            movePin(preset.coords, zoom: 13.8);
+                        ),
+                        FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 34),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                          ),
+                          icon: const Icon(Icons.open_in_full_rounded, size: 15),
+                          label: const Text(
+                            'Full-Screen Map',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          onPressed: () async {
+                            final picked = await ManilaFullScreenMapPicker.show(
+                              ctx,
+                              initialPoint: pickedPoint,
+                            );
+                            if (picked != null && ctx.mounted) {
+                              if (picked.suggestedAddress != null &&
+                                  addressCtrl.text.trim().isEmpty) {
+                                addressCtrl.text = picked.suggestedAddress!;
+                              }
+                              movePin(picked.coords, zoom: 16.0);
+                            }
                           },
-                        );
-                      }).toList(),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        height: 190,
-                        child: FlutterMap(
-                          mapController: miniMapController,
-                          options: MapOptions(
-                            initialCenter: pickedPoint,
-                            initialZoom: 13.5,
-                            minZoom: 10.0,
-                            maxZoom: 18.0,
-                            interactionOptions: const InteractionOptions(
-                              flags:
-                                  InteractiveFlag.all & ~InteractiveFlag.rotate,
-                            ),
-                            onTap: (_, latLng) => movePin(
-                              latLng,
-                              zoom: miniMapController.camera.zoom,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: mapSearchCtrl,
+                            textInputAction: TextInputAction.search,
+                            onChanged: (_) => setDialogState(() {}),
+                            onSubmitted: (_) => runPlaceSearch(),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 19,
+                              ),
+                              hintText:
+                                  'Search street, school, or barangay in Manila...',
+                              suffixIcon: mapSearchCtrl.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.close_rounded,
+                                        size: 17,
+                                      ),
+                                      onPressed: () {
+                                        mapSearchCtrl.clear();
+                                        setDialogState(() {
+                                          placeResults = [];
+                                          placeSearchHint = null;
+                                        });
+                                      },
+                                    )
+                                  : null,
                             ),
                           ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.lifecheckpoint.app',
+                        ),
+                        const SizedBox(width: 6),
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                          ),
+                          onPressed: isSearchingPlace ? null : runPlaceSearch,
+                          child: isSearchingPlace
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text('Find'),
+                        ),
+                      ],
+                    ),
+                    if (placeSearchHint != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        placeSearchHint!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.mutedSlate,
+                        ),
+                      ),
+                    ],
+                    if (placeResults.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Container(
+                        constraints: const BoxConstraints(maxHeight: 160),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: Theme.of(ctx).dividerColor,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: placeResults.length,
+                          separatorBuilder: (_, __) => const Divider(height: 1),
+                          itemBuilder: (_, idx) {
+                            final p = placeResults[idx];
+                            return ListTile(
+                              dense: true,
+                              leading: const Icon(
+                                Icons.place_rounded,
+                                color: AppTheme.dangerRed,
+                                size: 18,
+                              ),
+                              title: Text(
+                                p.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(
+                                p.subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                              onTap: () {
+                                if (addressCtrl.text.trim().isEmpty) {
+                                  addressCtrl.text =
+                                      '${p.title}, ${p.subtitle}';
+                                }
+                                setDialogState(() => placeResults = []);
+                                movePin(p.coords, zoom: 16.5);
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _manilaPresets.map((preset) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ActionChip(
+                              visualDensity: VisualDensity.compact,
+                              label: Text(
+                                preset.label,
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                              onPressed: () {
+                                cityCtrl.text = preset.city;
+                                movePin(preset.coords, zoom: 14.5);
+                              },
                             ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: pickedPoint,
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(
-                                    Icons.location_pin,
-                                    color: AppTheme.dangerRed,
-                                    size: 38,
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Listener(
+                      onPointerDown: (_) =>
+                          setDialogState(() => isPanningMap = true),
+                      onPointerUp: (_) =>
+                          setDialogState(() => isPanningMap = false),
+                      onPointerCancel: (_) =>
+                          setDialogState(() => isPanningMap = false),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 235,
+                          child: Stack(
+                            children: [
+                              FlutterMap(
+                                mapController: miniMapController,
+                                options: MapOptions(
+                                  initialCenter: pickedPoint,
+                                  initialZoom: 14.0,
+                                  minZoom: 10.0,
+                                  maxZoom: 18.5,
+                                  interactionOptions: const InteractionOptions(
+                                    flags: InteractiveFlag.all &
+                                        ~InteractiveFlag.rotate,
+                                  ),
+                                  onTap: (_, latLng) => movePin(
+                                    latLng,
+                                    zoom: miniMapController.camera.zoom,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
+                                children: [
+                                  TileLayer(
+                                    urlTemplate:
+                                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    userAgentPackageName:
+                                        'com.lifecheckpoint.app',
+                                  ),
+                                  MarkerLayer(
+                                    markers: [
+                                      Marker(
+                                        point: pickedPoint,
+                                        width: 40,
+                                        height: 40,
+                                        child: const Icon(
+                                          Icons.location_pin,
+                                          color: AppTheme.dangerRed,
+                                          size: 38,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Positioned(
+                                top: 8,
+                                left: 8,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withAlpha(165),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text(
+                                    'Drag freely or tap to move pin',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                right: 8,
+                                bottom: 8,
+                                child: Column(
+                                  children: [
+                                    Material(
+                                      color: Colors.white,
+                                      elevation: 2,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () => zoomMiniMap(1.0),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.add_rounded,
+                                            size: 20,
+                                            color: AppTheme.primaryNavy,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Material(
+                                      color: Colors.white,
+                                      elevation: 2,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () => zoomMiniMap(-1.0),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.remove_rounded,
+                                            size: 20,
+                                            color: AppTheme.primaryNavy,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -516,7 +800,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
               FilledButton(
                 onPressed: () {
-                  if (nameCtrl.text.trim().isEmpty) return;
+                  if (nameCtrl.text.trim().isEmpty) {
+                    setDialogState(
+                      () => nameError = 'Please enter a shelter name first.',
+                    );
+                    if (dialogScrollCtrl.hasClients) {
+                      dialogScrollCtrl.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                    return;
+                  }
                   Navigator.pop(ctx, true);
                 },
                 child: Text(isEdit ? 'Save Changes' : 'Publish Shelter'),
@@ -547,6 +843,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       facCtrl.dispose();
       latCtrl.dispose();
       lngCtrl.dispose();
+      mapSearchCtrl.dispose();
+      dialogScrollCtrl.dispose();
     });
 
     if (submitted != true || !mounted) return;

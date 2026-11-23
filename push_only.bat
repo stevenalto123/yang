@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Strict RBAC Admin-only portal view on login, skip household sync for admins, and root security headers"
+git commit -m "Upgrade shelter map picker: full-screen Grab-style pin map, Manila address search, scroll-lock pan, zoom buttons & form validation"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

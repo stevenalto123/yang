@@ -11,6 +11,7 @@ import '../providers/settings_provider.dart';
 import '../utils/action_feedback.dart';
 import '../utils/app_theme.dart';
 import '../utils/location_service.dart';
+import '../widgets/manila_map_picker.dart';
 import '../widgets/responsive_container.dart';
 
 class EvacuationMapScreen extends StatefulWidget {
@@ -1678,9 +1679,12 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     final addrCtrl = TextEditingController();
     final cityCtrl = TextEditingController(text: 'Manila');
     final contactCtrl = TextEditingController(text: '(02) 8568-6909');
+    final dialogScrollCtrl = ScrollController();
     final miniMapCtrl = MapController();
 
     LatLng pickedPoint = LatLng(emergency.userLat, emergency.userLng);
+    bool isPanningMap = false;
+    String? nameError;
 
     final saved = await showDialog<bool>(
       context: context,
@@ -1689,7 +1693,20 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
           void setPin(LatLng target, {double? zoom}) {
             setDialogState(() => pickedPoint = target);
             try {
-              miniMapCtrl.move(target, zoom ?? miniMapCtrl.camera.zoom);
+              miniMapCtrl.move(
+                target,
+                (zoom ?? miniMapCtrl.camera.zoom).clamp(10.0, 18.5),
+              );
+            } catch (_) {}
+          }
+
+          void zoomMini(double delta) {
+            try {
+              final cam = miniMapCtrl.camera;
+              miniMapCtrl.move(
+                cam.center,
+                (cam.zoom + delta).clamp(10.0, 18.5),
+              );
             } catch (_) {}
           }
 
@@ -1700,8 +1717,12 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                   : 'Save Barangay / Family Shelter',
             ),
             content: SizedBox(
-              width: 480,
+              width: 500,
               child: SingleChildScrollView(
+                controller: dialogScrollCtrl,
+                physics: isPanningMap
+                    ? const NeverScrollableScrollPhysics()
+                    : const ClampingScrollPhysics(),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1734,10 +1755,16 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: nameCtrl,
+                      onChanged: (_) {
+                        if (nameError != null) {
+                          setDialogState(() => nameError = null);
+                        }
+                      },
                       decoration: InputDecoration(
                         labelText: isFil
                             ? 'Pangalan ng Covered Court / Safe Place *'
                             : 'Barangay Hall / Covered Court / Safe Place *',
+                        errorText: nameError,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -1798,17 +1825,18 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Row(
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Expanded(
-                          child: Text(
-                            isFil
-                                ? 'I-tap ang mapa para ituro ang eksaktong lugar:'
-                                : 'Tap the map to pin exact location:',
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w700,
-                            ),
+                        Text(
+                          isFil
+                              ? 'Ituro sa mapa:'
+                              : 'Pin exact location:',
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         TextButton.icon(
@@ -1829,47 +1857,131 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                             );
                           },
                         ),
+                        FilledButton.tonalIcon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 32),
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                          ),
+                          icon: const Icon(Icons.open_in_full_rounded, size: 14),
+                          label: Text(
+                            isFil ? 'Buong Mapa' : 'Full-Screen Map',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          onPressed: () async {
+                            final picked = await ManilaFullScreenMapPicker.show(
+                              ctx,
+                              initialPoint: pickedPoint,
+                              isFil: isFil,
+                            );
+                            if (picked != null && ctx.mounted) {
+                              if (picked.suggestedAddress != null &&
+                                  addrCtrl.text.trim().isEmpty) {
+                                addrCtrl.text = picked.suggestedAddress!;
+                              }
+                              setPin(picked.coords, zoom: 16.0);
+                            }
+                          },
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        height: 185,
-                        child: FlutterMap(
-                          mapController: miniMapCtrl,
-                          options: MapOptions(
-                            initialCenter: pickedPoint,
-                            initialZoom: 14.0,
-                            minZoom: 5.0,
-                            maxZoom: 18.0,
-                            interactionOptions: const InteractionOptions(
-                              flags:
-                                  InteractiveFlag.all & ~InteractiveFlag.rotate,
-                            ),
-                            onTap: (_, latLng) => setPin(latLng),
-                          ),
-                          children: [
-                            TileLayer(
-                              urlTemplate:
-                                  'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                              userAgentPackageName: 'com.lifecheckpoint.app',
-                            ),
-                            MarkerLayer(
-                              markers: [
-                                Marker(
-                                  point: pickedPoint,
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(
-                                    Icons.location_pin,
-                                    color: AppTheme.dangerRed,
-                                    size: 38,
+                    Listener(
+                      onPointerDown: (_) =>
+                          setDialogState(() => isPanningMap = true),
+                      onPointerUp: (_) =>
+                          setDialogState(() => isPanningMap = false),
+                      onPointerCancel: (_) =>
+                          setDialogState(() => isPanningMap = false),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 220,
+                          child: Stack(
+                            children: [
+                              FlutterMap(
+                                mapController: miniMapCtrl,
+                                options: MapOptions(
+                                  initialCenter: pickedPoint,
+                                  initialZoom: 14.0,
+                                  minZoom: 10.0,
+                                  maxZoom: 18.5,
+                                  interactionOptions: const InteractionOptions(
+                                    flags: InteractiveFlag.all &
+                                        ~InteractiveFlag.rotate,
                                   ),
+                                  onTap: (_, latLng) => setPin(latLng),
                                 ),
-                              ],
-                            ),
-                          ],
+                                children: [
+                                  TileLayer(
+                                    urlTemplate:
+                                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    userAgentPackageName:
+                                        'com.lifecheckpoint.app',
+                                  ),
+                                  MarkerLayer(
+                                    markers: [
+                                      Marker(
+                                        point: pickedPoint,
+                                        width: 40,
+                                        height: 40,
+                                        child: const Icon(
+                                          Icons.location_pin,
+                                          color: AppTheme.dangerRed,
+                                          size: 38,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              Positioned(
+                                right: 8,
+                                bottom: 8,
+                                child: Column(
+                                  children: [
+                                    Material(
+                                      color: Colors.white,
+                                      elevation: 2,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () => zoomMini(1.0),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.add_rounded,
+                                            size: 19,
+                                            color: AppTheme.primaryNavy,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Material(
+                                      color: Colors.white,
+                                      elevation: 2,
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: InkWell(
+                                        borderRadius: BorderRadius.circular(8),
+                                        onTap: () => zoomMini(-1.0),
+                                        child: const Padding(
+                                          padding: EdgeInsets.all(6),
+                                          child: Icon(
+                                            Icons.remove_rounded,
+                                            size: 19,
+                                            color: AppTheme.primaryNavy,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1892,7 +2004,21 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
               ),
               FilledButton(
                 onPressed: () {
-                  if (nameCtrl.text.trim().isEmpty) return;
+                  if (nameCtrl.text.trim().isEmpty) {
+                    setDialogState(
+                      () => nameError = isFil
+                          ? 'Ilagay muna ang pangalan ng shelter.'
+                          : 'Please enter a shelter name first.',
+                    );
+                    if (dialogScrollCtrl.hasClients) {
+                      dialogScrollCtrl.animateTo(
+                        0,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOut,
+                      );
+                    }
+                    return;
+                  }
                   Navigator.pop(ctx, true);
                 },
                 child: Text(
@@ -1915,6 +2041,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
       addrCtrl.dispose();
       cityCtrl.dispose();
       contactCtrl.dispose();
+      dialogScrollCtrl.dispose();
     });
 
     if (saved == true && mounted) {
