@@ -12,8 +12,37 @@ import '../utils/app_theme.dart';
 import '../widgets/responsive_container.dart';
 import 'notifications_screen.dart';
 
-class KitManagementScreen extends StatelessWidget {
+class KitManagementScreen extends StatefulWidget {
   const KitManagementScreen({super.key});
+
+  @override
+  State<KitManagementScreen> createState() => _KitManagementScreenState();
+}
+
+class _KitManagementScreenState extends State<KitManagementScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _clearSearch(KitProvider kit) {
+    _searchController.clear();
+    kit.setSearchQuery('');
+  }
+
+  String _sortLabel(KitSortOrder order, bool isFil) {
+    switch (order) {
+      case KitSortOrder.urgentFirst:
+        return isFil ? 'Unahin ang Agaran' : 'Urgent First';
+      case KitSortOrder.byCategory:
+        return isFil ? 'Ayon sa Kategorya' : 'By Category';
+      case KitSortOrder.byExpiry:
+        return isFil ? 'Pinakamalapit Ma-expire' : 'Soonest Expiry';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +55,11 @@ class KitManagementScreen extends StatelessWidget {
     final accentTone = isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
     final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
     final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
+
+    final expiredCount = kit.expiredItemsCount;
+    final expiringCount = kit.expiringSoonItemsCount;
+    final expiryAlertCount = expiredCount + expiringCount;
+    final items = kit.filteredItems;
 
     return Scaffold(
       appBar: AppBar(
@@ -47,7 +81,13 @@ class KitManagementScreen extends StatelessWidget {
                 _showSmartRecommenderDialog(context, kit, isDark, isFil),
           ),
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+            icon: expiryAlertCount > 0
+                ? Badge(
+                    label: Text('$expiryAlertCount'),
+                    backgroundColor: AppTheme.dangerRed,
+                    child: const Icon(Icons.notifications_outlined),
+                  )
+                : const Icon(Icons.notifications_outlined),
             tooltip: s.replacementAlerts,
             onPressed: () {
               Navigator.push(
@@ -63,269 +103,455 @@ class KitManagementScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Clean Header: Progress, Family Customizer, Search & Filters
-          Container(
-            color: isDark ? AppTheme.darkCard : Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-            child: ResponsiveContainer(
-              maxWidth: 960,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Progress summary + Family size pill
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              isFil
-                                  ? '${kit.packedItemsCount} sa ${kit.totalItemsCount} handa (${kit.readinessPercentage.toStringAsFixed(0)}%)'
-                                  : '${kit.packedItemsCount} of ${kit.totalItemsCount} packed (${kit.readinessPercentage.toStringAsFixed(0)}%)',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                                color: headingColor,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(99),
-                              child: LinearProgressIndicator(
-                                value: (kit.readinessPercentage / 100)
-                                    .clamp(0.0, 1.0),
-                                minHeight: 7,
-                                backgroundColor: isDark
-                                    ? AppTheme.darkElevated
-                                    : AppTheme.lightBorder,
-                                color: kit.readinessPercentage >= 85
-                                    ? AppTheme.safeGreen
-                                    : (kit.readinessPercentage >= 50
-                                        ? AppTheme.warningAmber
-                                        : AppTheme.dangerRed),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(0, 42),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          foregroundColor: accentTone,
-                          side: BorderSide(
-                            color: accentTone.withAlpha(110),
-                          ),
-                        ),
-                        icon: const Icon(Icons.groups_outlined, size: 18),
-                        label: Text(
-                          isFil
-                              ? '${kit.householdProfile.totalPeople} tao'
-                              : 'Family: ${kit.householdProfile.totalPeople}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        onPressed: () => _showSmartRecommenderDialog(
-                          context,
-                          kit,
-                          isDark,
-                          isFil,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Search Field
-                  TextField(
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: isFil
-                          ? 'Maghanap ng gamit (tubig, gamot, flashlight)...'
-                          : 'Search supplies (water, medicine, flashlight)...',
-                      prefixIcon: const Icon(Icons.search_rounded, size: 20),
-                      suffixIcon: kit.searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear_rounded, size: 19),
-                              onPressed: () => kit.setSearchQuery(''),
-                            )
-                          : null,
-                      contentPadding: const EdgeInsets.symmetric(
-                        vertical: 11,
-                        horizontal: 14,
-                      ),
-                    ),
-                    onChanged: (val) => kit.setSearchQuery(val),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Status Filter Chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
+      body: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          // Smoothly scrollable Header: Progress, Expiry Banner, Search, Filters & Sort
+          SliverToBoxAdapter(
+            child: Container(
+              color: isDark ? AppTheme.darkCard : Colors.white,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: ResponsiveContainer(
+                maxWidth: 960,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Progress summary + Family size pill
+                    Row(
                       children: [
-                        _buildStatusFilterChip(
-                          isDark: isDark,
-                          label:
-                              '${isFil ? 'Lahat' : 'All'} (${kit.totalItemsCount})',
-                          isSelected: kit.filterStatus == ItemFilterStatus.all,
-                          onSelected: () =>
-                              kit.setFilterStatus(ItemFilterStatus.all),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                isFil
+                                    ? '${kit.packedItemsCount} sa ${kit.totalItemsCount} handa (${kit.readinessPercentage.toStringAsFixed(0)}%)'
+                                    : '${kit.packedItemsCount} of ${kit.totalItemsCount} packed (${kit.readinessPercentage.toStringAsFixed(0)}%)',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: headingColor,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(99),
+                                child: LinearProgressIndicator(
+                                  value: (kit.readinessPercentage / 100)
+                                      .clamp(0.0, 1.0),
+                                  minHeight: 7,
+                                  backgroundColor: isDark
+                                      ? AppTheme.darkElevated
+                                      : AppTheme.lightBorder,
+                                  color: kit.readinessPercentage >= 85
+                                      ? AppTheme.safeGreen
+                                      : (kit.readinessPercentage >= 50
+                                          ? AppTheme.warningAmber
+                                          : AppTheme.dangerRed),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        _buildStatusFilterChip(
-                          isDark: isDark,
-                          label:
-                              '${isFil ? 'Kulang' : 'To Pack'} (${kit.missingItemsCount})',
-                          isSelected:
-                              kit.filterStatus == ItemFilterStatus.missing,
-                          selectedColor: const Color(0xFFEA580C),
-                          onSelected: () =>
-                              kit.setFilterStatus(ItemFilterStatus.missing),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildStatusFilterChip(
-                          isDark: isDark,
-                          label:
-                              '${isFil ? 'Malapit' : 'Expiring'} (${kit.expiringSoonItemsCount})',
-                          isSelected:
-                              kit.filterStatus == ItemFilterStatus.expiringSoon,
-                          selectedColor: AppTheme.warningAmber,
-                          onSelected: () => kit
-                              .setFilterStatus(ItemFilterStatus.expiringSoon),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildStatusFilterChip(
-                          isDark: isDark,
-                          label:
-                              '${isFil ? 'Paso Na' : 'Expired'} (${kit.expiredItemsCount})',
-                          isSelected:
-                              kit.filterStatus == ItemFilterStatus.expired,
-                          selectedColor: AppTheme.dangerRed,
-                          onSelected: () =>
-                              kit.setFilterStatus(ItemFilterStatus.expired),
-                        ),
-                        const SizedBox(width: 8),
-                        _buildStatusFilterChip(
-                          isDark: isDark,
-                          label:
-                              '${isFil ? 'Handa Na' : 'Packed'} (${kit.packedItemsCount})',
-                          isSelected:
-                              kit.filterStatus == ItemFilterStatus.packed,
-                          selectedColor: AppTheme.safeGreen,
-                          onSelected: () =>
-                              kit.setFilterStatus(ItemFilterStatus.packed),
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 40),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 11,
+                              vertical: 8,
+                            ),
+                            foregroundColor: accentTone,
+                            side: BorderSide(
+                              color: accentTone.withAlpha(110),
+                            ),
+                          ),
+                          icon: const Icon(Icons.groups_outlined, size: 18),
+                          label: Text(
+                            isFil
+                                ? '${kit.householdProfile.totalPeople} tao'
+                                : 'Family: ${kit.householdProfile.totalPeople}',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          onPressed: () => _showSmartRecommenderDialog(
+                            context,
+                            kit,
+                            isDark,
+                            isFil,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 10),
 
-                  // Category Dropdown + Add Button
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          height: 46,
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppTheme.darkElevated
-                                : AppTheme.surfaceBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isDark
-                                  ? AppTheme.darkBorder
-                                  : AppTheme.lightBorder,
-                            ),
-                          ),
-                          child: DropdownButtonHideUnderline(
-                            child: DropdownButton<KitCategory?>(
-                              value: kit.selectedCategory,
-                              isExpanded: true,
-                              dropdownColor:
-                                  isDark ? AppTheme.darkCard : Colors.white,
-                              hint: Text(
-                                isFil ? 'Lahat ng Kategorya' : 'All Categories',
-                                style: const TextStyle(fontSize: 14),
+                    // Urgent Inline Expiration Alert Strip
+                    if (expiryAlertCount > 0) ...[
+                      const SizedBox(height: 10),
+                      _buildExpiryAlertStrip(
+                        context: context,
+                        expiredCount: expiredCount,
+                        expiringCount: expiringCount,
+                        alertDays: kit.expiryAlertDays,
+                        isDark: isDark,
+                        isFil: isFil,
+                      ),
+                    ],
+
+                    const SizedBox(height: 10),
+
+                    // Search Field (properly controlled) + Sort Menu
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            style: const TextStyle(fontSize: 14),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              hintText: isFil
+                                  ? 'Maghanap (tubig, gamot, flashlight)...'
+                                  : 'Search supplies (water, medicine, radio)...',
+                              prefixIcon:
+                                  const Icon(Icons.search_rounded, size: 19),
+                              suffixIcon: kit.searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(
+                                        Icons.clear_rounded,
+                                        size: 18,
+                                      ),
+                                      tooltip: 'Clear search',
+                                      onPressed: () => _clearSearch(kit),
+                                    )
+                                  : null,
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                                horizontal: 12,
                               ),
-                              items: [
-                                DropdownMenuItem<KitCategory?>(
-                                  value: null,
-                                  child: Text(
-                                    isFil
-                                        ? 'Lahat ng Kategorya'
-                                        : 'All Categories',
-                                    style: const TextStyle(fontSize: 14),
+                            ),
+                            onChanged: (val) => kit.setSearchQuery(val),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        PopupMenuButton<KitSortOrder>(
+                          tooltip: isFil ? 'Ayusin ang listahan' : 'Sort items',
+                          onSelected: kit.setSortOrder,
+                          itemBuilder: (_) => KitSortOrder.values
+                              .map(
+                                (order) => PopupMenuItem<KitSortOrder>(
+                                  value: order,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        kit.sortOrder == order
+                                            ? Icons.check_rounded
+                                            : Icons.sort_rounded,
+                                        size: 17,
+                                        color: kit.sortOrder == order
+                                            ? AppTheme.safeGreen
+                                            : subtleText,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(_sortLabel(order, isFil)),
+                                    ],
                                   ),
                                 ),
-                                ...KitCategory.values.map(
-                                  (cat) => DropdownMenuItem<KitCategory?>(
-                                    value: cat,
-                                    child: Text(
-                                      s.categoryName(cat),
-                                      style: const TextStyle(fontSize: 14),
-                                    ),
+                              )
+                              .toList(),
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 11),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppTheme.darkElevated
+                                  : AppTheme.surfaceBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark
+                                    ? AppTheme.darkBorder
+                                    : AppTheme.lightBorder,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.sort_rounded,
+                                  size: 18,
+                                  color: headingColor,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isFil ? 'Ayos' : 'Sort',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: headingColor,
                                   ),
                                 ),
                               ],
-                              onChanged: (cat) => kit.setSelectedCategory(cat),
                             ),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Status Filter Chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildStatusFilterChip(
+                            isDark: isDark,
+                            label:
+                                '${isFil ? 'Lahat' : 'All'} (${kit.totalItemsCount})',
+                            isSelected: kit.filterStatus == ItemFilterStatus.all,
+                            onSelected: () =>
+                                kit.setFilterStatus(ItemFilterStatus.all),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildStatusFilterChip(
+                            isDark: isDark,
+                            label:
+                                '${isFil ? 'Kulang' : 'To Pack'} (${kit.missingItemsCount})',
+                            isSelected:
+                                kit.filterStatus == ItemFilterStatus.missing,
+                            selectedColor: const Color(0xFFEA580C),
+                            onSelected: () =>
+                                kit.setFilterStatus(ItemFilterStatus.missing),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildStatusFilterChip(
+                            isDark: isDark,
+                            label:
+                                '${isFil ? 'Malapit' : 'Expiring'} ($expiringCount)',
+                            isSelected: kit.filterStatus ==
+                                ItemFilterStatus.expiringSoon,
+                            selectedColor: AppTheme.warningAmber,
+                            onSelected: () => kit
+                                .setFilterStatus(ItemFilterStatus.expiringSoon),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildStatusFilterChip(
+                            isDark: isDark,
+                            label:
+                                '${isFil ? 'Paso Na' : 'Expired'} ($expiredCount)',
+                            isSelected:
+                                kit.filterStatus == ItemFilterStatus.expired,
+                            selectedColor: AppTheme.dangerRed,
+                            onSelected: () =>
+                                kit.setFilterStatus(ItemFilterStatus.expired),
+                          ),
+                          const SizedBox(width: 6),
+                          _buildStatusFilterChip(
+                            isDark: isDark,
+                            label:
+                                '${isFil ? 'Handa Na' : 'Packed'} (${kit.packedItemsCount})',
+                            isSelected:
+                                kit.filterStatus == ItemFilterStatus.packed,
+                            selectedColor: AppTheme.safeGreen,
+                            onSelected: () =>
+                                kit.setFilterStatus(ItemFilterStatus.packed),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size(0, 46),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Category Dropdown + Add Button
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 44,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppTheme.darkElevated
+                                  : AppTheme.surfaceBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: isDark
+                                    ? AppTheme.darkBorder
+                                    : AppTheme.lightBorder,
+                              ),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<KitCategory?>(
+                                value: kit.selectedCategory,
+                                isExpanded: true,
+                                dropdownColor:
+                                    isDark ? AppTheme.darkCard : Colors.white,
+                                hint: Text(
+                                  isFil
+                                      ? 'Lahat ng Kategorya'
+                                      : 'All Categories',
+                                  style: const TextStyle(fontSize: 13.5),
+                                ),
+                                items: [
+                                  DropdownMenuItem<KitCategory?>(
+                                    value: null,
+                                    child: Text(
+                                      isFil
+                                          ? 'Lahat ng Kategorya'
+                                          : 'All Categories',
+                                      style: const TextStyle(fontSize: 13.5),
+                                    ),
+                                  ),
+                                  ...KitCategory.values.map(
+                                    (cat) => DropdownMenuItem<KitCategory?>(
+                                      value: cat,
+                                      child: Text(
+                                        s.categoryName(cat),
+                                        style: const TextStyle(fontSize: 13.5),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                onChanged: (cat) => kit.setSelectedCategory(cat),
+                              ),
+                            ),
+                          ),
                         ),
-                        icon: const Icon(Icons.add_rounded, size: 20),
-                        label: Text(isFil ? 'Dagdag' : 'Add'),
-                        onPressed: () =>
-                            _showAddEditItemDialog(context, kit, isDark, isFil),
-                      ),
-                    ],
-                  ),
-                ],
+                        const SizedBox(width: 8),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(horizontal: 15),
+                          ),
+                          icon: const Icon(Icons.add_rounded, size: 19),
+                          label: Text(isFil ? 'Dagdag' : 'Add'),
+                          onPressed: () => _showAddEditItemDialog(
+                            context,
+                            kit,
+                            isDark,
+                            isFil,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          const Divider(height: 1),
+          const SliverToBoxAdapter(child: Divider(height: 1)),
 
-          // Items List
-          Expanded(
-            child: kit.filteredItems.isEmpty
-                ? _buildEmptyState(kit, subtleText, isFil)
-                : ResponsiveContainer(
-                    maxWidth: 960,
-                    child: ListView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
-                      itemCount: kit.filteredItems.length,
-                      itemBuilder: (context, index) {
-                        final item = kit.filteredItems[index];
-                        return _buildItemCard(
+          // Items List or Empty State
+          if (items.isEmpty)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _buildEmptyState(kit, subtleText, isFil),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 96),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final item = items[index];
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 960),
+                        child: _buildItemCard(
                           context,
                           item,
                           kit,
                           s,
                           isDark,
                           isFil,
-                        );
-                      },
-                    ),
-                  ),
-          ),
+                        ),
+                      ),
+                    );
+                  },
+                  childCount: items.length,
+                ),
+              ),
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildExpiryAlertStrip({
+    required BuildContext context,
+    required int expiredCount,
+    required int expiringCount,
+    required int alertDays,
+    required bool isDark,
+    required bool isFil,
+  }) {
+    final hasExpired = expiredCount > 0;
+    final accent = hasExpired ? AppTheme.dangerRed : AppTheme.warningAmber;
+    final msg = hasExpired && expiringCount > 0
+        ? (isFil
+            ? '$expiredCount paso na at $expiringCount malapit ma-expire ($alertDays araw)'
+            : '$expiredCount expired & $expiringCount expiring within $alertDays days')
+        : hasExpired
+            ? (isFil
+                ? '$expiredCount gamit ang paso na — palitan agad'
+                : '$expiredCount expired item(s) — replace now')
+            : (isFil
+                ? '$expiringCount gamit ang malapit ma-expire sa $alertDays araw'
+                : '$expiringCount item(s) expiring within $alertDays days');
+
+    return Material(
+      color: accent.withAlpha(isDark ? 40 : 16),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: accent.withAlpha(isDark ? 110 : 65)),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                hasExpired
+                    ? Icons.error_outline_rounded
+                    : Icons.notifications_active_outlined,
+                size: 19,
+                color: isDark
+                    ? (hasExpired ? Colors.red.shade200 : Colors.amber.shade200)
+                    : accent,
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  msg,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                    color: isDark ? Colors.white : AppTheme.darkSlate,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                isFil ? 'Paalala →' : 'Alerts →',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: isDark
+                      ? (hasExpired
+                          ? Colors.red.shade200
+                          : Colors.amber.shade200)
+                      : accent,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -339,10 +565,11 @@ class KitManagementScreen extends StatelessWidget {
   }) {
     final activeColor = selectedColor ?? AppTheme.primaryNavy;
     return ChoiceChip(
+      showCheckmark: false,
       label: Text(label),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       labelStyle: TextStyle(
-        fontSize: 13.5,
+        fontSize: 13,
         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
         color: isSelected
             ? Colors.white
@@ -390,7 +617,7 @@ class KitManagementScreen extends StatelessWidget {
             const SizedBox(height: 16),
             OutlinedButton(
               onPressed: () {
-                kit.setSearchQuery('');
+                _clearSearch(kit);
                 kit.setSelectedCategory(null);
                 kit.setFilterStatus(ItemFilterStatus.all);
               },
@@ -444,7 +671,28 @@ class KitManagementScreen extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(5),
                   ),
-                  onChanged: (_) => kit.togglePacked(item.id),
+                  onChanged: (_) {
+                    final wasComplete = item.isComplete;
+                    final prevQty = kit.togglePacked(item.id);
+                    if (wasComplete && prevQty > 0) {
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isFil
+                                  ? 'Inalis sa handa ang "${item.name}".'
+                                  : 'Unchecked "${item.name}" (qty set to 0).',
+                            ),
+                            action: SnackBarAction(
+                              label: 'UNDO',
+                              onPressed: () =>
+                                  kit.updateQuantity(item.id, prevQty),
+                            ),
+                          ),
+                        );
+                    }
+                  },
                 ),
                 const SizedBox(width: 2),
                 Expanded(
@@ -459,9 +707,6 @@ class KitManagementScreen extends StatelessWidget {
                             fontSize: 15.5,
                             fontWeight: FontWeight.w700,
                             color: titleColor,
-                            decoration: item.isComplete
-                                ? TextDecoration.none
-                                : null,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -506,7 +751,8 @@ class KitManagementScreen extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: Icon(Icons.more_vert_rounded, size: 20, color: subtleText),
+                  icon:
+                      Icon(Icons.more_vert_rounded, size: 20, color: subtleText),
                   onSelected: (val) {
                     if (val == 'edit') {
                       _showAddEditItemDialog(
@@ -519,7 +765,24 @@ class KitManagementScreen extends StatelessWidget {
                     } else if (val == 'replace') {
                       _quickReplaceItem(context, kit, item, isFil);
                     } else if (val == 'delete') {
+                      final savedIdx = kit.indexOfItem(item.id);
                       kit.deleteItem(item.id);
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              isFil
+                                  ? 'Nabura ang "${item.name}".'
+                                  : 'Deleted "${item.name}".',
+                            ),
+                            action: SnackBarAction(
+                              label: 'UNDO',
+                              onPressed: () =>
+                                  kit.restoreItem(item, atIndex: savedIdx),
+                            ),
+                          ),
+                        );
                     }
                   },
                   itemBuilder: (ctx) => [
@@ -1266,6 +1529,12 @@ class _AddEditItemDialogState extends State<_AddEditItemDialog> {
     super.dispose();
   }
 
+  void _applyExpiryPresetDays(int days) {
+    setState(() {
+      _selectedExpDate = DateTime.now().add(Duration(days: days));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEditing = widget.existingItem != null;
@@ -1355,7 +1624,7 @@ class _AddEditItemDialogState extends State<_AddEditItemDialog> {
                   labelText: 'Unit (pcs, cans, liters, etc.)',
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
@@ -1364,7 +1633,10 @@ class _AddEditItemDialogState extends State<_AddEditItemDialog> {
                           ? 'Walang Expiration Date'
                           : 'No Expiration Date')
                       : 'Expires: ${DateFormat('MMM d, yyyy').format(_selectedExpDate!)}',
-                  style: const TextStyle(fontSize: 14),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1399,7 +1671,33 @@ class _AddEditItemDialogState extends State<_AddEditItemDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('+3 mos', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _applyExpiryPresetDays(90),
+                  ),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('+6 mos', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _applyExpiryPresetDays(180),
+                  ),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('+1 yr', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _applyExpiryPresetDays(365),
+                  ),
+                  ActionChip(
+                    visualDensity: VisualDensity.compact,
+                    label: const Text('+2 yrs', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _applyExpiryPresetDays(730),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
               TextFormField(
                 controller: _notesCtrl,
                 decoration: const InputDecoration(

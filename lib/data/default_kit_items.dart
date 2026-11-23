@@ -4,13 +4,13 @@ List<KitItem> getDefaultKitItems() {
   final now = DateTime.now();
 
   return [
-    // 1. Water & Food
+    // 1. Water & Food (72-hour targets synced for default Family of 2)
     KitItem(
       id: 'water_bottles',
       name: 'Drinking Water (1 Gallon / person / day for 3 days)',
       category: KitCategory.waterAndFood,
-      quantity: 3,
-      targetQuantity: 3,
+      quantity: 6,
+      targetQuantity: 6,
       unit: 'gallons',
       expirationDate: now.add(const Duration(days: 180)),
       isPacked: true,
@@ -20,8 +20,8 @@ List<KitItem> getDefaultKitItems() {
       id: 'canned_goods',
       name: 'Easy-Open Canned Goods (Tuna, Corned Beef, Sardines)',
       category: KitCategory.waterAndFood,
-      quantity: 6,
-      targetQuantity: 6,
+      quantity: 12,
+      targetQuantity: 12,
       unit: 'cans',
       expirationDate: now.add(const Duration(days: 365)),
       isPacked: true,
@@ -32,10 +32,10 @@ List<KitItem> getDefaultKitItems() {
       name: 'High-Energy Biscuits / Crackers & Granola Bars',
       category: KitCategory.waterAndFood,
       quantity: 4,
-      targetQuantity: 6,
+      targetQuantity: 8,
       unit: 'packs',
       expirationDate: now.add(const Duration(days: 45)),
-      isPacked: false, // Partial quantity (4/6): needs 2 more packs
+      isPacked: false, // Partial quantity (4/8): needs 4 more packs
       notes: 'Long shelf-life and high carbohydrate.',
     ),
     KitItem(
@@ -204,8 +204,8 @@ List<KitItem> getDefaultKitItems() {
       id: 'n95_masks',
       name: 'N95 / KN95 Face Masks (Ashfall & Smoke Protection)',
       category: KitCategory.sanitationAndHygiene,
-      quantity: 5,
-      targetQuantity: 5,
+      quantity: 6,
+      targetQuantity: 6,
       unit: 'pcs',
       expirationDate: now.add(const Duration(days: 400)),
       isPacked: true,

@@ -179,6 +179,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     children: [7, 14, 30, 60].map((days) {
                       final selected = kit.expiryAlertDays == days;
                       return ChoiceChip(
+                        showCheckmark: false,
                         materialTapTargetSize: MaterialTapTargetSize.padded,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -222,6 +223,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       onPressed: () =>
                           _triggerReplacementNotification(kit, isFil),
                     ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isFil
+                        ? 'Kapag naka-ON ang Push, awtomatikong magpapadala ng paalala minsan sa isang araw kapag may malapit ma-expire o paso na.'
+                        : 'Once Push is enabled, LifeCheckpoint automatically sends a daily reminder whenever supplies are expired or expiring soon.',
+                    style: TextStyle(fontSize: 12, color: subtleText),
                   ),
                 ],
               ),

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/kit_item.dart';
 import '../models/household_profile.dart';
 import '../data/default_kit_items.dart';
+import '../utils/notification_helper.dart';
 
 enum ItemFilterStatus {
   all,
@@ -14,10 +15,18 @@ enum ItemFilterStatus {
   packed,
 }
 
+enum KitSortOrder {
+  urgentFirst,
+  byCategory,
+  byExpiry,
+}
+
 class KitProvider extends ChangeNotifier {
   static const String _storageKey = 'lifecheckpoint_kit_items_v1';
   static const String _profileKey = 'lifecheckpoint_household_profile_v1';
   static const String _alertDaysKey = 'lifecheckpoint_expiry_alert_days_v1';
+  static const String _lastAutoNotifiedDayKey =
+      'lifecheckpoint_expiry_autonotify_day_v1';
 
   List<KitItem> _items = [];
   HouseholdProfile _householdProfile = const HouseholdProfile();
@@ -26,6 +35,7 @@ class KitProvider extends ChangeNotifier {
   String _searchQuery = '';
   KitCategory? _selectedCategory;
   ItemFilterStatus _filterStatus = ItemFilterStatus.all;
+  KitSortOrder _sortOrder = KitSortOrder.urgentFirst;
 
   void Function(Map<String, dynamic> syncPayload)? onKitChanged;
   void Function(String itemId)? onItemDeleted;
@@ -38,14 +48,22 @@ class KitProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
   KitCategory? get selectedCategory => _selectedCategory;
   ItemFilterStatus get filterStatus => _filterStatus;
+  KitSortOrder get sortOrder => _sortOrder;
   HouseholdProfile get householdProfile => _householdProfile;
   int get expiryAlertDays => _expiryAlertDays;
 
   List<KitItem> get allItems => List.unmodifiable(_items);
 
-  /// Filtered items based on active search, category, and status filter
+  int _urgencyRank(KitItem item) {
+    if (item.isExpired) return 0;
+    if (item.isExpiringWithin(_expiryAlertDays)) return 1;
+    if (item.isMissing) return 2;
+    return 3;
+  }
+
+  /// Filtered & sorted items based on active search, category, status, and sort order
   List<KitItem> get filteredItems {
-    return _items.where((item) {
+    final result = _items.where((item) {
       if (_selectedCategory != null && item.category != _selectedCategory) {
         return false;
       }
@@ -80,6 +98,41 @@ class KitProvider extends ChangeNotifier {
 
       return true;
     }).toList();
+
+    switch (_sortOrder) {
+      case KitSortOrder.urgentFirst:
+        result.sort((a, b) {
+          final rankDiff = _urgencyRank(a).compareTo(_urgencyRank(b));
+          if (rankDiff != 0) return rankDiff;
+          if (a.expirationDate != null && b.expirationDate != null) {
+            final expDiff = a.expirationDate!.compareTo(b.expirationDate!);
+            if (expDiff != 0) return expDiff;
+          }
+          final catDiff = a.category.index.compareTo(b.category.index);
+          if (catDiff != 0) return catDiff;
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        });
+        break;
+      case KitSortOrder.byCategory:
+        result.sort((a, b) {
+          final catDiff = a.category.index.compareTo(b.category.index);
+          if (catDiff != 0) return catDiff;
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        });
+        break;
+      case KitSortOrder.byExpiry:
+        result.sort((a, b) {
+          if (a.expirationDate == null && b.expirationDate == null) {
+            return a.category.index.compareTo(b.category.index);
+          }
+          if (a.expirationDate == null) return 1;
+          if (b.expirationDate == null) return -1;
+          return a.expirationDate!.compareTo(b.expirationDate!);
+        });
+        break;
+    }
+
+    return result;
   }
 
   // --- Analytical Metrics (Guaranteed: packedItemsCount + missingItemsCount == totalItemsCount) ---
@@ -170,6 +223,11 @@ class KitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setSortOrder(KitSortOrder order) {
+    _sortOrder = order;
+    notifyListeners();
+  }
+
   Future<void> setExpiryAlertDays(int days) async {
     _expiryAlertDays = days;
     notifyListeners();
@@ -180,6 +238,43 @@ class KitProvider extends ChangeNotifier {
       debugPrint('Failed to save expiry alert days: $e');
     }
     _notifyCloudSync();
+  }
+
+  /// Automatically triggers a once-per-day browser/Android notification when
+  /// permission is already granted and supplies are expired or expiring soon.
+  Future<bool> checkAndSendDailyExpiryNotification() async {
+    try {
+      final status = NotificationHelper.getPermissionStatus();
+      if (status != 'granted' && status != 'android') return false;
+
+      final expired = expiredItems;
+      final soon = expiringSoonItems;
+      if (expired.isEmpty && soon.isEmpty) return false;
+
+      final now = DateTime.now();
+      final todayKey =
+          '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getString(_lastAutoNotifiedDayKey) == todayKey) {
+        return false;
+      }
+
+      final title = expired.isNotEmpty
+          ? 'LifeCheckpoint: ${expired.length} Expired Go-Bag Supply Item(s)'
+          : 'LifeCheckpoint: ${soon.length} Go-Bag Item(s) Expiring Soon';
+      final body = expired.isNotEmpty
+          ? 'Replace now: ${expired.map((e) => e.name).take(2).join(', ')}'
+          : 'Expiring within $_expiryAlertDays days: ${soon.map((e) => e.name).take(2).join(', ')}';
+
+      final sent = await NotificationHelper.showAlert(title: title, body: body);
+      if (sent) {
+        await prefs.setString(_lastAutoNotifiedDayKey, todayKey);
+      }
+      return sent;
+    } catch (_) {
+      return false;
+    }
   }
 
   Map<String, dynamic> exportSyncPayload() {
@@ -261,6 +356,8 @@ class KitProvider extends ChangeNotifier {
       _expiryAlertDays = prefs.getInt(_alertDaysKey) ?? 30;
       _isLoading = false;
       notifyListeners();
+      // Fire once-per-day supply expiry reminder if browser/Android permission is granted
+      checkAndSendDailyExpiryNotification();
     }).catchError((_) {
       _items = getDefaultKitItems();
       _isLoading = false;
@@ -279,24 +376,27 @@ class KitProvider extends ChangeNotifier {
     }
   }
 
-  void togglePacked(String id) {
+  /// Toggles packed state while keeping quantity 100% consistent with checkbox state.
+  /// Returns the previous quantity so UI can offer an instant Undo when unchecking.
+  int togglePacked(String id) {
     final index = _items.indexWhere((item) => item.id == id);
-    if (index != -1) {
-      final item = _items[index];
-      final newPacked = !item.isComplete;
-      // Ensure packing marks quantity complete (>= targetQuantity) so counts stay consistent
-      int newQty = item.quantity;
-      if (newPacked && newQty < item.targetQuantity) {
-        newQty = item.targetQuantity;
-      }
-      _items[index] = item.copyWith(
-        isPacked: newPacked,
-        quantity: newQty,
-      );
-      _saveToStorage();
-      _notifyCloudSync();
-      notifyListeners();
-    }
+    if (index == -1) return 0;
+
+    final item = _items[index];
+    final prevQty = item.quantity;
+    final newPacked = !item.isComplete;
+    final newQty = newPacked
+        ? math.max(item.quantity, item.targetQuantity)
+        : 0;
+
+    _items[index] = item.copyWith(
+      isPacked: newPacked,
+      quantity: newQty,
+    );
+    _saveToStorage();
+    _notifyCloudSync();
+    notifyListeners();
+    return prevQty;
   }
 
   void updateQuantity(String id, int quantity) {
@@ -351,6 +451,18 @@ class KitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void restoreItem(KitItem item, {int? atIndex}) {
+    if (_items.any((e) => e.id == item.id)) return;
+    if (atIndex != null && atIndex >= 0 && atIndex <= _items.length) {
+      _items.insert(atIndex, item.copyWith(lastUpdated: DateTime.now()));
+    } else {
+      _items.add(item.copyWith(lastUpdated: DateTime.now()));
+    }
+    _saveToStorage();
+    _notifyCloudSync();
+    notifyListeners();
+  }
+
   void editItem(KitItem updatedItem) {
     final index = _items.indexWhere((item) => item.id == updatedItem.id);
     if (index != -1) {
@@ -361,6 +473,8 @@ class KitProvider extends ChangeNotifier {
     }
   }
 
+  int indexOfItem(String id) => _items.indexWhere((item) => item.id == id);
+
   void deleteItem(String id) {
     _items.removeWhere((item) => item.id == id);
     _saveToStorage();
@@ -370,6 +484,7 @@ class KitProvider extends ChangeNotifier {
 
   void resetToDefault() {
     _items = getDefaultKitItems();
+    _householdProfile = const HouseholdProfile();
     _saveToStorage();
     _notifyCloudSync();
     notifyListeners();
@@ -462,7 +577,8 @@ class KitProvider extends ChangeNotifier {
         targetQuantity: math.max(1, profile.adults),
         unit: 'pairs',
         isPacked: false,
-        notes: 'Recommended for flood-prone barangays (leptospirosis protection).',
+        notes:
+            'Recommended for flood-prone Manila barangays (leptospirosis protection).',
       ));
     }
 
@@ -507,7 +623,8 @@ class KitProvider extends ChangeNotifier {
   String generateRestockSummaryText() {
     final buffer = StringBuffer();
     buffer.writeln('LIFECHECKPOINT RESTOCK & REPLACEMENT LIST');
-    buffer.writeln('Readiness Score: ${readinessPercentage.toStringAsFixed(0)}% ($readinessStatus)');
+    buffer.writeln(
+        'Readiness Score: ${readinessPercentage.toStringAsFixed(0)}% ($readinessStatus)');
     buffer.writeln('');
 
     if (expiredItems.isNotEmpty) {
@@ -530,11 +647,14 @@ class KitProvider extends ChangeNotifier {
       buffer.writeln('[MISSING / LOW QUANTITY ITEMS]');
       for (final item in missingItems) {
         final needed = (item.targetQuantity - item.quantity).clamp(1, 999);
-        buffer.writeln('- ${item.name}: Need $needed more ${item.unit} (Have ${item.quantity}/${item.targetQuantity})');
+        buffer.writeln(
+            '- ${item.name}: Need $needed more ${item.unit} (Have ${item.quantity}/${item.targetQuantity})');
       }
     }
 
-    if (expiredItems.isEmpty && expiringSoonItems.isEmpty && missingItems.isEmpty) {
+    if (expiredItems.isEmpty &&
+        expiringSoonItems.isEmpty &&
+        missingItems.isEmpty) {
       buffer.writeln('All supplies are packed and within valid shelf-life!');
     }
 
