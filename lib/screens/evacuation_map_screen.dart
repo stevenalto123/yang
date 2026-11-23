@@ -121,7 +121,9 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                                   ? (isFil
                                       ? 'Aktibo ang GPS (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)'
                                       : 'Live GPS Active (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)')
-                                  : 'Metro Manila (National Capital Region)',
+                                  : (isFil
+                                      ? 'Lungsod ng Maynila (City of Manila)'
+                                      : 'City of Manila'),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
@@ -277,7 +279,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // City Filter Row (All 17 Metro Manila LGUs)
+                  // District Filter Row (City of Manila Districts)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -293,7 +295,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                             ),
                             label: Text(
                               city == 'All'
-                                  ? (isFil ? 'Lahat ng Lungsod (17)' : 'All Metro Manila (17)')
+                                  ? (isFil ? 'Buong Maynila' : 'All Manila')
                                   : city,
                             ),
                             selected: isSelected,
@@ -330,28 +332,15 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                                           emergency.userLng,
                                         )
                                       : _metroManilaCenter,
-                                  12.0,
+                                  13.2,
                                 );
                               } else {
-                                final coords = metroManilaCityCoords[city];
-                                if (coords != null) {
+                                final district = manilaDistrictFilters[city];
+                                if (district != null) {
                                   _safeMove(
-                                    LatLng(coords.lat, coords.lng),
-                                    13.8,
+                                    LatLng(district.lat, district.lng),
+                                    14.6,
                                   );
-                                } else {
-                                  final firstMatch = emergency
-                                      .filteredEvacuationCenters
-                                      .firstOrNull;
-                                  if (firstMatch != null) {
-                                    _safeMove(
-                                      LatLng(
-                                        firstMatch.latitude,
-                                        firstMatch.longitude,
-                                      ),
-                                      13.8,
-                                    );
-                                  }
                                 }
                               }
                             },
@@ -1565,7 +1554,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                     SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        children: metroManilaCityCoords.entries.map((entry) {
+                        children: manilaDistrictFilters.entries.map((entry) {
                           return Padding(
                             padding: const EdgeInsets.only(right: 6),
                             child: ActionChip(
@@ -1575,10 +1564,13 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                                 style: const TextStyle(fontSize: 11.5),
                               ),
                               onPressed: () {
-                                cityCtrl.text = entry.key;
+                                cityCtrl.text = 'Manila';
+                                if (addrCtrl.text.trim().isEmpty) {
+                                  addrCtrl.text = '${entry.key}, Manila';
+                                }
                                 setPin(
                                   LatLng(entry.value.lat, entry.value.lng),
-                                  zoom: 13.8,
+                                  zoom: 14.8,
                                 );
                               },
                             ),

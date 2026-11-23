@@ -803,8 +803,8 @@ export class PostgresStore implements DataStore {
       SELECT
         (SELECT COUNT(*)::int FROM households h WHERE EXISTS (SELECT 1 FROM users u WHERE u.household_id = h.id AND u.role = 'household')) AS households,
         (SELECT COUNT(*)::int FROM users WHERE role = 'household') AS users,
-        (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_open = TRUE) AS open_shelters,
-        (SELECT COUNT(*)::int FROM evacuation_centers) AS total_shelters,
+        (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_open = TRUE AND (is_official = TRUE OR created_by_household_id IS NOT NULL)) AS open_shelters,
+        (SELECT COUNT(*)::int FROM evacuation_centers WHERE is_official = TRUE OR created_by_household_id IS NOT NULL) AS total_shelters,
         (SELECT COUNT(*)::int FROM safety_checkins c LEFT JOIN users u ON u.id = c.user_id WHERE COALESCE(u.role, 'household') = 'household') AS checkins_total,
         (SELECT COUNT(*)::int FROM safety_checkins c LEFT JOIN users u ON u.id = c.user_id WHERE COALESCE(u.role, 'household') = 'household' AND c.acknowledged_at IS NULL AND (UPPER(c.status) LIKE '%ASSIST%' OR UPPER(c.status) LIKE '%HELP%')) AS checkins_needing_help,
         (SELECT COUNT(*)::int FROM iso_evaluations) AS evaluations_total,
@@ -858,6 +858,7 @@ export class PostgresStore implements DataStore {
           SELECT json_agg(row_to_json(s_row))
           FROM (
             SELECT * FROM evacuation_centers
+            WHERE is_official = TRUE OR created_by_household_id IS NOT NULL
             ORDER BY is_official DESC, city ASC, name ASC
           ) s_row
         ), '[]'::json) AS shelters_json,

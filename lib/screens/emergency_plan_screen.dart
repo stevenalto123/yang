@@ -152,8 +152,8 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
           children: [
             Text(
               isFil
-                  ? 'Pumili ng Opisyal na Evacuation Shelter'
-                  : 'Pick a Verified Metro Manila Shelter',
+                  ? 'Pumili ng Opisyal na Evacuation Shelter sa Maynila'
+                  : 'Pick a Verified City of Manila Shelter',
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),

@@ -66,20 +66,23 @@ class EmergencyProvider extends ChangeNotifier {
       [..._customCenters, ..._defaultCenters];
 
   List<String> get availableCities {
-    final canonical = metroManilaCityCoords.keys.toList();
-    final extra = allEvacuationCenters
-        .map((e) => e.city)
-        .where((c) => c.trim().isNotEmpty && !canonical.contains(c))
-        .toSet()
-        .toList();
-    return ['All', ...canonical, ...extra];
+    return ['All', ...manilaDistrictFilters.keys];
   }
 
   /// Returns facilities sorted by nearest Haversine distance from current GPS
   List<EvacuationCenter> get filteredEvacuationCenters {
+    final district = manilaDistrictFilters[_selectedCity];
     final base = allEvacuationCenters.where((center) {
-      if (_selectedCity != 'All' && center.city != _selectedCity) {
-        return false;
+      if (_selectedCity != 'All') {
+        if (district != null) {
+          final hay = '${center.name} ${center.address} ${center.city}'
+              .toLowerCase();
+          final matchesDistrict =
+              district.keywords.any((kw) => hay.contains(kw));
+          if (!matchesDistrict) return false;
+        } else if (center.city != _selectedCity) {
+          return false;
+        }
       }
       if (_selectedFacilityType != null &&
           center.facilityType != _selectedFacilityType) {
@@ -307,6 +310,7 @@ class EmergencyProvider extends ChangeNotifier {
       final mergedDefaults = {for (final c in _defaultCenters) c.id: c};
       for (final c in officialList) {
         if (c.id == 'eac_campus_reference') continue;
+        if (c.city.trim().toLowerCase() != 'manila') continue;
         final existing = mergedDefaults[c.id];
         mergedDefaults[c.id] = existing != null
             ? EvacuationCenter(
