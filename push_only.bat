@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Fix cloud account sync on sign-in/sign-out, clean 0% starter Go-Bag, and iOS bottom bar fix"
+git commit -m "Panelist QA fixes: BOLA shelter guard, RA 10173 cloud delete, Reset crash fix, Morse strobe fix, ISO 25010 neutral default, compact SOS FAB, Manila scope & security headers"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

@@ -251,6 +251,26 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Permanently deletes the signed-in user's cloud account (RA 10173 Right to Erasure)
+  /// and wipes local session state.
+  Future<({bool ok, String? error, bool householdDeleted})>
+      deleteCloudAccount() async {
+    if (!isAuthenticated) {
+      return (ok: false, error: 'Not signed in.', householdDeleted: false);
+    }
+    final res = await _api.request('DELETE', '/auth/me', token: _token);
+    if (!res.ok) {
+      return (
+        ok: false,
+        error: res.error ?? 'Failed to delete cloud account.',
+        householdDeleted: false,
+      );
+    }
+    final hhDeleted = res.data?['householdDeleted'] == true;
+    await logout();
+    return (ok: true, error: null, householdDeleted: hhDeleted);
+  }
+
   Future<void> enqueueMutation(String type, Map<String, dynamic> payload) async {
     await _queue.enqueue(type, payload);
     notifyListeners();

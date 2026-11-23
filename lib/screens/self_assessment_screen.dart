@@ -22,10 +22,11 @@ class SelfAssessmentScreen extends StatefulWidget {
 class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
   static const String _surveyKey = 'lifecheckpoint_iso_survey_v1';
 
-  int _functionalityScore = 5;
-  int _usabilityScore = 5;
-  int _offlineReliabilityScore = 5;
-  int _preparednessImpactScore = 5;
+  // Default to neutral midpoint (3/5) to prevent acquiescence/ceiling bias
+  int _functionalityScore = 3;
+  int _usabilityScore = 3;
+  int _offlineReliabilityScore = 3;
+  int _preparednessImpactScore = 3;
   bool _surveySubmitted = false;
   bool _isSubmitting = false;
   bool _privacyConsented = false;
@@ -53,10 +54,10 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
       if (str != null && str.isNotEmpty) {
         final map = json.decode(str);
         setState(() {
-          _functionalityScore = map['functionality'] ?? 5;
-          _usabilityScore = map['usability'] ?? 5;
-          _offlineReliabilityScore = map['reliability'] ?? 5;
-          _preparednessImpactScore = map['effectiveness'] ?? 5;
+          _functionalityScore = map['functionality'] ?? 3;
+          _usabilityScore = map['usability'] ?? 3;
+          _offlineReliabilityScore = map['reliability'] ?? 3;
+          _preparednessImpactScore = map['effectiveness'] ?? 3;
           _surveySubmitted = map['submitted'] ?? false;
         });
       }
@@ -177,7 +178,9 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
     final s = AppStrings(isFil);
 
     final total = kit.totalItemsCount;
-    final packed = kit.packedItemsCount;
+    final freshPacked = kit.allItems
+        .where((item) => item.isComplete && !item.isExpired)
+        .length;
     final expired = kit.expiredItemsCount;
     final expiringSoon = kit.expiringSoonItemsCount;
     final readiness = kit.readinessPercentage;
@@ -239,9 +242,13 @@ class _SelfAssessmentScreenState extends State<SelfAssessmentScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          isFil
-                              ? '$packed sa $total gamit ang handa na. Mas pinahahalagahan ang Tubig, Pagkain, at Gamot.'
-                              : '$packed of $total items packed. Water, food, and medicine weigh the most for 72-hour survival.',
+                          expired > 0
+                              ? (isFil
+                                  ? '$freshPacked sa $total gamit ang handa at bago ($expired paso na). Mas pinahahalagahan ang Tubig, Pagkain, at Gamot.'
+                                  : '$freshPacked of $total items fresh & packed ($expired expired). Water, food, and medicine weigh the most for 72-hour survival.')
+                              : (isFil
+                                  ? '$freshPacked sa $total gamit ang handa na. Mas pinahahalagahan ang Tubig, Pagkain, at Gamot.'
+                                  : '$freshPacked of $total items packed. Water, food, and medicine weigh the most for 72-hour survival.'),
                           style: const TextStyle(
                             fontSize: 13.5,
                             color: Colors.white70,

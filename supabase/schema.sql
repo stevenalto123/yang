@@ -56,7 +56,9 @@ CREATE TABLE IF NOT EXISTS safety_checkins (
   note TEXT NOT NULL DEFAULT '',
   latitude DOUBLE PRECISION NULL,
   longitude DOUBLE PRECISION NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  acknowledged_at TIMESTAMPTZ NULL,
+  acknowledged_by TEXT NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_safety_checkins_household
@@ -114,8 +116,20 @@ CREATE INDEX IF NOT EXISTS idx_iso_evaluations_created
 CREATE INDEX IF NOT EXISTS idx_iso_evaluations_household
   ON iso_evaluations (household_id);
 
+CREATE TABLE IF NOT EXISTS drrm_advisories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'critical')),
+  area TEXT NOT NULL DEFAULT 'City of Manila',
+  author_name TEXT NOT NULL DEFAULT 'DRRM Admin',
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 -- Enable RLS & revoke direct anon/authenticated PostgREST privileges;
--- server-side Netlify Functions connect securely using SUPABASE_DB_URL.
+-- server-side API functions connect securely using SUPABASE_DB_URL.
 ALTER TABLE households ENABLE ROW LEVEL SECURITY;
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kit_items ENABLE ROW LEVEL SECURITY;
@@ -123,6 +137,7 @@ ALTER TABLE safety_checkins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE evacuation_centers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE telemetry_cache ENABLE ROW LEVEL SECURITY;
 ALTER TABLE iso_evaluations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drrm_advisories ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE households FROM anon, authenticated;
 REVOKE ALL ON TABLE users FROM anon, authenticated;
@@ -131,6 +146,7 @@ REVOKE ALL ON TABLE safety_checkins FROM anon, authenticated;
 REVOKE ALL ON TABLE evacuation_centers FROM anon, authenticated;
 REVOKE ALL ON TABLE telemetry_cache FROM anon, authenticated;
 REVOKE ALL ON TABLE iso_evaluations FROM anon, authenticated;
+REVOKE ALL ON TABLE drrm_advisories FROM anon, authenticated;
 
 -- Seed Official City of Manila Evacuation Centers
 INSERT INTO evacuation_centers (

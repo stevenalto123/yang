@@ -42,6 +42,9 @@ export interface DataStore {
     householdId: string;
   }): Promise<UserRecord>;
   updateUserHousehold(userId: string, householdId: string): Promise<void>;
+  deleteUserAccount(
+    userId: string,
+  ): Promise<{ deleted: boolean; householdDeleted: boolean }>;
 
   createHousehold(name: string, inviteCode: string): Promise<HouseholdRecord>;
   getHouseholdById(id: string): Promise<HouseholdRecord | null>;
@@ -87,7 +90,7 @@ export interface DataStore {
   addShelter(
     householdId: string | null,
     shelter: EvacuationCenterRecord,
-  ): Promise<EvacuationCenterRecord>;
+  ): Promise<EvacuationCenterRecord | null>;
   updateShelterStatus(
     id: string,
     patch: {
@@ -237,7 +240,7 @@ function mapAdvisoryRow(row: Record<string, unknown>): DrrmAdvisoryRecord {
     title: String(row.title ?? ''),
     message: String(row.message ?? ''),
     severity: sev === 'critical' || sev === 'info' ? sev : 'warning',
-    area: String(row.area ?? 'Metro Manila'),
+    area: String(row.area ?? 'City of Manila'),
     authorName: String(row.author_name ?? 'DRRM Admin'),
     isActive: Boolean(row.is_active ?? true),
     createdAt: toIso(row.created_at),
@@ -331,6 +334,41 @@ export class PostgresStore implements DataStore {
     await sql`
       UPDATE users SET household_id = ${householdId} WHERE id = ${userId}
     `;
+  }
+
+  async deleteUserAccount(
+    userId: string,
+  ): Promise<{ deleted: boolean; householdDeleted: boolean }> {
+    const sql = await ensureSchema();
+    const deletedUsers = await sql`
+      DELETE FROM users
+      WHERE id = ${userId}
+      RETURNING household_id
+    `;
+    if (deletedUsers.length === 0) {
+      return { deleted: false, householdDeleted: false };
+    }
+
+    const householdId = deletedUsers[0].household_id
+      ? String(deletedUsers[0].household_id)
+      : null;
+    let householdDeleted = false;
+
+    if (householdId) {
+      const remaining = await sql`
+        SELECT COUNT(*)::int AS cnt FROM users WHERE household_id = ${householdId}
+      `;
+      if (Number(remaining[0]?.cnt ?? 0) === 0) {
+        await sql`
+          DELETE FROM evacuation_centers
+          WHERE is_official = FALSE AND created_by_household_id = ${householdId}
+        `;
+        await sql`DELETE FROM households WHERE id = ${householdId}`;
+        householdDeleted = true;
+      }
+    }
+
+    return { deleted: true, householdDeleted };
   }
 
   async createHousehold(name: string, inviteCode: string): Promise<HouseholdRecord> {
@@ -568,44 +606,84 @@ export class PostgresStore implements DataStore {
   async addShelter(
     householdId: string | null,
     shelter: EvacuationCenterRecord,
-  ): Promise<EvacuationCenterRecord> {
+  ): Promise<EvacuationCenterRecord | null> {
     const sql = await ensureSchema();
-    const rows = await sql`
-      INSERT INTO evacuation_centers (
-        id, name, address, city, latitude, longitude,
-        contact_person, contact_number, capacity_people, is_open, facilities,
-        is_official, created_by_household_id, updated_at
-      ) VALUES (
-        ${shelter.id},
-        ${shelter.name},
-        ${shelter.address},
-        ${shelter.city},
-        ${shelter.latitude},
-        ${shelter.longitude},
-        ${shelter.contactPerson},
-        ${shelter.contactNumber},
-        ${shelter.capacityPeople},
-        ${shelter.isOpen},
-        ${shelter.facilities},
-        ${Boolean(shelter.isOfficial)},
-        ${householdId},
-        NOW()
-      )
-      ON CONFLICT (id) DO UPDATE SET
-        name = EXCLUDED.name,
-        address = EXCLUDED.address,
-        city = EXCLUDED.city,
-        latitude = EXCLUDED.latitude,
-        longitude = EXCLUDED.longitude,
-        contact_person = EXCLUDED.contact_person,
-        contact_number = EXCLUDED.contact_number,
-        capacity_people = EXCLUDED.capacity_people,
-        is_open = EXCLUDED.is_open,
-        facilities = EXCLUDED.facilities,
-        updated_at = NOW()
-      RETURNING *
-    `;
-    return mapShelterRow(rows[0]);
+    const rows =
+      householdId !== null
+        ? await sql`
+            INSERT INTO evacuation_centers (
+              id, name, address, city, latitude, longitude,
+              contact_person, contact_number, capacity_people, is_open, facilities,
+              is_official, created_by_household_id, updated_at
+            ) VALUES (
+              ${shelter.id},
+              ${shelter.name},
+              ${shelter.address},
+              ${shelter.city},
+              ${shelter.latitude},
+              ${shelter.longitude},
+              ${shelter.contactPerson},
+              ${shelter.contactNumber},
+              ${shelter.capacityPeople},
+              ${shelter.isOpen},
+              ${shelter.facilities},
+              FALSE,
+              ${householdId},
+              NOW()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              address = EXCLUDED.address,
+              city = EXCLUDED.city,
+              latitude = EXCLUDED.latitude,
+              longitude = EXCLUDED.longitude,
+              contact_person = EXCLUDED.contact_person,
+              contact_number = EXCLUDED.contact_number,
+              capacity_people = EXCLUDED.capacity_people,
+              is_open = EXCLUDED.is_open,
+              facilities = EXCLUDED.facilities,
+              updated_at = NOW()
+            WHERE evacuation_centers.is_official = FALSE
+              AND evacuation_centers.created_by_household_id = ${householdId}
+            RETURNING *
+          `
+        : await sql`
+            INSERT INTO evacuation_centers (
+              id, name, address, city, latitude, longitude,
+              contact_person, contact_number, capacity_people, is_open, facilities,
+              is_official, created_by_household_id, updated_at
+            ) VALUES (
+              ${shelter.id},
+              ${shelter.name},
+              ${shelter.address},
+              ${shelter.city},
+              ${shelter.latitude},
+              ${shelter.longitude},
+              ${shelter.contactPerson},
+              ${shelter.contactNumber},
+              ${shelter.capacityPeople},
+              ${shelter.isOpen},
+              ${shelter.facilities},
+              ${Boolean(shelter.isOfficial)},
+              NULL,
+              NOW()
+            )
+            ON CONFLICT (id) DO UPDATE SET
+              name = EXCLUDED.name,
+              address = EXCLUDED.address,
+              city = EXCLUDED.city,
+              latitude = EXCLUDED.latitude,
+              longitude = EXCLUDED.longitude,
+              contact_person = EXCLUDED.contact_person,
+              contact_number = EXCLUDED.contact_number,
+              capacity_people = EXCLUDED.capacity_people,
+              is_open = EXCLUDED.is_open,
+              facilities = EXCLUDED.facilities,
+              is_official = EXCLUDED.is_official,
+              updated_at = NOW()
+            RETURNING *
+          `;
+    return rows.length > 0 ? mapShelterRow(rows[0]) : null;
   }
 
   async updateShelterStatus(
@@ -821,7 +899,9 @@ export class PostgresStore implements DataStore {
               h.updated_at,
               COALESCE(u_cnt.account_count, 0)::int AS account_count,
               COALESCE(k.item_count, 0)::int AS item_count,
-              COALESCE(k.packed_count, 0)::int AS packed_count
+              COALESCE(k.packed_count, 0)::int AS packed_count,
+              COALESCE(k.total_weight, 0)::double precision AS total_weight,
+              COALESCE(k.ready_weight, 0)::double precision AS ready_weight
             FROM households h
             INNER JOIN (
               SELECT household_id, COUNT(*)::int AS account_count
@@ -833,7 +913,38 @@ export class PostgresStore implements DataStore {
               SELECT
                 household_id,
                 COUNT(*)::int AS item_count,
-                COUNT(*) FILTER (WHERE is_packed = TRUE OR quantity >= target_quantity)::int AS packed_count
+                COUNT(*) FILTER (
+                  WHERE is_packed = TRUE
+                    AND quantity >= target_quantity
+                    AND (expiration_date IS NULL OR expiration_date::date >= CURRENT_DATE)
+                )::int AS packed_count,
+                COALESCE(SUM(
+                  CASE
+                    WHEN category_index IN (0, 1) THEN 3.0
+                    WHEN category_index IN (2, 3, 6) THEN 2.0
+                    ELSE 1.0
+                  END
+                ), 0)::double precision AS total_weight,
+                COALESCE(SUM(
+                  CASE
+                    WHEN expiration_date IS NOT NULL AND expiration_date::date < CURRENT_DATE THEN 0.0
+                    WHEN is_packed = TRUE AND quantity >= target_quantity THEN (
+                      CASE
+                        WHEN category_index IN (0, 1) THEN 3.0
+                        WHEN category_index IN (2, 3, 6) THEN 2.0
+                        ELSE 1.0
+                      END
+                    )
+                    WHEN quantity > 0 AND target_quantity > 0 THEN (
+                      CASE
+                        WHEN category_index IN (0, 1) THEN 3.0
+                        WHEN category_index IN (2, 3, 6) THEN 2.0
+                        ELSE 1.0
+                      END
+                    ) * LEAST(0.85, quantity::double precision / target_quantity::double precision)
+                    ELSE 0.0
+                  END
+                ), 0)::double precision AS ready_weight
               FROM kit_items
               WHERE deleted = FALSE
               GROUP BY household_id
@@ -891,8 +1002,12 @@ export class PostgresStore implements DataStore {
         (Number(profile.seniors) || 0);
       const itemCount = Number(row.item_count ?? 0);
       const packedCount = Number(row.packed_count ?? 0);
+      const totalWeight = Number(row.total_weight ?? 0);
+      const readyWeight = Number(row.ready_weight ?? 0);
       const readinessPct =
-        itemCount > 0 ? Number(((packedCount / itemCount) * 100).toFixed(1)) : 0;
+        totalWeight > 0
+          ? Number(((readyWeight / totalWeight) * 100).toFixed(1))
+          : 0;
       return {
         id: String(row.id),
         name: String(row.name ?? 'My Household'),
@@ -1018,6 +1133,34 @@ export class InMemoryStore implements DataStore {
     if (user) {
       user.householdId = householdId;
     }
+  }
+
+  async deleteUserAccount(
+    userId: string,
+  ): Promise<{ deleted: boolean; householdDeleted: boolean }> {
+    const user = this.users.get(userId);
+    if (!user) return { deleted: false, householdDeleted: false };
+    this.users.delete(userId);
+
+    const hhId = user.householdId;
+    let householdDeleted = false;
+    if (hhId) {
+      const hasOthers = [...this.users.values()].some(
+        (u) => u.householdId === hhId,
+      );
+      if (!hasOthers) {
+        this.households.delete(hhId);
+        this.kitByHousehold.delete(hhId);
+        this.checkinsByHousehold.delete(hhId);
+        for (const [sid, shelter] of this.shelters.entries()) {
+          if (!shelter.isOfficial && shelter.createdByHouseholdId === hhId) {
+            this.shelters.delete(sid);
+          }
+        }
+        householdDeleted = true;
+      }
+    }
+    return { deleted: true, householdDeleted };
   }
 
   async createHousehold(name: string, inviteCode: string): Promise<HouseholdRecord> {
@@ -1178,9 +1321,18 @@ export class InMemoryStore implements DataStore {
   async addShelter(
     householdId: string | null,
     shelter: EvacuationCenterRecord,
-  ): Promise<EvacuationCenterRecord> {
+  ): Promise<EvacuationCenterRecord | null> {
+    const existing = this.shelters.get(shelter.id);
+    if (
+      householdId !== null &&
+      existing &&
+      (existing.isOfficial || existing.createdByHouseholdId !== householdId)
+    ) {
+      return null;
+    }
     const saved: EvacuationCenterRecord = {
       ...shelter,
+      isOfficial: householdId === null ? Boolean(shelter.isOfficial) : false,
       createdByHouseholdId: householdId,
       updatedAt: new Date().toISOString(),
     };
@@ -1363,12 +1515,33 @@ export class InMemoryStore implements DataStore {
       .map((h) => {
         const itemsMap = this.kitByHousehold.get(h.id) ?? new Map<string, KitItemRecord>();
         const activeItems = [...itemsMap.values()].filter((i) => !i.deleted);
-        const packedCount = activeItems.filter(
-          (i) => i.isPacked || i.quantity >= i.targetQuantity,
-        ).length;
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const isExpiredItem = (i: KitItemRecord) =>
+          Boolean(i.expirationDate && new Date(i.expirationDate) < todayStart);
+        const weightOf = (cat: number) =>
+          cat === 0 || cat === 1 ? 3 : cat === 2 || cat === 3 || cat === 6 ? 2 : 1;
+
+        let totalWeight = 0;
+        let readyWeight = 0;
+        let packedCount = 0;
+        for (const i of activeItems) {
+          const w = weightOf(i.category);
+          totalWeight += w;
+          if (!isExpiredItem(i)) {
+            if (i.isPacked && i.quantity >= i.targetQuantity) {
+              readyWeight += w;
+              packedCount++;
+            } else if (i.quantity > 0 && i.targetQuantity > 0) {
+              readyWeight += w * Math.min(0.85, i.quantity / i.targetQuantity);
+            }
+          }
+        }
         const itemCount = activeItems.length;
         const readinessPct =
-          itemCount > 0 ? Number(((packedCount / itemCount) * 100).toFixed(1)) : 0;
+          totalWeight > 0
+            ? Number(((readyWeight / totalWeight) * 100).toFixed(1))
+            : 0;
         const p = h.profile;
         const memberCount = Math.max(
           1,

@@ -790,9 +790,9 @@ class HomeDashboardScreen extends StatelessWidget {
               Expanded(
                 child: _buildHeroMetricTile(
                   icon: Icons.check_circle_outline_rounded,
-                  label: isFil ? 'Handa Na' : 'Packed',
+                  label: isFil ? 'Handa' : 'Packed',
                   value: '${kit.packedItemsCount}/${kit.totalItemsCount}',
-                  sub: isFil ? 'mga gamit' : 'items ready',
+                  sub: isFil ? 'nakahanda' : 'items ready',
                   accent: const Color(0xFF38BDF8),
                   onTap: () {
                     kit.setFilterStatus(ItemFilterStatus.packed);
@@ -800,13 +800,13 @@ class HomeDashboardScreen extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _buildHeroMetricTile(
                   icon: Icons.playlist_add_outlined,
-                  label: isFil ? 'Kulang Pa' : 'To Pack',
+                  label: isFil ? 'Kulang' : 'To Pack',
                   value: '$missingCount',
-                  sub: isFil ? 'i-tap para makita' : 'tap to view',
+                  sub: isFil ? 'i-tap dito' : 'tap to view',
                   accent: const Color(0xFFFBBF24),
                   onTap: () {
                     kit.setFilterStatus(ItemFilterStatus.missing);
@@ -814,15 +814,15 @@ class HomeDashboardScreen extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: _buildHeroMetricTile(
                   icon: Icons.schedule_rounded,
                   label: isFil ? 'Palitan' : 'Expiring',
                   value: '$alertCount',
                   sub: alertCount > 0
-                      ? (isFil ? 'kailangan palitan' : 'needs review')
-                      : (isFil ? 'lahat maayos' : 'all good'),
+                      ? (isFil ? 'suriin agad' : 'needs review')
+                      : (isFil ? 'maayos' : 'all good'),
                   accent: alertCount > 0
                       ? const Color(0xFFF87171)
                       : const Color(0xFF4ADE80),
@@ -855,7 +855,7 @@ class HomeDashboardScreen extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white.withAlpha(14),
           borderRadius: BorderRadius.circular(12),
@@ -866,15 +866,15 @@ class HomeDashboardScreen extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(icon, size: 15, color: accent),
-                const SizedBox(width: 5),
+                Icon(icon, size: 14, color: accent),
+                const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       color: Colors.white70,
                       fontWeight: FontWeight.w600,
                     ),
@@ -886,7 +886,7 @@ class HomeDashboardScreen extends StatelessWidget {
             Text(
               value,
               style: const TextStyle(
-                fontSize: 18,
+                fontSize: 17.5,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,
               ),
@@ -895,7 +895,7 @@ class HomeDashboardScreen extends StatelessWidget {
               sub,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11.5, color: Colors.white60),
+              style: const TextStyle(fontSize: 11, color: Colors.white60),
             ),
           ],
         ),
@@ -931,7 +931,7 @@ class HomeDashboardScreen extends StatelessWidget {
           ? ' • ${w.rainChance6hPct}% ${isFil ? 'ulan (6h)' : 'rain (6h)'}'
           : '';
       weatherLine =
-          '$areaName • ${w.temperatureC.toStringAsFixed(0)}°C ($feels) • ${w.conditionText}$rainPart';
+          '$areaName • ${w.temperatureC.toStringAsFixed(0)}°C ($feels) • ${monitoring.localizedWeatherCondition(isFil)}$rainPart';
     } else {
       weatherLine = isFil
           ? 'I-tap para makita ang panahon, heat index, lindol, at family check-in'

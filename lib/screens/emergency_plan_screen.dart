@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
 import '../models/emergency_plan.dart';
 import '../models/evacuation_center.dart';
+import '../providers/auth_provider.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/settings_provider.dart';
 import '../utils/app_strings.dart';
@@ -114,13 +115,23 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
     );
     await emergency.saveEmergencyPlan(updated);
     if (mounted) {
+      final isSynced = context.read<AuthProvider>().isAuthenticated;
+      final isFil = context.read<SettingsProvider>().isFilipino;
       setState(() {
         _syncedPlanTimestamp = updated.lastUpdated;
         _hasUnsavedChanges = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Household Emergency Plan saved offline!'),
+        SnackBar(
+          content: Text(
+            isSynced
+                ? (isFil
+                    ? 'Nai-save at na-sync sa cloud ang Family Plan!'
+                    : 'Household Emergency Plan saved & synced to cloud!')
+                : (isFil
+                    ? 'Nai-save sa device ang Family Plan!'
+                    : 'Household Emergency Plan saved offline!'),
+          ),
           backgroundColor: AppTheme.safeGreen,
         ),
       );
@@ -200,7 +211,38 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                   '${s.address} (${s.city})',
                   style: const TextStyle(fontSize: 12.5),
                 ),
-                trailing: const Icon(Icons.add_circle_outline_rounded),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (s.isOpen
+                                ? AppTheme.safeGreen
+                                : AppTheme.mutedSlate)
+                            .withAlpha(28),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        s.isOpen
+                            ? (isFil ? 'Bukas' : 'Open')
+                            : (isFil ? 'Standby' : 'Standby'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: s.isOpen
+                              ? AppTheme.safeGreen
+                              : AppTheme.mutedSlate,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(Icons.add_circle_outline_rounded),
+                  ],
+                ),
                 onTap: () {
                   targetCtrl.text = '${s.name} — ${s.address}';
                   Navigator.pop(ctx);

@@ -163,7 +163,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
       title TEXT NOT NULL,
       message TEXT NOT NULL,
       severity TEXT NOT NULL DEFAULT 'warning' CHECK (severity IN ('info', 'warning', 'critical')),
-      area TEXT NOT NULL DEFAULT 'Metro Manila',
+      area TEXT NOT NULL DEFAULT 'City of Manila',
       author_name TEXT NOT NULL DEFAULT 'DRRM Admin',
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

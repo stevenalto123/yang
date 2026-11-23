@@ -327,6 +327,26 @@ export async function handleApiRequest(
       });
     }
 
+    if (method === 'DELETE' && path === '/auth/me') {
+      const claims = getBearerClaims(req);
+      if (!claims) return json({ error: 'Unauthorized' }, 401);
+      if (claims.role === 'admin') {
+        return json(
+          { error: 'Admin accounts cannot be self-deleted from the household menu.' },
+          403,
+        );
+      }
+
+      const result = await store.deleteUserAccount(claims.sub);
+      if (!result.deleted) {
+        return json({ error: 'Account not found.' }, 404);
+      }
+      return json({
+        deleted: true,
+        householdDeleted: result.householdDeleted,
+      });
+    }
+
     if (method === 'POST' && path === '/households/join') {
       const claims = getBearerClaims(req);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
@@ -464,16 +484,22 @@ export async function handleApiRequest(
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       if (!name) return json({ error: 'Shelter name is required.' }, 400);
 
+      const rawId =
+        typeof body.id === 'string' && body.id.trim() ? body.id.trim() : '';
+      const isAdminOfficial = claims.role === 'admin' && body.isOfficial === true;
+      const safeId = isAdminOfficial
+        ? rawId || `official_${Date.now()}`
+        : rawId.startsWith('custom_')
+          ? rawId
+          : `custom_${Date.now()}`;
+
       const shelter: EvacuationCenterRecord = {
-        id:
-          typeof body.id === 'string' && body.id.trim()
-            ? body.id.trim()
-            : `custom_${Date.now()}`,
+        id: safeId,
         name,
         address:
           typeof body.address === 'string' && body.address.trim()
             ? body.address.trim()
-            : 'Local Barangay Site',
+            : 'Local Barangay Site, City of Manila',
         city:
           typeof body.city === 'string' && body.city.trim()
             ? body.city.trim()
@@ -487,7 +513,7 @@ export async function handleApiRequest(
         contactNumber:
           typeof body.contactNumber === 'string' && body.contactNumber.trim()
             ? body.contactNumber.trim()
-            : '911',
+            : '(02) 8568-6909',
         capacityPeople:
           typeof body.capacityPeople === 'number' ? body.capacityPeople : 400,
         isOpen: typeof body.isOpen === 'boolean' ? body.isOpen : true,
@@ -495,10 +521,19 @@ export async function handleApiRequest(
           typeof body.facilities === 'string' && body.facilities.trim()
             ? body.facilities.trim()
             : 'Community Saved Evacuation Shelter',
-        isOfficial: claims.role === 'admin' && body.isOfficial === true,
+        isOfficial: isAdminOfficial,
       };
 
-      const saved = await store.addShelter(claims.householdId, shelter);
+      const saved = await store.addShelter(
+        isAdminOfficial ? null : claims.householdId,
+        shelter,
+      );
+      if (!saved) {
+        return json(
+          { error: 'Cannot overwrite an official or another household shelter.' },
+          403,
+        );
+      }
       return json({ shelter: saved }, 201);
     }
 
@@ -608,7 +643,7 @@ export async function handleApiRequest(
       const area =
         typeof body.area === 'string' && body.area.trim()
           ? body.area.trim().slice(0, 80)
-          : 'Metro Manila';
+          : 'City of Manila';
 
       const advisory = await store.createAdvisory({
         title: title.slice(0, 140),
@@ -688,7 +723,7 @@ export async function handleApiRequest(
         address:
           typeof body.address === 'string' && body.address.trim()
             ? body.address.trim()
-            : 'Metro Manila',
+            : 'City of Manila',
         city:
           typeof body.city === 'string' && body.city.trim()
             ? body.city.trim()
@@ -698,11 +733,11 @@ export async function handleApiRequest(
         contactPerson:
           typeof body.contactPerson === 'string' && body.contactPerson.trim()
             ? body.contactPerson.trim()
-            : 'City DRRMO',
+            : 'Manila DRRMO',
         contactNumber:
           typeof body.contactNumber === 'string' && body.contactNumber.trim()
             ? body.contactNumber.trim()
-            : '911',
+            : '(02) 8568-6909',
         capacityPeople:
           typeof body.capacityPeople === 'number'
             ? Math.max(0, Math.round(body.capacityPeople))
@@ -716,6 +751,9 @@ export async function handleApiRequest(
       };
 
       const saved = await store.addShelter(null, shelter);
+      if (!saved) {
+        return json({ error: 'Unable to save shelter.' }, 500);
+      }
       return json({ shelter: saved }, 201);
     }
 

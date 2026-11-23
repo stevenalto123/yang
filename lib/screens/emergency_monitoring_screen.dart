@@ -878,7 +878,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                 _buildWeatherMetric(
                   Icons.thermostat_rounded,
                   '${w.temperatureC.toStringAsFixed(0)}°C',
-                  w.conditionText,
+                  mon.localizedWeatherCondition(isFil),
                   Colors.orange.shade500,
                   headingColor,
                   subtleText,

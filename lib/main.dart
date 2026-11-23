@@ -58,6 +58,7 @@ class MainNavigationScreen extends StatefulWidget {
 }
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
+  final GlobalKey _indexedStackKey = GlobalKey();
   int _currentIndex = 0;
   bool _syncWired = false;
   bool _isOnline = true;
@@ -172,6 +173,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     ];
 
     final indexedBody = IndexedStack(
+      key: _indexedStackKey,
       index: _currentIndex,
       children: screens,
     );
@@ -226,22 +228,35 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       body: contentWithDrill,
-      floatingActionButton: FloatingActionButton.extended(
-        heroTag: 'global_sos_fab',
-        backgroundColor: AppTheme.dangerRed,
-        foregroundColor: Colors.white,
-        elevation: 3,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.emergency_rounded, size: 21),
-        label: Text(
-          s.sosButtonLabel,
-          style: const TextStyle(
-            fontSize: 14.5,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.6,
+      floatingActionButton: SizedBox(
+        width: 54,
+        height: 54,
+        child: FloatingActionButton(
+          heroTag: 'global_sos_fab',
+          tooltip: s.sosDispatchTitle,
+          backgroundColor: AppTheme.dangerRed,
+          foregroundColor: Colors.white,
+          elevation: 3,
+          shape: const CircleBorder(),
+          onPressed: () => SosSheet.show(context),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.emergency_rounded, size: 19),
+              const SizedBox(height: 1),
+              Text(
+                s.sosButtonLabel,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                  height: 1.0,
+                ),
+              ),
+            ],
           ),
         ),
-        onPressed: () => SosSheet.show(context),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

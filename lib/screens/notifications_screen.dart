@@ -135,6 +135,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -153,7 +154,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         child: Text(
                           'Push: ${_permissionStatus.toUpperCase()}',
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
                             color: _permissionStatus == 'granted'
                                 ? (isDark
@@ -256,8 +257,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   kit,
                   item,
                   isDark: isDark,
-                  badgeText:
-                      'Expired ${DateFormat('MMM dd, yyyy').format(item.expirationDate!)}',
+                  badgeText: isFil
+                      ? 'Paso na (${DateFormat('MMM dd, yyyy').format(item.expirationDate!)})'
+                      : 'Expired ${DateFormat('MMM dd, yyyy').format(item.expirationDate!)}',
                   accent: AppTheme.dangerRed,
                   textAccent: isDark ? Colors.red.shade200 : AppTheme.dangerRed,
                   actionLabel: isFil ? 'Pinalitan' : 'Mark Replaced',
@@ -288,7 +290,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   kit,
                   item,
                   isDark: isDark,
-                  badgeText: '${item.daysUntilExpiration} days remaining',
+                  badgeText: isFil
+                      ? '${item.daysUntilExpiration} araw na lang'
+                      : '${item.daysUntilExpiration} days remaining',
                   accent: AppTheme.warningAmber,
                   textAccent:
                       isDark ? Colors.amber.shade200 : AppTheme.warningAmber,
@@ -320,8 +324,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   kit,
                   item,
                   isDark: isDark,
-                  badgeText:
-                      'Have ${item.quantity} / ${item.targetQuantity} ${item.unit}',
+                  badgeText: isFil
+                      ? 'Meron: ${item.quantity} / ${item.targetQuantity} ${item.unit}'
+                      : 'Have ${item.quantity} / ${item.targetQuantity} ${item.unit}',
                   accent: Colors.orange.shade800,
                   textAccent:
                       isDark ? Colors.orange.shade200 : Colors.orange.shade800,
@@ -456,7 +461,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           SnackBar(
             backgroundColor: AppTheme.safeGreen,
             content: Text(
-              '${item.name} marked replaced (Exp: ${DateFormat('MMM dd, yyyy').format(picked)})',
+              isFil
+                  ? 'Napalitan ang ${item.name} (Exp: ${DateFormat('MMM dd, yyyy').format(picked)})'
+                  : '${item.name} marked replaced (Exp: ${DateFormat('MMM dd, yyyy').format(picked)})',
             ),
           ),
         );

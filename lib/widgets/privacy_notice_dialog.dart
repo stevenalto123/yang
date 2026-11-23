@@ -65,8 +65,8 @@ class PrivacyNoticeDialog {
               _section(
                 isFil ? '3. Iyong mga Karapatan (RA 10173)' : '3. Your Rights Under RA 10173',
                 isFil
-                    ? 'May karapatan kang malaman, tingnan, itama, o burahin ang iyong lokal na datos anumang oras gamit ang "Erase Local Data" sa Account & Cloud Sync.'
-                    : 'You retain the right to be informed, access, rectify, or erase your local personal data anytime via "Erase Local Device Data" in Account & Cloud Sync, or use Guest Offline Mode without creating an account.',
+                    ? 'May karapatan kang malaman, tingnan, itama, o burahin ang iyong lokal o cloud na datos anumang oras gamit ang "Erase Local Data" o "Delete Cloud Account" sa Family Backup & Sync.'
+                    : 'You retain the right to be informed, access, rectify, or permanently erase both your local device data and cloud account anytime via "Erase Local Data" or "Delete Cloud Account" in Family Backup & Sync, or use Guest Offline Mode without creating an account.',
               ),
             ],
           ),

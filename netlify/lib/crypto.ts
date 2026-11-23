@@ -80,6 +80,15 @@ export function verifyJwt(token: string, secret: string): JwtClaims | null {
   if (!headerPart || !payloadPart || !sigPart) return null;
 
   const signingInput = `${headerPart}.${payloadPart}`;
+  try {
+    const header = JSON.parse(base64UrlDecode(headerPart).toString('utf8')) as {
+      alg?: string;
+    };
+    if (header.alg !== 'HS256') return null;
+  } catch {
+    return null;
+  }
+
   const expectedSig = createHmac('sha256', secret).update(signingInput).digest();
   let providedSig: Buffer;
   try {

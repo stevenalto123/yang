@@ -97,11 +97,12 @@ class _SurvivalToolsScreenState extends State<SurvivalToolsScreen> {
   @override
   Widget build(BuildContext context) {
     final isFil = context.watch<SettingsProvider>().isFilipino;
-    final isBrightScreen = _steadyLightOn || (_strobeOn && _strobeLit);
+    final isFullScreenLight = _steadyLightOn || _strobeOn;
+    final isLit = _steadyLightOn || (_strobeOn && _strobeLit);
 
-    if (isBrightScreen) {
+    if (isFullScreenLight) {
       return Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: isLit ? Colors.white : Colors.black,
         body: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
@@ -119,15 +120,20 @@ class _SurvivalToolsScreenState extends State<SurvivalToolsScreen> {
                 Icon(
                   _strobeOn ? Icons.sos_rounded : Icons.flashlight_on_rounded,
                   size: 64,
-                  color: Colors.black26,
+                  color: isLit ? Colors.black26 : Colors.white24,
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  isFil
-                      ? 'I-tap kahit saan para patayin ang ilaw'
-                      : 'Tap anywhere to turn off screen light',
-                  style: const TextStyle(
-                    color: Colors.black45,
+                  _strobeOn
+                      ? (isFil
+                          ? 'SOS Strobe Aktibo • I-tap kahit saan para ihinto'
+                          : 'SOS Morse Strobe Active • Tap anywhere to stop')
+                      : (isFil
+                          ? 'I-tap kahit saan para patayin ang ilaw'
+                          : 'Tap anywhere to turn off screen light'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: isLit ? Colors.black45 : Colors.white54,
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                   ),

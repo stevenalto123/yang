@@ -1519,6 +1519,7 @@ class _KitManagementScreenState extends State<KitManagementScreen> {
   }
 
   void _showResetDialog(BuildContext context, KitProvider kit, bool isFil) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1552,7 +1553,7 @@ class _KitManagementScreenState extends State<KitManagementScreen> {
               onPressed: () {
                 kit.loadDemoSampleKit();
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger?.showSnackBar(
                   SnackBar(
                     backgroundColor: AppTheme.primaryNavy,
                     content: Text(
@@ -1581,7 +1582,7 @@ class _KitManagementScreenState extends State<KitManagementScreen> {
               onPressed: () {
                 kit.resetToDefault();
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
+                messenger?.showSnackBar(
                   SnackBar(
                     content: Text(
                       isFil

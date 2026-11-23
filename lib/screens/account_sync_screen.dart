@@ -53,8 +53,18 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   }
 
   Future<void> _submitAuth(AuthProvider auth) async {
-    if (_emailCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    if (email.isEmpty || password.isEmpty) {
       _showSnack('Please enter your email and password.', isError: true);
+      return;
+    }
+    if (!email.contains('@') || !email.contains('.')) {
+      _showSnack('Please enter a valid email address.', isError: true);
+      return;
+    }
+    if (_isRegisterMode && password.length < 6) {
+      _showSnack('Password must be at least 6 characters.', isError: true);
       return;
     }
     if (_isRegisterMode && !_acceptedPrivacy) {
@@ -373,7 +383,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
             if (auth.isAdmin) ...[
               const SizedBox(height: 12),
               Text(
-                'Signed in as an authorized DRRM Administrator. Manage official Metro Manila shelters, monitor family check-ins, and export ISO/IEC 25010 surveys.',
+                'Signed in as an authorized DRRM Administrator. Manage official City of Manila shelters, monitor family check-ins, and export ISO/IEC 25010 surveys.',
                 style: TextStyle(fontSize: 13.5, color: subtleText, height: 1.4),
               ),
               const SizedBox(height: 14),
@@ -519,8 +529,8 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   ),
                   label: Text(
                     isFil
-                        ? 'Mag-sign Out (Mananatili ang Offline Data)'
-                        : 'Sign Out (Keep Offline Data on Device)',
+                        ? 'Mag-sign Out (Ligtas ang Data sa Cloud)'
+                        : 'Sign Out (Cloud Backup Stays Safe)',
                     style: const TextStyle(color: AppTheme.dangerRed),
                   ),
                   onPressed: () => auth.logout(),
@@ -786,17 +796,90 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                     ),
                     icon: const Icon(Icons.delete_outline_rounded, size: 18),
                     label: Text(
-                      isFil ? 'Burahin Datos' : 'Erase Local Data',
+                      isFil ? 'Burahin Lokal' : 'Erase Local Data',
                     ),
                     onPressed: () => _confirmEraseLocalData(auth, isFil),
                   ),
                 ),
               ],
             ),
+            if (auth.isAuthenticated && !auth.isAdmin) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.dangerRed,
+                    side: BorderSide(
+                      color: AppTheme.dangerRed.withAlpha(160),
+                    ),
+                  ),
+                  icon: const Icon(Icons.person_remove_outlined, size: 18),
+                  label: Text(
+                    isFil
+                        ? 'Burahin ang Cloud Account (RA 10173)'
+                        : 'Delete Cloud Account & Data (RA 10173)',
+                  ),
+                  onPressed: () => _confirmDeleteCloudAccount(auth, isFil),
+                ),
+              ),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteCloudAccount(
+    AuthProvider auth,
+    bool isFil,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          isFil
+              ? 'Burahin ang Cloud Account?'
+              : 'Delete Cloud Account Permanently?',
+        ),
+        content: Text(
+          isFil
+              ? 'Permanenteng buburahin ang iyong account sa cloud alinsunod sa RA 10173 (Right to Erasure). Kung ikaw lang ang miyembro ng sambahayan, mabubura rin ang naka-save na Go-Bag, plano, at check-ins sa cloud.'
+              : 'This permanently deletes your account from Supabase under RA 10173 (Right to Erasure). If you are the only member of your household, all cloud Go-Bag items, plans, and check-ins will also be permanently erased.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(isFil ? 'Kanselahin' : 'Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.dangerRed,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(isFil ? 'Burahin Account' : 'Delete Permanently'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final res = await auth.deleteCloudAccount();
+      if (!mounted) return;
+      if (res.ok) {
+        _showSnack(
+          isFil
+              ? 'Permanenteng nabura na ang iyong cloud account.'
+              : 'Your cloud account has been permanently deleted.',
+        );
+      } else {
+        _showSnack(
+          res.error ?? 'Failed to delete cloud account.',
+          isError: true,
+        );
+      }
+    }
   }
 
   Future<void> _confirmEraseLocalData(AuthProvider auth, bool isFil) async {

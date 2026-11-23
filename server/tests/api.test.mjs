@@ -91,7 +91,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
           unit: 'gallons',
           expirationDate: '2027-05-01T00:00:00.000Z',
           isPacked: true,
-          notes: 'Metro Manila supply',
+          notes: 'City of Manila supply',
           lastUpdated: newerTs,
         },
       ],
@@ -128,7 +128,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
     method: 'PUT',
     token: reg1.json.token,
     body: {
-      householdName: 'Dela Cruz Metro Manila Household',
+      householdName: 'Dela Cruz City of Manila Household',
       primaryMeetingPoint: 'Rizal Memorial Sports Complex',
     },
   });
@@ -419,4 +419,97 @@ test('admin overview, official shelter publish/delete, and strict RBAC', async (
   );
   assert.equal(deleted.status, 200);
   assert.equal(deleted.json.deleted, true);
+});
+
+test('BOLA shelter protection, RA 10173 cloud account deletion, and weighted admin readiness', async () => {
+  const store = new InMemoryStore();
+
+  const user = await callApi(store, '/auth/register', {
+    method: 'POST',
+    body: {
+      email: 'privacy.test@manila.ph',
+      password: 'password123',
+      fullName: 'Manila Household',
+      householdName: 'Sampaloc Family',
+    },
+  });
+  assert.equal(user.status, 201);
+
+  // 1. Regular user trying to overwrite an official shelter ID cannot alter the official record
+  const hijackAttempt = await callApi(store, '/shelters', {
+    method: 'POST',
+    token: user.json.token,
+    body: {
+      id: 'manila_rizal_memorial',
+      name: 'Fake Overwrite Attempt',
+      isOfficial: true,
+      isOpen: false,
+    },
+  });
+  assert.equal(hijackAttempt.status, 201);
+  assert.notEqual(hijackAttempt.json.shelter.id, 'manila_rizal_memorial');
+  assert.equal(hijackAttempt.json.shelter.isOfficial, false);
+
+  const sheltersAfter = await callApi(store, '/shelters');
+  const officialRizal = sheltersAfter.json.shelters.find(
+    (s) => s.id === 'manila_rizal_memorial',
+  );
+  assert.ok(officialRizal);
+  assert.equal(officialRizal.isOpen, true);
+  assert.ok(officialRizal.name.includes('Rizal Memorial'));
+
+  // 2. Weighted readiness in Admin Overview matches Flutter formula (Water 3x vs Clothing 1x)
+  await callApi(store, '/kit', {
+    method: 'PUT',
+    token: user.json.token,
+    body: {
+      items: [
+        {
+          id: 'water_bottles',
+          name: 'Drinking Water',
+          category: 0, // weight 3
+          quantity: 6,
+          targetQuantity: 6,
+          unit: 'gallons',
+          expirationDate: null,
+          isPacked: true,
+          notes: '',
+          lastUpdated: new Date().toISOString(),
+        },
+        {
+          id: 'extra_clothes',
+          name: 'Extra Clothes',
+          category: 5, // weight 1
+          quantity: 0,
+          targetQuantity: 2,
+          unit: 'sets',
+          expirationDate: null,
+          isPacked: false,
+          notes: '',
+          lastUpdated: new Date().toISOString(),
+        },
+      ],
+    },
+  });
+
+  const overview = await callApi(store, '/admin/overview', {
+    headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
+  });
+  assert.equal(overview.status, 200);
+  // 3 / (3 + 1) = 75.0% weighted (not 50% unweighted)
+  assert.equal(overview.json.households[0].readinessPct, 75);
+
+  // 3. RA 10173 Right to Erasure: DELETE /auth/me removes user + orphaned household
+  const delRes = await callApi(store, '/auth/me', {
+    method: 'DELETE',
+    token: user.json.token,
+  });
+  assert.equal(delRes.status, 200);
+  assert.equal(delRes.json.deleted, true);
+  assert.equal(delRes.json.householdDeleted, true);
+
+  const meAfterDelete = await callApi(store, '/auth/me', {
+    token: user.json.token,
+  });
+  assert.equal(meAfterDelete.status, 401);
 });

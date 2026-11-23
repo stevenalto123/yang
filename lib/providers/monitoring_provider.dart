@@ -624,6 +624,21 @@ class MonitoringProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  String localizedWeatherCondition(bool isFil) {
+    final w = _weather;
+    if (w == null) return isFil ? 'Walang Datos' : 'No Data';
+    if (!isFil) return w.conditionText;
+    final code = w.weatherCode;
+    if (code == 0) return 'Maaliwalas ang Panahon';
+    if (code <= 3) return 'Bahagyang Maulap';
+    if (code <= 48) return 'Maulap / May Hamog';
+    if (code <= 57) return 'Mahinang Ambon';
+    if (code <= 67) return 'Katamtaman hanggang Malakas na Ulan';
+    if (code <= 82) return 'Malakas na Pag-ulan';
+    if (code >= 95) return 'Bagyo / Pagkidlat at Kulog';
+    return 'Aktibong Panahon';
+  }
+
   String _decodeWmoWeather(int code) {
     if (code == 0) return 'Clear Sky';
     if (code <= 3) return 'Partly Cloudy / Overcast';
