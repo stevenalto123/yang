@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import '../data/evacuation_centers_data.dart';
 import '../models/evacuation_center.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/settings_provider.dart';
@@ -276,7 +277,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                   ),
                   const SizedBox(height: 8),
 
-                  // City Filter Row
+                  // City Filter Row (All 17 Metro Manila LGUs)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -285,13 +286,14 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         return Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: ChoiceChip(
+                            showCheckmark: false,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
+                              horizontal: 10,
                               vertical: 4,
                             ),
                             label: Text(
                               city == 'All'
-                                  ? (isFil ? 'Lahat ng Lungsod' : 'All Cities')
+                                  ? (isFil ? 'Lahat ng Lungsod (17)' : 'All Metro Manila (17)')
                                   : city,
                             ),
                             selected: isSelected,
@@ -318,11 +320,39 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                               fontSize: 13,
                             ),
                             onSelected: (_) {
+                              setState(() => _selectedCenter = null);
                               emergency.setSelectedCity(city);
-                              if (city == 'Quezon City') {
-                                _safeMove(const LatLng(14.6301, 121.0267), 13.5);
+                              if (city == 'All') {
+                                _safeMove(
+                                  emergency.hasLiveGps
+                                      ? LatLng(
+                                          emergency.userLat,
+                                          emergency.userLng,
+                                        )
+                                      : _metroManilaCenter,
+                                  12.0,
+                                );
                               } else {
-                                _safeMove(_metroManilaCenter, 13.0);
+                                final coords = metroManilaCityCoords[city];
+                                if (coords != null) {
+                                  _safeMove(
+                                    LatLng(coords.lat, coords.lng),
+                                    13.8,
+                                  );
+                                } else {
+                                  final firstMatch = emergency
+                                      .filteredEvacuationCenters
+                                      .firstOrNull;
+                                  if (firstMatch != null) {
+                                    _safeMove(
+                                      LatLng(
+                                        firstMatch.latitude,
+                                        firstMatch.longitude,
+                                      ),
+                                      13.8,
+                                    );
+                                  }
+                                }
                               }
                             },
                           ),
@@ -1091,6 +1121,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     required VoidCallback onTap,
   }) {
     return ChoiceChip(
+      showCheckmark: false,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       avatar: Icon(
         icon,
@@ -1530,7 +1561,32 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: metroManilaCityCoords.entries.map((entry) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: ActionChip(
+                              visualDensity: VisualDensity.compact,
+                              label: Text(
+                                entry.key,
+                                style: const TextStyle(fontSize: 11.5),
+                              ),
+                              onPressed: () {
+                                cityCtrl.text = entry.key;
+                                setPin(
+                                  LatLng(entry.value.lat, entry.value.lng),
+                                  zoom: 13.8,
+                                );
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
                     Row(
                       children: [
                         Expanded(

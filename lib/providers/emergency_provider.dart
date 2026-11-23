@@ -66,8 +66,13 @@ class EmergencyProvider extends ChangeNotifier {
       [..._customCenters, ..._defaultCenters];
 
   List<String> get availableCities {
-    final cities = allEvacuationCenters.map((e) => e.city).toSet().toList();
-    return ['All', ...cities];
+    final canonical = metroManilaCityCoords.keys.toList();
+    final extra = allEvacuationCenters
+        .map((e) => e.city)
+        .where((c) => c.trim().isNotEmpty && !canonical.contains(c))
+        .toSet()
+        .toList();
+    return ['All', ...canonical, ...extra];
   }
 
   /// Returns facilities sorted by nearest Haversine distance from current GPS
@@ -302,7 +307,23 @@ class EmergencyProvider extends ChangeNotifier {
       final mergedDefaults = {for (final c in _defaultCenters) c.id: c};
       for (final c in officialList) {
         if (c.id == 'eac_campus_reference') continue;
-        mergedDefaults[c.id] = c;
+        final existing = mergedDefaults[c.id];
+        mergedDefaults[c.id] = existing != null
+            ? EvacuationCenter(
+                id: c.id,
+                name: c.name,
+                address: c.address,
+                city: c.city,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                contactPerson: c.contactPerson,
+                contactNumber: c.contactNumber,
+                capacityPeople: c.capacityPeople,
+                isOpen: c.isOpen,
+                facilities: c.facilities,
+                facilityType: existing.facilityType,
+              )
+            : c;
       }
       mergedDefaults.remove('eac_campus_reference');
       _defaultCenters = mergedDefaults.values.toList();

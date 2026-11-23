@@ -181,5 +181,149 @@ INSERT INTO evacuation_centers (
     14.6301, 121.0267,
     'Quezon City Helpline (QCDRRMO)', '122', 3500, TRUE,
     'Major QC Emergency Assembly Ground & Relief Hub', TRUE
+  ),
+  (
+    'qc_memorial_circle',
+    'Quezon Memorial Circle Open Assembly Grounds',
+    'Elliptical Rd., Diliman, Quezon City',
+    'Quezon City',
+    14.6514, 121.0493,
+    'QCDRRMO Emergency Operations Center', '122', 5000, TRUE,
+    'Earthquake Open-Air Assembly Zone, Field Triage & Relief Staging', TRUE
+  ),
+  (
+    'marikina_sports_center',
+    'Marikina Sports Center (Main Flood & Quake Shelter)',
+    'Sumulong Hwy cor. Shoe Ave., Sto. Niño, Marikina',
+    'Marikina',
+    14.6353, 121.0977,
+    'Marikina Rescue 161 Command Center', '161', 4000, TRUE,
+    '24/7 Flood Evacuation Complex, Medical Triage, Community Kitchen', TRUE
+  ),
+  (
+    'pasig_sports_center',
+    'Pasig City Sports Center Evacuation Hub',
+    'Caruncho Ave., Brgy. San Nicolas, Pasig',
+    'Pasig',
+    14.5605, 121.0764,
+    'Pasig City DRRMO Emergency Command', '(02) 8643-0000', 2500, TRUE,
+    'Central Indoor Evacuation Arena, Relief Goods & Medical Desk', TRUE
+  ),
+  (
+    'makati_coliseum',
+    'Makati Coliseum Evacuation & Relief Center',
+    'Mascardo St., Brgy. Singkamas, Makati',
+    'Makati',
+    14.5692, 121.0152,
+    'Makati DRRMO Search & Rescue', '168', 2200, TRUE,
+    'Indoor Arena, Emergency Medical Station, Relief Operations', TRUE
+  ),
+  (
+    'taguig_lakeshore_hall',
+    'Taguig Lakeshore Mega Evacuation Center',
+    'C-6 Road, Lower Bicutan, Taguig',
+    'Taguig',
+    14.5021, 121.0645,
+    'Taguig CDRRMO Rescue', '(02) 8789-3200', 2500, TRUE,
+    'Multi-Purpose Evacuation Complex, Family Cubicles & Medical Post', TRUE
+  ),
+  (
+    'pasay_cuneta_astrodome',
+    'Cuneta Astrodome Official Evacuation Center',
+    'Roxas Blvd. cor. Derham St., Pasay',
+    'Pasay',
+    14.5425, 120.9912,
+    'Pasay CDRRMO Operations Center', '(02) 8551-7777', 3000, TRUE,
+    'Large Covered Arena, Coastal Storm Surge & Fire Evacuation Hub', TRUE
+  ),
+  (
+    'caloocan_sports_complex',
+    'Caloocan Sports Complex Evacuation Center',
+    'Bagumbong Rd., North Caloocan',
+    'Caloocan',
+    14.7566, 121.0315,
+    'Caloocan DRRMO Command Center', '(02) 5310-7536', 2800, TRUE,
+    'Indoor Sports Arena, Emergency Shelter & Relief Staging', TRUE
+  ),
+  (
+    'mandaluyong_city_gym',
+    'Mandaluyong City Gymnasium Evacuation Hub',
+    'Maysilo Circle, Plainview, Mandaluyong',
+    'Mandaluyong',
+    14.5777, 121.0338,
+    'Mandaluyong CDRRMO Hotline', '(02) 8533-2225', 1500, TRUE,
+    'City Hall Complex Gymnasium, First-Aid & Relief Hub', TRUE
+  ),
+  (
+    'paranaque_sports_complex',
+    'Parañaque City Sports Complex Evacuation Center',
+    'Dr. A. Santos Ave. (Sucat Rd.), San Antonio, Parañaque',
+    'Parañaque',
+    14.4694, 121.0185,
+    'Parañaque DRRMO Operations', '(02) 8820-7783', 2000, TRUE,
+    'Covered Gymnasium, Medical Triage & Emergency Relief Center', TRUE
+  ),
+  (
+    'muntinlupa_sports_center',
+    'Muntinlupa Sports Center Evacuation Facility',
+    'Civic Drive / Tunasan, Muntinlupa',
+    'Muntinlupa',
+    14.3792, 121.0475,
+    'Muntinlupa DDRM Command Center', '137-175', 2200, TRUE,
+    'Multi-Purpose Arena, Laguna Lake Flood Evacuation & Relief Hub', TRUE
+  ),
+  (
+    'valenzuela_wes_arena',
+    'Valenzuela City WES Arena Evacuation Center',
+    'Punturin Rd., Brgy. Punturin, Valenzuela',
+    'Valenzuela',
+    14.7161, 120.9854,
+    'Valenzuela CDRRMO Alert Center', '(02) 8352-5000', 2000, TRUE,
+    'Modern Indoor Arena, Flood Evacuation & Emergency Medical Post', TRUE
+  ),
+  (
+    'las_pinas_verdant_court',
+    'Las Piñas City Disaster Evacuation Center',
+    'Alabang-Zapote Rd., Pamplona Tres, Las Piñas',
+    'Las Piñas',
+    14.4506, 120.9828,
+    'Las Piñas CDRRMO Hotline', '(02) 8290-6500', 1500, TRUE,
+    'Covered Evacuation Facility, Relief Distribution & First-Aid', TRUE
+  ),
+  (
+    'malabon_oreta_sports',
+    'Malabon City Oreta Sports Complex Shelter',
+    'C-4 Rd., Brgy. Longos, Malabon',
+    'Malabon',
+    14.6562, 120.9585,
+    'Malabon MDRRMO Command Center', '(02) 8921-6009', 1800, TRUE,
+    'High-Ground Flood & Tidal Surge Evacuation Arena', TRUE
+  ),
+  (
+    'navotas_sports_complex',
+    'Navotas City Sports Complex & Coastal Shelter',
+    'M. Naval St., Brgy. Sipac-Almacen, Navotas',
+    'Navotas',
+    14.6667, 120.9469,
+    'Navotas CDRRMO Hotline', '(02) 8281-1111', 1600, TRUE,
+    'Coastal Storm Surge Evacuation Complex & Relief Center', TRUE
+  ),
+  (
+    'san_juan_gym_shelter',
+    'San Juan City Gymnasium Evacuation Center',
+    'Pinaglabanan St., Corazon de Jesus, San Juan',
+    'San Juan',
+    14.6042, 121.0332,
+    'San Juan CDRRMO Operations', '(02) 7729-0005', 1500, TRUE,
+    'Indoor Evacuation Gym, Pinaglabanan Shrine Open Assembly Grounds', TRUE
+  ),
+  (
+    'pateros_municipal_court',
+    'Pateros Municipal Covered Court & Evacuation Hub',
+    'G. de Borja St., Brgy. Aguho, Pateros',
+    'Pateros',
+    14.5446, 121.0667,
+    'Pateros MDRRMO Rescue', '(02) 8642-5159', 900, TRUE,
+    'Municipal Covered Court, Community Kitchen & First-Aid Station', TRUE
   )
 ON CONFLICT (id) DO NOTHING;

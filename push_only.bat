@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Scope system strictly to Metro Manila and remove all EAC references"
+git commit -m "Expand official shelters, map auto-centering, and hotlines across all 17 Metro Manila LGUs"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master
