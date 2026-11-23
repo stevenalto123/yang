@@ -916,17 +916,36 @@ async function fetchUpstreamTelemetry(
   let earthquakes: Array<Record<string, unknown>> = [];
 
   try {
-    const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,precipitation,wind_speed_10m,weather_code&timezone=Asia%2FManila`;
+    const wUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,wind_speed_10m,weather_code&hourly=precipitation_probability,precipitation&forecast_hours=6&timezone=Asia%2FManila`;
     const resp = await fetch(wUrl, { signal: AbortSignal.timeout(6000) });
     if (resp.ok) {
-      const data = (await resp.json()) as { current?: Record<string, unknown> };
+      const data = (await resp.json()) as {
+        current?: Record<string, unknown>;
+        hourly?: {
+          precipitation_probability?: number[];
+          precipitation?: number[];
+        };
+      };
       const cur = data.current;
       if (cur) {
         const code = Number(cur.weather_code ?? 0);
+        const tempC = Number(cur.temperature_2m ?? 29);
+        const probs = Array.isArray(data.hourly?.precipitation_probability)
+          ? data.hourly!.precipitation_probability!.map((n) => Number(n ?? 0))
+          : [];
+        const rainVals = Array.isArray(data.hourly?.precipitation)
+          ? data.hourly!.precipitation!.map((n) => Number(n ?? 0))
+          : [];
+        const maxRainChance = probs.length > 0 ? Math.max(...probs) : 0;
+        const rainSum6h = rainVals.reduce((acc, v) => acc + v, 0);
         weather = {
-          temperatureC: Number(cur.temperature_2m ?? 29),
+          temperatureC: tempC,
+          apparentTemperatureC: Number(cur.apparent_temperature ?? tempC),
+          humidityPct: Math.round(Number(cur.relative_humidity_2m ?? 70)),
           windSpeedKmh: Number(cur.wind_speed_10m ?? 10),
           precipitationMm: Number(cur.precipitation ?? 0),
+          rainChance6hPct: Math.round(maxRainChance),
+          rainExpected6hMm: Number(rainSum6h.toFixed(1)),
           weatherCode: code,
           conditionText: decodeWmoWeather(code),
         };
@@ -937,10 +956,15 @@ async function fetchUpstreamTelemetry(
   }
 
   try {
-    const qUrl =
+    // Prioritize Luzon / City of Manila bounding box first; fall back to full PH if empty
+    const luzonUrl =
+      'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=11.5&maxlatitude=18.8&minlongitude=118.5&maxlongitude=124.5&limit=6&orderby=time';
+    const phUrl =
       'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4.5&maxlatitude=21.5&minlongitude=116.0&maxlongitude=127.0&limit=5&orderby=time';
-    const resp = await fetch(qUrl, { signal: AbortSignal.timeout(6000) });
-    if (resp.ok) {
+
+    const fetchQuakes = async (url: string) => {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(6000) });
+      if (!resp.ok) return [];
       const data = (await resp.json()) as {
         features?: Array<{
           id?: string;
@@ -948,9 +972,9 @@ async function fetchUpstreamTelemetry(
           geometry?: { coordinates?: number[] };
         }>;
       };
-      earthquakes = (data.features ?? []).map((f) => {
+      return (data.features ?? []).map((f) => {
         const props = f.properties ?? {};
-        const coords = f.geometry?.coordinates ?? [0, 0, 10];
+        const coords = f.geometry?.coordinates ?? [120.9882, 14.5822, 10];
         const ms = Number(props.time ?? Date.now());
         return {
           id: String(f.id ?? ''),
@@ -958,8 +982,15 @@ async function fetchUpstreamTelemetry(
           place: String(props.place ?? 'Philippines'),
           time: new Date(ms).toISOString(),
           depthKm: Number(coords[2] ?? 10),
+          longitude: typeof coords[0] === 'number' ? coords[0] : null,
+          latitude: typeof coords[1] === 'number' ? coords[1] : null,
         };
       });
+    };
+
+    earthquakes = await fetchQuakes(luzonUrl);
+    if (earthquakes.length === 0) {
+      earthquakes = await fetchQuakes(phUrl);
     }
   } catch {
     // Graceful upstream seismic fallback

@@ -882,7 +882,7 @@ class HomeDashboardScreen extends StatelessWidget {
 
     final areaName = emergency.hasLiveGps
         ? (isFil ? 'Iyong Lokasyon' : 'Your Area')
-        : 'Metro Manila';
+        : (isFil ? 'Lungsod ng Maynila' : 'City of Manila');
 
     final weatherLine = monitoring.weather != null
         ? '$areaName • ${monitoring.weather!.temperatureC.toStringAsFixed(0)}°C • ${monitoring.weather!.conditionText}'

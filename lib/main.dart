@@ -159,7 +159,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final List<Widget> screens = [
       HomeDashboardScreen(onNavigateTab: _onNavigateTab),
       const KitManagementScreen(),
-      const EmergencyMonitoringScreen(),
+      EmergencyMonitoringScreen(
+        onOpenNearbyShelters: () => _onNavigateTab(3),
+      ),
       const EvacuationMapScreen(),
       const SafetyHubScreen(),
     ];

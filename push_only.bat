@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Scope system strictly to City of Manila districts, shelters, hospitals, and hotlines"
+git commit -m "Upgrade Alerts page for City of Manila (Heat Index, 6h rain, flood hotspots, quake distance, DRRM assisted badge)"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

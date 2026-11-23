@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/disaster_protocol.dart';
+import '../utils/location_service.dart';
 
 class SeismicEvent {
   final String id;
@@ -10,6 +11,8 @@ class SeismicEvent {
   final String place;
   final DateTime time;
   final double depthKm;
+  final double? latitude;
+  final double? longitude;
 
   const SeismicEvent({
     required this.id,
@@ -17,7 +20,20 @@ class SeismicEvent {
     required this.place,
     required this.time,
     required this.depthKm,
+    this.latitude,
+    this.longitude,
   });
+
+  double? distanceFromManilaKm() {
+    if (latitude == null || longitude == null) return null;
+    return LocationService.distanceInKm(14.5822, 120.9882, latitude!, longitude!);
+  }
+
+  String? bearingFromManila() {
+    if (latitude == null || longitude == null) return null;
+    return LocationService.bearingTo(14.5822, 120.9882, latitude!, longitude!)
+        .cardinal;
+  }
 
   Map<String, dynamic> toMap() => {
         'id': id,
@@ -25,6 +41,8 @@ class SeismicEvent {
         'place': place,
         'time': time.toIso8601String(),
         'depthKm': depthKm,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
       };
 
   factory SeismicEvent.fromMap(Map<String, dynamic> map) {
@@ -34,38 +52,58 @@ class SeismicEvent {
       place: map['place'] ?? 'Philippines Region',
       time: DateTime.tryParse(map['time'] ?? '') ?? DateTime.now(),
       depthKm: (map['depthKm'] ?? 10).toDouble(),
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
     );
   }
 }
 
 class WeatherSnapshot {
   final double temperatureC;
+  final double apparentTemperatureC;
+  final int humidityPct;
   final double windSpeedKmh;
   final double precipitationMm;
+  final int rainChance6hPct;
+  final double rainExpected6hMm;
   final int weatherCode;
   final String conditionText;
 
   const WeatherSnapshot({
     required this.temperatureC,
+    double? apparentTemperatureC,
+    this.humidityPct = 70,
     required this.windSpeedKmh,
     required this.precipitationMm,
+    this.rainChance6hPct = 0,
+    this.rainExpected6hMm = 0.0,
     required this.weatherCode,
     required this.conditionText,
-  });
+  }) : apparentTemperatureC = apparentTemperatureC ?? temperatureC;
 
   Map<String, dynamic> toMap() => {
         'temperatureC': temperatureC,
+        'apparentTemperatureC': apparentTemperatureC,
+        'humidityPct': humidityPct,
         'windSpeedKmh': windSpeedKmh,
         'precipitationMm': precipitationMm,
+        'rainChance6hPct': rainChance6hPct,
+        'rainExpected6hMm': rainExpected6hMm,
         'weatherCode': weatherCode,
         'conditionText': conditionText,
       };
 
   factory WeatherSnapshot.fromMap(Map<String, dynamic> map) {
+    final temp = (map['temperatureC'] ?? 30).toDouble();
     return WeatherSnapshot(
-      temperatureC: (map['temperatureC'] ?? 30).toDouble(),
+      temperatureC: temp,
+      apparentTemperatureC:
+          (map['apparentTemperatureC'] as num?)?.toDouble() ?? temp,
+      humidityPct: (map['humidityPct'] as num?)?.round() ?? 70,
       windSpeedKmh: (map['windSpeedKmh'] ?? 12).toDouble(),
       precipitationMm: (map['precipitationMm'] ?? 0).toDouble(),
+      rainChance6hPct: (map['rainChance6hPct'] as num?)?.round() ?? 0,
+      rainExpected6hMm: (map['rainExpected6hMm'] as num?)?.toDouble() ?? 0.0,
       weatherCode: map['weatherCode'] ?? 0,
       conditionText: map['conditionText'] ?? 'Partly Cloudy',
     );
@@ -142,7 +180,7 @@ class DrrmAdvisory {
       title: (map['title'] ?? 'DRRM Advisory').toString(),
       message: (map['message'] ?? '').toString(),
       severity: (map['severity'] ?? 'warning').toString().toLowerCase(),
-      area: (map['area'] ?? 'Metro Manila').toString(),
+      area: (map['area'] ?? 'City of Manila').toString(),
       authorName: (map['authorName'] ?? 'DRRM Admin').toString(),
       createdAt: DateTime.tryParse((map['createdAt'] ?? '').toString()) ??
           DateTime.now(),
@@ -183,16 +221,43 @@ class MonitoringProvider extends ChangeNotifier {
   DrillAlertMode get drillMode => _drillMode;
   List<Map<String, String>> get safetyLog => List.unmodifiable(_safetyLog);
 
+  bool _hasSignificantManilaQuake() {
+    return _earthquakes.any((q) {
+      final dist = q.distanceFromManilaKm();
+      if (dist != null) {
+        return (q.magnitude >= 5.5 && dist <= 350) || q.magnitude >= 6.5;
+      }
+      return q.magnitude >= 5.8;
+    });
+  }
+
+  bool get isHeatDanger =>
+      _weather != null && _weather!.apparentTemperatureC >= 42.0;
+
+  bool get isFloodRiskElevated {
+    if (_drillMode == DrillAlertMode.floodRedWarning ||
+        _drillMode == DrillAlertMode.typhoonSignal3) {
+      return true;
+    }
+    if (_weather == null) return false;
+    return _weather!.precipitationMm >= 5.0 ||
+        _weather!.rainExpected6hMm >= 15.0 ||
+        _weather!.rainChance6hPct >= 75;
+  }
+
   bool get isHazardActive {
     if (_drillMode != DrillAlertMode.liveNormal) return true;
-    if (_advisories.any((a) => a.severity == 'critical' || a.severity == 'warning')) {
+    if (_advisories
+        .any((a) => a.severity == 'critical' || a.severity == 'warning')) {
       return true;
     }
     if (_weather != null &&
-        (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
+        (_weather!.windSpeedKmh >= 60 ||
+            _weather!.precipitationMm >= 15 ||
+            _weather!.apparentTemperatureC >= 42)) {
       return true;
     }
-    if (_earthquakes.any((q) => q.magnitude >= 5.5)) return true;
+    if (_hasSignificantManilaQuake()) return true;
     return false;
   }
 
@@ -207,17 +272,28 @@ class MonitoringProvider extends ChangeNotifier {
       return isFil ? 'Practice: Red Flood Warning' : 'Practice: Red Flood Warning';
     }
     if (_advisories.any((a) => a.severity == 'critical')) {
-      return isFil ? 'Opisyal na Kritikal na Abiso (DRRM)' : 'Official Critical DRRM Advisory';
+      return isFil
+          ? 'Opisyal na Kritikal na Abiso (Manila DRRMO)'
+          : 'Official Critical DRRM Advisory';
     }
     if (_advisories.any((a) => a.severity == 'warning')) {
-      return isFil ? 'Opisyal na Babala (DRRM)' : 'Official DRRM Warning';
+      return isFil
+          ? 'Opisyal na Babala (Manila DRRMO)'
+          : 'Official Manila DRRMO Warning';
     }
     if (_weather != null &&
         (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
-      return isFil ? 'Babala sa Masamang Panahon' : 'Weather Advisory';
+      return isFil ? 'Babala sa Masamang Panahon' : 'Heavy Weather Advisory';
     }
-    if (_earthquakes.any((q) => q.magnitude >= 5.5)) {
-      return isFil ? 'Malakas na Lindol Naitala' : 'Recent Strong Earthquake';
+    if (isHeatDanger) {
+      return isFil
+          ? 'Babala sa Matinding Init (Heat Index)'
+          : 'PAGASA Danger Heat Index Advisory';
+    }
+    if (_hasSignificantManilaQuake()) {
+      return isFil
+          ? 'Malakas na Lindol Malapit sa Maynila'
+          : 'Strong Earthquake Near Manila';
     }
     return isFil ? 'Walang Aktibong Alerto' : 'All Clear • No Active Alerts';
   }
@@ -227,12 +303,12 @@ class MonitoringProvider extends ChangeNotifier {
     if (_drillMode == DrillAlertMode.typhoonSignal3) return 'HIGH ALERT (TCWS #3)';
     if (_drillMode == DrillAlertMode.floodRedWarning) return 'RED RAINFALL WARNING';
 
-    if (_weather != null && (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
+    if (_weather != null &&
+        (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
       return 'ELEVATED WEATHER ADVISORY';
     }
-    if (_earthquakes.any((q) => q.magnitude >= 5.5)) {
-      return 'SIGNIFICANT SEISMIC ACTIVITY';
-    }
+    if (isHeatDanger) return 'DANGER HEAT INDEX';
+    if (_hasSignificantManilaQuake()) return 'SIGNIFICANT SEISMIC ACTIVITY';
     return 'All Clear';
   }
 
@@ -272,7 +348,6 @@ class MonitoringProvider extends ChangeNotifier {
       debugPrint('Failed loading monitoring cache: $e');
     }
     notifyListeners();
-    // Attempt silent live fetch without blocking UI
     refreshLiveFeeds();
   }
 
@@ -285,7 +360,7 @@ class MonitoringProvider extends ChangeNotifier {
 
     bool anySuccess = false;
 
-    // 0. Fetch active official DRRM advisories immediately (never stale-cached)
+    // 0. Fetch active official Manila DRRMO advisories immediately
     await refreshAdvisoriesOnly(notify: false);
 
     // 1. Try low-bandwidth cached backend proxy first when configured
@@ -309,23 +384,44 @@ class MonitoringProvider extends ChangeNotifier {
       } catch (_) {}
     }
 
-    // 1. Direct Open-Meteo weather fallback for current coordinates
+    // 2. Direct Open-Meteo weather + Heat Index + 6h Rain Risk fallback
     if (!anySuccess) {
       try {
         final weatherUri = Uri.parse(
-          'https://api.open-meteo.com/v1/forecast?latitude=$_lastLat&longitude=$_lastLng&current=temperature_2m,precipitation,wind_speed_10m,weather_code&timezone=Asia%2FManila',
+          'https://api.open-meteo.com/v1/forecast?latitude=$_lastLat&longitude=$_lastLng&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,wind_speed_10m,weather_code&hourly=precipitation_probability,precipitation&forecast_hours=6&timezone=Asia%2FManila',
         );
         final resp =
             await http.get(weatherUri).timeout(const Duration(seconds: 6));
         if (resp.statusCode == 200) {
           final data = json.decode(resp.body);
           final current = data['current'];
+          final hourly = data['hourly'];
           if (current != null) {
             final code = (current['weather_code'] ?? 0) as int;
+            final tempC = (current['temperature_2m'] ?? 29.0).toDouble();
+            int maxProb = 0;
+            double sumRain = 0.0;
+            if (hourly is Map) {
+              final probs = (hourly['precipitation_probability'] as List?) ?? [];
+              for (final p in probs) {
+                final v = (p as num?)?.round() ?? 0;
+                if (v > maxProb) maxProb = v;
+              }
+              final rains = (hourly['precipitation'] as List?) ?? [];
+              for (final r in rains) {
+                sumRain += (r as num?)?.toDouble() ?? 0.0;
+              }
+            }
             _weather = WeatherSnapshot(
-              temperatureC: (current['temperature_2m'] ?? 29.0).toDouble(),
+              temperatureC: tempC,
+              apparentTemperatureC:
+                  (current['apparent_temperature'] as num?)?.toDouble() ?? tempC,
+              humidityPct:
+                  (current['relative_humidity_2m'] as num?)?.round() ?? 70,
               windSpeedKmh: (current['wind_speed_10m'] ?? 10.0).toDouble(),
               precipitationMm: (current['precipitation'] ?? 0.0).toDouble(),
+              rainChance6hPct: maxProb,
+              rainExpected6hMm: double.parse(sumRain.toStringAsFixed(1)),
               weatherCode: code,
               conditionText: _decodeWmoWeather(code),
             );
@@ -334,21 +430,19 @@ class MonitoringProvider extends ChangeNotifier {
         }
       } catch (_) {}
 
-      // 2. Direct Philippine Earthquakes via USGS GeoJSON Feed
+      // 3. Direct USGS Earthquakes (Prioritize Luzon / Manila bounding box)
       try {
-        final quakeUri = Uri.parse(
-          'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4.5&maxlatitude=21.5&minlongitude=116.0&maxlongitude=127.0&limit=5&orderby=time',
-        );
-        final resp =
-            await http.get(quakeUri).timeout(const Duration(seconds: 6));
-        if (resp.statusCode == 200) {
+        Future<List<SeismicEvent>> fetchQuakes(String url) async {
+          final resp =
+              await http.get(Uri.parse(url)).timeout(const Duration(seconds: 6));
+          if (resp.statusCode != 200) return [];
           final data = json.decode(resp.body);
           final features = (data['features'] as List<dynamic>?) ?? [];
-          _earthquakes = features.map((f) {
+          return features.map((f) {
             final props = f['properties'] ?? {};
             final geom = f['geometry'] ?? {};
             final coords =
-                (geom['coordinates'] as List<dynamic>?) ?? [0, 0, 10];
+                (geom['coordinates'] as List<dynamic>?) ?? [120.9882, 14.5822, 10];
             final ms =
                 (props['time'] ?? DateTime.now().millisecondsSinceEpoch) as int;
             return SeismicEvent(
@@ -358,8 +452,24 @@ class MonitoringProvider extends ChangeNotifier {
               time: DateTime.fromMillisecondsSinceEpoch(ms),
               depthKm:
                   coords.length > 2 ? (coords[2] ?? 10.0).toDouble() : 10.0,
+              longitude:
+                  coords.isNotEmpty ? (coords[0] as num?)?.toDouble() : null,
+              latitude:
+                  coords.length > 1 ? (coords[1] as num?)?.toDouble() : null,
             );
           }).toList();
+        }
+
+        var quakes = await fetchQuakes(
+          'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=11.5&maxlatitude=18.8&minlongitude=118.5&maxlongitude=124.5&limit=6&orderby=time',
+        );
+        if (quakes.isEmpty) {
+          quakes = await fetchQuakes(
+            'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&minlatitude=4.5&maxlatitude=21.5&minlongitude=116.0&maxlongitude=127.0&limit=5&orderby=time',
+          );
+        }
+        if (quakes.isNotEmpty) {
+          _earthquakes = quakes;
           anySuccess = true;
         }
       } catch (_) {}
@@ -371,11 +481,14 @@ class MonitoringProvider extends ChangeNotifier {
       _lastUpdated = DateTime.now();
       await _saveCache();
     } else if (_weather == null && _earthquakes.isEmpty) {
-      // Seed baseline offline reference snapshot if never fetched before
       _weather = const WeatherSnapshot(
         temperatureC: 30.0,
+        apparentTemperatureC: 34.0,
+        humidityPct: 72,
         windSpeedKmh: 14.0,
         precipitationMm: 0.0,
+        rainChance6hPct: 20,
+        rainExpected6hMm: 0.0,
         weatherCode: 2,
         conditionText: 'Partly Cloudy (Offline Reference)',
       );
@@ -383,9 +496,11 @@ class MonitoringProvider extends ChangeNotifier {
         SeismicEvent(
           id: 'offline_ref_1',
           magnitude: 3.4,
-          place: 'Metro Manila / West Valley Fault Baseline Monitor',
+          place: 'City of Manila / West Valley Fault Baseline Monitor',
           time: DateTime.now().subtract(const Duration(hours: 6)),
           depthKm: 12.0,
+          latitude: 14.5822,
+          longitude: 120.9882,
         ),
       ];
     }
@@ -449,24 +564,49 @@ class MonitoringProvider extends ChangeNotifier {
 
   Future<void> applyRemoteCheckins(List<Map<String, dynamic>> remote) async {
     if (remote.isEmpty) return;
-    final existingKeys = _safetyLog
-        .map((e) => '${e['timestamp']}_${e['status']}_${e['note']}')
-        .toSet();
     final combined = List<Map<String, String>>.from(_safetyLog);
     for (final r in remote) {
       final entry = <String, String>{
+        if (r['id'] != null) 'id': r['id'].toString(),
         'status': (r['status'] ?? 'SAFE').toString(),
         'note': (r['note'] ?? '').toString(),
         'authorName': (r['authorName'] ?? 'Family').toString(),
-        'timestamp': (r['timestamp'] ?? DateTime.now().toIso8601String()).toString(),
+        'timestamp':
+            (r['timestamp'] ?? DateTime.now().toIso8601String()).toString(),
+        if (r['acknowledgedAt'] != null)
+          'acknowledgedAt': r['acknowledgedAt'].toString(),
+        if (r['acknowledgedBy'] != null)
+          'acknowledgedBy': r['acknowledgedBy'].toString(),
       };
-      final key = '${entry['timestamp']}_${entry['status']}_${entry['note']}';
-      if (!existingKeys.contains(key)) {
-        existingKeys.add(key);
+
+      final rTime = DateTime.tryParse(entry['timestamp'] ?? '');
+      final matchIdx = combined.indexWhere((existing) {
+        if (entry['id'] != null &&
+            existing['id'] != null &&
+            existing['id'] == entry['id']) {
+          return true;
+        }
+        if (existing['status'] == entry['status'] &&
+            existing['note'] == entry['note']) {
+          if (existing['timestamp'] == entry['timestamp']) return true;
+          final eTime = DateTime.tryParse(existing['timestamp'] ?? '');
+          if (eTime != null &&
+              rTime != null &&
+              eTime.difference(rTime).abs().inMinutes <= 2) {
+            return true;
+          }
+        }
+        return false;
+      });
+
+      if (matchIdx != -1) {
+        combined[matchIdx] = entry;
+      } else {
         combined.add(entry);
       }
     }
-    combined.sort((a, b) => (b['timestamp'] ?? '').compareTo(a['timestamp'] ?? ''));
+    combined
+        .sort((a, b) => (b['timestamp'] ?? '').compareTo(a['timestamp'] ?? ''));
     _safetyLog = combined.take(20).toList();
     try {
       final prefs = await SharedPreferences.getInstance();
