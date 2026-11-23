@@ -430,11 +430,11 @@ class EmergencyMonitoringScreen extends StatelessWidget {
               ),
               const SizedBox(height: 18),
 
-              // 4. Recent Philippine Earthquakes
+              // 4. Recent Metro Manila & Regional Earthquakes
               Text(
                 isFil
-                    ? 'Mga Kamakailang Lindol sa Pilipinas'
-                    : 'Recent Philippine Earthquakes',
+                    ? 'Mga Kamakailang Lindol (Metro Manila at Karatig-Lugar)'
+                    : 'Recent Earthquakes (Metro Manila & Region)',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,

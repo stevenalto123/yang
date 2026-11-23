@@ -1,5 +1,6 @@
 # LifeCheckpoint: Multi-Platform Application in Emergency Monitoring and Disaster Preparedness
 
+**Geographic Scope:** Metro Manila (National Capital Region)  
 **Authors:** Dela Cruz, A.K.A., Domado, H.D., Guiang, J.A.A., Jumaquio, I.M.A., Manese, L.M.S., Olidan, A.E., Zuniega, H.P.  
 **Approved Proposal Reference:** Slides 1–7  
 
@@ -29,7 +30,7 @@
 
 ---
 
-## Setup & Deployment (Capiz to Metro Manila Delivery)
+## Setup & Deployment (Metro Manila Scope)
 
 ### 1. Create Supabase PostgreSQL Database
 1. Create a free project at [supabase.com](https://supabase.com).

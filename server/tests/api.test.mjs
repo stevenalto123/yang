@@ -87,7 +87,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
           unit: 'gallons',
           expirationDate: '2027-05-01T00:00:00.000Z',
           isPacked: true,
-          notes: 'Paco supply',
+          notes: 'Metro Manila supply',
           lastUpdated: newerTs,
         },
       ],
@@ -124,8 +124,8 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
     method: 'PUT',
     token: reg1.json.token,
     body: {
-      householdName: 'Dela Cruz Paco Household',
-      primaryMeetingPoint: 'Paco Arena Main Gate',
+      householdName: 'Dela Cruz Metro Manila Household',
+      primaryMeetingPoint: 'Rizal Memorial Sports Complex',
     },
   });
   assert.equal(planPut.status, 200);
@@ -145,7 +145,7 @@ test('auth, household invite sync, kit timestamp conflict resolution, and plan/c
   const bundle = await callApi(store, '/sync/bundle', { token: reg2.json.token });
   assert.equal(bundle.status, 200);
   assert.equal(bundle.json.household.expiryAlertDays, 14);
-  assert.equal(bundle.json.household.plan.primaryMeetingPoint, 'Paco Arena Main Gate');
+  assert.equal(bundle.json.household.plan.primaryMeetingPoint, 'Rizal Memorial Sports Complex');
   assert.equal(bundle.json.checkins.length, 1);
   assert.equal(bundle.json.checkins[0].authorName, 'Juan Dela Cruz');
 });

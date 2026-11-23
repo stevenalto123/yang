@@ -40,7 +40,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
     const DisasterGuide(
       type: DisasterType.earthquake,
       overview:
-          'Earthquakes occur without warning due to active fault systems across the Philippine archipelago (such as the West Valley Fault).',
+          'Earthquakes occur without warning due to active fault systems across Metro Manila and nearby regions (such as the West Valley Fault System).',
       beforeSteps: [
         'Practice "Duck, Cover, and Hold" drills with all household members.',
         'Fasten heavy furniture, cupboards, and appliances securely to walls.',
@@ -74,7 +74,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
     const DisasterGuide(
       type: DisasterType.flood,
       overview:
-          'Monsoon rains (Habagat), tropical cyclones, and high tides cause severe flooding across low-lying Philippine communities.',
+          'Monsoon rains (Habagat), tropical cyclones, and river overflow cause severe flooding across low-lying Metro Manila communities.',
       beforeSteps: [
         'Elevate furniture, appliances, and valuables to upper floors.',
         'Seal important documents in waterproof zip bags.',
@@ -167,7 +167,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
     const DisasterGuide(
       type: DisasterType.volcanicEruption,
       overview:
-          'Volcanoes (Taal, Mayon, Pinatubo, Kanlaon) can produce dangerous ashfall, pyroclastic flows, and toxic volcanic gases.',
+          'Nearby volcanic eruptions (such as Taal or Pinatubo) can produce dangerous ashfall and hazardous air quality across Metro Manila.',
       beforeSteps: [
         'Know the danger zones and alert levels set by PHIVOLCS.',
         'Stockpile N95 / KN95 masks for all household members.',

@@ -120,7 +120,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                                   ? (isFil
                                       ? 'Aktibo ang GPS (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)'
                                       : 'Live GPS Active (±${(emergency.gpsAccuracyMeters ?? 25).toStringAsFixed(0)}m)')
-                                  : 'Metro Manila • Paco, Manila',
+                                  : 'Metro Manila (National Capital Region)',
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,

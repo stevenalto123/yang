@@ -23,7 +23,7 @@ class _CityPreset {
 }
 
 const List<_CityPreset> _metroManilaPresets = [
-  _CityPreset('Manila (Paco / Ermita)', 'Manila', LatLng(14.5822, 120.9882)),
+  _CityPreset('Manila', 'Manila', LatLng(14.5822, 120.9882)),
   _CityPreset('Quezon City', 'Quezon City', LatLng(14.6301, 121.0267)),
   _CityPreset('Makati', 'Makati', LatLng(14.5547, 121.0244)),
   _CityPreset('Pasig', 'Pasig', LatLng(14.5764, 121.0851)),
@@ -2597,7 +2597,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       decoration: const InputDecoration(
                         labelText: 'Headline / Title *',
                         hintText:
-                            'e.g. Paco Flood Watch — Rizal Memorial Shelter OPEN',
+                            'e.g. Metro Manila Flood Watch — Evacuation Shelters OPEN',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -2614,8 +2614,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     TextField(
                       controller: _advisoryAreaCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Affected Area',
-                        hintText: 'Metro Manila, Manila / Paco, Quezon City',
+                        labelText: 'Affected Area (Metro Manila)',
+                        hintText: 'Metro Manila, Manila, Quezon City, Makati, Pasig',
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2624,9 +2624,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       runSpacing: 6,
                       children: [
                         'Metro Manila',
-                        'Manila / Paco',
-                        'Makati',
+                        'Manila',
                         'Quezon City',
+                        'Makati',
+                        'Pasig',
                         'Marikina',
                       ].map((preset) {
                         return ActionChip(
