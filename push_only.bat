@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "City of Manila full polish: Home, Go-Bag, Alerts, Nearby, Safety/MPIO hotlines, and Admin Portal"
+git commit -m "Fix iOS PWA bottom safe-area bar (Light & Dark sync) and Alerts weather icon alignment"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

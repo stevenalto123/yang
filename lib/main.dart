@@ -240,59 +240,66 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: navBg,
           border: Border(
             top: BorderSide(
               color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
             ),
           ),
         ),
-        child: NavigationBar(
-          height: 66,
-          elevation: 0,
-          selectedIndex: _currentIndex,
-          onDestinationSelected: _onNavigateTab,
-          backgroundColor: navBg,
-          indicatorColor: indicatorColor,
-          destinations: [
-            NavigationDestination(
-              icon: const Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home_rounded, color: selectedColor),
-              label: s.navHome,
-            ),
-            NavigationDestination(
-              icon: alertCount > 0
-                  ? Badge(
-                      label: Text('$alertCount'),
-                      backgroundColor: AppTheme.dangerRed,
-                      child: const Icon(Icons.backpack_outlined),
-                    )
-                  : const Icon(Icons.backpack_outlined),
-              selectedIcon: Icon(Icons.backpack_rounded, color: selectedColor),
-              label: s.navKit,
-            ),
-            NavigationDestination(
-              icon: isDrillActive
-                  ? const Badge(
-                      backgroundColor: AppTheme.dangerRed,
-                      child: Icon(Icons.notifications_active_outlined),
-                    )
-                  : const Icon(Icons.notifications_active_outlined),
-              selectedIcon:
-                  Icon(Icons.notifications_active_rounded, color: selectedColor),
-              label: s.navMonitor,
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.location_on_outlined),
-              selectedIcon:
-                  Icon(Icons.location_on_rounded, color: selectedColor),
-              label: s.navMap,
-            ),
-            NavigationDestination(
-              icon: const Icon(Icons.shield_outlined),
-              selectedIcon: Icon(Icons.shield_rounded, color: selectedColor),
-              label: s.navSafety,
-            ),
-          ],
+        child: SafeArea(
+          top: false,
+          child: NavigationBar(
+            height: 66,
+            elevation: 0,
+            selectedIndex: _currentIndex,
+            onDestinationSelected: _onNavigateTab,
+            backgroundColor: navBg,
+            indicatorColor: indicatorColor,
+            destinations: [
+              NavigationDestination(
+                icon: const Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home_rounded, color: selectedColor),
+                label: s.navHome,
+              ),
+              NavigationDestination(
+                icon: alertCount > 0
+                    ? Badge(
+                        label: Text('$alertCount'),
+                        backgroundColor: AppTheme.dangerRed,
+                        child: const Icon(Icons.backpack_outlined),
+                      )
+                    : const Icon(Icons.backpack_outlined),
+                selectedIcon:
+                    Icon(Icons.backpack_rounded, color: selectedColor),
+                label: s.navKit,
+              ),
+              NavigationDestination(
+                icon: isDrillActive
+                    ? const Badge(
+                        backgroundColor: AppTheme.dangerRed,
+                        child: Icon(Icons.notifications_active_outlined),
+                      )
+                    : const Icon(Icons.notifications_active_outlined),
+                selectedIcon: Icon(
+                  Icons.notifications_active_rounded,
+                  color: selectedColor,
+                ),
+                label: s.navMonitor,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.location_on_outlined),
+                selectedIcon:
+                    Icon(Icons.location_on_rounded, color: selectedColor),
+                label: s.navMap,
+              ),
+              NavigationDestination(
+                icon: const Icon(Icons.shield_outlined),
+                selectedIcon: Icon(Icons.shield_rounded, color: selectedColor),
+                label: s.navSafety,
+              ),
+            ],
+          ),
         ),
       ),
     );

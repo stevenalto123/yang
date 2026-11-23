@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/pwa_bridge.dart';
 
 class SettingsProvider extends ChangeNotifier {
   static const String _darkModeKey = 'lifecheckpoint_dark_mode_v1';
@@ -20,12 +21,14 @@ class SettingsProvider extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       _isDarkMode = prefs.getBool(_darkModeKey) ?? false;
       _isFilipino = prefs.getBool(_filipinoKey) ?? false;
+      syncBrowserThemeColor(_isDarkMode);
       notifyListeners();
     } catch (_) {}
   }
 
   Future<void> toggleDarkMode() async {
     _isDarkMode = !_isDarkMode;
+    syncBrowserThemeColor(_isDarkMode);
     notifyListeners();
     try {
       final prefs = await SharedPreferences.getInstance();

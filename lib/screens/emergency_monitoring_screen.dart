@@ -873,6 +873,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildWeatherMetric(
                   Icons.thermostat_rounded,

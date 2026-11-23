@@ -15,3 +15,5 @@ Future<bool> triggerNativePwaInstall() async => false;
 bool startEmergencyWhistle() => false;
 
 void stopEmergencyWhistle() {}
+
+void syncBrowserThemeColor(bool isDark) {}

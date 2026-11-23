@@ -19,6 +19,9 @@ external bool _jsStartWhistle();
 @JS('__lcStopWhistle')
 external void _jsStopWhistle();
 
+@JS('__lcSetThemeColor')
+external void _jsSetThemeColor(bool isDark);
+
 bool isDeviceOnline() {
   try {
     return web.window.navigator.onLine;
@@ -86,5 +89,11 @@ bool startEmergencyWhistle() {
 void stopEmergencyWhistle() {
   try {
     _jsStopWhistle();
+  } catch (_) {}
+}
+
+void syncBrowserThemeColor(bool isDark) {
+  try {
+    _jsSetThemeColor(isDark);
   } catch (_) {}
 }
