@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "City of Manila scope, Alerts upgrades, and official MPIO emergency hotlines (DRRMO, BFP, MPD)"
+git commit -m "City of Manila scope: Alerts upgrades, official MPIO hotlines, and full Manila Nearby map & stations"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

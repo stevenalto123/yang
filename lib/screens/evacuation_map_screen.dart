@@ -21,11 +21,22 @@ class EvacuationMapScreen extends StatefulWidget {
 }
 
 class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
-  static const LatLng _metroManilaCenter = LatLng(14.5822, 120.9882);
+  static const LatLng _manilaCenter = LatLng(14.5900, 120.9820);
 
   final MapController _mapController = MapController();
+  final ScrollController _mobileScrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
+  final GlobalKey _mapSectionKey = GlobalKey();
+
   EvacuationCenter? _selectedCenter;
   bool _unlockMobileMapPan = false;
+
+  @override
+  void dispose() {
+    _mobileScrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _safeMove(LatLng target, double zoom) {
     try {
@@ -42,9 +53,28 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     } catch (_) {}
   }
 
-  void _focusCenter(EvacuationCenter center) {
+  void _focusCenter(EvacuationCenter center, {bool scrollToMap = false}) {
     setState(() => _selectedCenter = center);
-    _safeMove(LatLng(center.latitude, center.longitude), 15.2);
+    _safeMove(LatLng(center.latitude, center.longitude), 15.0);
+    if (scrollToMap && _mapSectionKey.currentContext != null) {
+      Scrollable.ensureVisible(
+        _mapSectionKey.currentContext!,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+        alignment: 0.04,
+      );
+    }
+  }
+
+  String _formatEta(double distKm, bool isFil) {
+    final walkMin = (distKm / 4.5 * 60).round().clamp(1, 999);
+    final driveMin = (distKm / 18.0 * 60).round().clamp(1, 999);
+    if (distKm > 15.0) {
+      return isFil ? '~$driveMin min biyahe' : '~$driveMin min drive';
+    }
+    return isFil
+        ? '~$walkMin min lakad • ~$driveMin min biyahe'
+        : '~$walkMin min walk • ~$driveMin min drive';
   }
 
   @override
@@ -62,10 +92,10 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     final distFromManilaKm = LocationService.distanceInKm(
       emergency.userLat,
       emergency.userLng,
-      _metroManilaCenter.latitude,
-      _metroManilaCenter.longitude,
+      _manilaCenter.latitude,
+      _manilaCenter.longitude,
     );
-    final isFarFromManila = distFromManilaKm > 50.0;
+    final isFarFromManila = distFromManilaKm > 18.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -147,17 +177,17 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                           ),
                           icon:
                               const Icon(Icons.location_city_rounded, size: 17),
-                          label: const Text(
-                            'Metro Manila',
-                            style: TextStyle(fontSize: 13),
+                          label: Text(
+                            isFil ? 'Maynila' : 'City of Manila',
+                            style: const TextStyle(fontSize: 13),
                           ),
                           onPressed: () {
                             emergency.setManualLocation(
-                              _metroManilaCenter.latitude,
-                              _metroManilaCenter.longitude,
+                              _manilaCenter.latitude,
+                              _manilaCenter.longitude,
                             );
                             setState(() => _selectedCenter = null);
-                            _safeMove(_metroManilaCenter, 13.0);
+                            _safeMove(_manilaCenter, 13.0);
                           },
                         ),
                         const SizedBox(width: 8),
@@ -203,8 +233,12 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                                   SnackBar(
                                     content: Text(
                                       ok
-                                          ? 'Location updated on map!'
-                                          : 'GPS unavailable. Showing Metro Manila map.',
+                                          ? (isFil
+                                              ? 'Na-update ang lokasyon sa mapa!'
+                                              : 'Location updated on map!')
+                                          : (isFil
+                                              ? 'Hindi makuha ang GPS. Ipinapakita ang mapa ng Lungsod ng Maynila.'
+                                              : 'GPS unavailable. Showing City of Manila map.'),
                                     ),
                                   ),
                                 );
@@ -214,7 +248,58 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                   ),
                   const SizedBox(height: 10),
 
-                  // Facility Type Filter Chips
+                  // Search Bar for Manila Shelters, Hospitals, Police & Fire Stations
+                  TextField(
+                    controller: _searchController,
+                    onChanged: (val) {
+                      setState(() => _selectedCenter = null);
+                      emergency.setShelterSearchQuery(val);
+                    },
+                    decoration: InputDecoration(
+                      isDense: true,
+                      prefixIcon: const Icon(Icons.search_rounded, size: 19),
+                      suffixIcon: emergency.shelterSearchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.close_rounded, size: 17),
+                              tooltip: 'Clear search',
+                              onPressed: () {
+                                _searchController.clear();
+                                setState(() => _selectedCenter = null);
+                                emergency.setShelterSearchQuery('');
+                              },
+                            )
+                          : null,
+                      hintText: isFil
+                          ? 'Hanapin ang shelter, ospital, MPD/BFP, o kalye sa Maynila...'
+                          : 'Search Manila shelter, hospital, MPD/BFP, or street...',
+                      filled: true,
+                      fillColor:
+                          isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? AppTheme.darkBorder
+                              : AppTheme.lightBorder,
+                        ),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: isDark
+                              ? AppTheme.darkBorder
+                              : AppTheme.lightBorder,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Facility Type Filter Chips + Open Only Toggle
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -274,12 +359,53 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                             );
                           },
                         ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          showCheckmark: false,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          avatar: Icon(
+                            Icons.check_circle_outline_rounded,
+                            size: 16,
+                            color: emergency.onlyOpenFacilities
+                                ? Colors.white
+                                : AppTheme.safeGreen,
+                          ),
+                          label: Text(isFil ? 'Bukas Lang' : 'Open Only'),
+                          selected: emergency.onlyOpenFacilities,
+                          selectedColor: AppTheme.safeGreen,
+                          backgroundColor: isDark
+                              ? AppTheme.darkElevated
+                              : AppTheme.surfaceBg,
+                          side: BorderSide(
+                            color: emergency.onlyOpenFacilities
+                                ? AppTheme.safeGreen
+                                : (isDark
+                                    ? AppTheme.darkBorder
+                                    : AppTheme.lightBorder),
+                          ),
+                          labelStyle: TextStyle(
+                            color: emergency.onlyOpenFacilities
+                                ? Colors.white
+                                : (isDark ? Colors.white : AppTheme.darkSlate),
+                            fontWeight: emergency.onlyOpenFacilities
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                            fontSize: 13.5,
+                          ),
+                          onSelected: (val) {
+                            setState(() => _selectedCenter = null);
+                            emergency.setOnlyOpenFacilities(val);
+                          },
+                        ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 8),
 
-                  // District Filter Row (City of Manila Districts)
+                  // District Filter Row (All City of Manila Districts)
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: Row(
@@ -326,20 +452,20 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                               emergency.setSelectedCity(city);
                               if (city == 'All') {
                                 _safeMove(
-                                  emergency.hasLiveGps
+                                  emergency.hasLiveGps && !isFarFromManila
                                       ? LatLng(
                                           emergency.userLat,
                                           emergency.userLng,
                                         )
-                                      : _metroManilaCenter,
-                                  13.2,
+                                      : _manilaCenter,
+                                  13.0,
                                 );
                               } else {
                                 final district = manilaDistrictFilters[city];
                                 if (district != null) {
                                   _safeMove(
                                     LatLng(district.lat, district.lng),
-                                    14.6,
+                                    14.5,
                                   );
                                 }
                               }
@@ -357,6 +483,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                     isFil,
                     headingColor,
                     subtleText,
+                    isSplit,
                   ),
                 ],
               ),
@@ -378,11 +505,37 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                   Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text(
-                        isFil
-                            ? 'Walang nahanap na lugar sa napiling filter.'
-                            : 'No places match your selected filters.',
-                        style: TextStyle(fontSize: 14, color: subtleText),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.location_off_outlined,
+                            size: 30,
+                            color: subtleText,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            isFil
+                                ? 'Walang nahanap na lugar sa napiling filter.'
+                                : 'No Manila places match your selected filters.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 14, color: subtleText),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
+                            onPressed: () {
+                              _searchController.clear();
+                              setState(() => _selectedCenter = null);
+                              emergency.setShelterSearchQuery('');
+                              emergency.setSelectedCity('All');
+                              emergency.setSelectedFacilityType(null);
+                              emergency.setOnlyOpenFacilities(false);
+                              _safeMove(_manilaCenter, 13.0);
+                            },
+                            child: Text(
+                              isFil ? 'I-reset ang Filter' : 'Reset Filters',
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -395,6 +548,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                     entry.key == 0,
                     isDark,
                     isFil,
+                    isSplit,
                   );
                 }).toList();
 
@@ -446,15 +600,17 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
 
           // Mobile / Narrow Stacked View: entire screen scrolls smoothly together
           return ListView(
+            controller: _mobileScrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 96),
             children: [
               headerPanel,
               const Divider(height: 1),
               Padding(
+                key: _mapSectionKey,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: SizedBox(
-                  height: 245,
+                  height: 255,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(18),
                     child: DecoratedBox(
@@ -479,7 +635,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                     Text(
                       isFil
                           ? 'Mga Malapit na Lugar (${centers.length})'
-                          : 'Nearby Places (${centers.length})',
+                          : 'Nearby Manila Places (${centers.length})',
                       style: TextStyle(
                         fontSize: 15.5,
                         fontWeight: FontWeight.w800,
@@ -514,8 +670,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     required bool isSplit,
   }) {
     final userPoint = LatLng(emergency.userLat, emergency.userLng);
-    final initialFocus =
-        isFarFromManila ? _metroManilaCenter : userPoint;
+    final initialFocus = isFarFromManila ? _manilaCenter : userPoint;
+    final hasStandbyCenters = centers.any((c) => !c.isOpen);
 
     final markers = <Marker>[
       // Facility Pins
@@ -523,14 +679,20 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
         final isSelected = _selectedCenter?.id == center.id;
         final isHospital = center.facilityType == FacilityType.hospital;
         final isPoliceFire = center.facilityType == FacilityType.policeFire;
-        final Color pinColor = isHospital
-            ? AppTheme.dangerRed
-            : (isPoliceFire ? Colors.indigo.shade600 : Colors.teal.shade700);
-        final IconData pinIcon = isHospital
-            ? Icons.local_hospital_rounded
-            : (isPoliceFire
-                ? Icons.local_police_rounded
-                : Icons.roofing_rounded);
+        final Color pinColor = !center.isOpen
+            ? Colors.blueGrey.shade500
+            : (isHospital
+                ? AppTheme.dangerRed
+                : (isPoliceFire
+                    ? Colors.indigo.shade600
+                    : Colors.teal.shade700));
+        final IconData pinIcon = !center.isOpen
+            ? Icons.pause_circle_outline_rounded
+            : (isHospital
+                ? Icons.local_hospital_rounded
+                : (isPoliceFire
+                    ? Icons.local_police_rounded
+                    : Icons.roofing_rounded));
 
         return Marker(
           point: LatLng(center.latitude, center.longitude),
@@ -539,7 +701,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
           child: GestureDetector(
             onTap: () => _focusCenter(center),
             child: Tooltip(
-              message: center.name,
+              message:
+                  '${center.name}${center.isOpen ? '' : ' (Standby)'}',
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
                 decoration: BoxDecoration(
@@ -595,6 +758,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     ];
 
     final allowPanAndWheel = isSplit || _unlockMobileMapPan;
+    final showGuideLine = _selectedCenter != null &&
+        emergency.distanceToCenterKm(_selectedCenter!) <= 30.0;
 
     return Stack(
       children: [
@@ -621,6 +786,28 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.lifecheckpoint.app',
             ),
+            if (showGuideLine)
+              PolylineLayer(
+                polylines: [
+                  Polyline(
+                    points: [
+                      userPoint,
+                      LatLng(
+                        _selectedCenter!.latitude,
+                        _selectedCenter!.longitude,
+                      ),
+                    ],
+                    strokeWidth: 3.5,
+                    color: _selectedCenter!.isOpen
+                        ? Colors.teal.shade700
+                        : Colors.blueGrey.shade500,
+                    pattern: StrokePattern.dashed(
+                      segments: const [10, 7],
+                      patternFit: PatternFit.scaleUp,
+                    ),
+                  ),
+                ],
+              ),
             MarkerLayer(markers: markers),
           ],
         ),
@@ -678,7 +865,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
             ),
           ),
 
-        // Top-right Map Controls (+, -, My Location, Metro Manila)
+        // Top-right Map Controls (+, -, My Location, City of Manila)
         Positioned(
           top: 12,
           right: 12,
@@ -707,9 +894,11 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
               const SizedBox(height: 6),
               _mapControlButton(
                 icon: Icons.location_city_rounded,
-                tooltip: 'Center on Metro Manila',
+                tooltip: isFil
+                    ? 'I-center sa Lungsod ng Maynila'
+                    : 'Center on City of Manila',
                 isDark: isDark,
-                onTap: () => _safeMove(_metroManilaCenter, 13.0),
+                onTap: () => _safeMove(_manilaCenter, 13.0),
               ),
             ],
           ),
@@ -765,6 +954,12 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         isFil ? 'Pulis/Bumbero' : 'Police/Fire',
                         isDark,
                       ),
+                      if (hasStandbyCenters)
+                        _legendDot(
+                          Colors.blueGrey.shade500,
+                          'Standby',
+                          isDark,
+                        ),
                     ],
                   ),
                 ),
@@ -889,6 +1084,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     bool isFil,
     Color headingColor,
     Color subtleText,
+    bool isSplit,
   ) {
     final openShelters = emergency.allEvacuationCenters
         .where(
@@ -910,7 +1106,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
-        onTap: () => _focusCenter(nearest),
+        onTap: () => _focusCenter(nearest, scrollToMap: !isSplit),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
@@ -989,6 +1185,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     bool isFil,
   ) {
     final distKm = emergency.distanceToCenterKm(center);
+    final cardinal = emergency.bearingToCenter(center);
+    final etaText = _formatEta(distKm, isFil);
     final titleColor = isDark ? Colors.white : AppTheme.darkSlate;
     final subtleText = isDark ? Colors.white70 : AppTheme.mutedSlate;
 
@@ -1017,11 +1215,11 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  '${distKm.toStringAsFixed(1)} km',
+                  '${distKm.toStringAsFixed(1)} km $cardinal',
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: Colors.teal.shade700,
+                    color: isDark ? Colors.tealAccent : Colors.teal.shade700,
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -1033,10 +1231,10 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
             ),
             const SizedBox(height: 2),
             Text(
-              center.address,
+              '${center.address} • $etaText',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.5, color: subtleText),
+              style: TextStyle(fontSize: 12, color: subtleText),
             ),
             const SizedBox(height: 10),
             Row(
@@ -1144,18 +1342,22 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     bool isNearest,
     bool isDark,
     bool isFil,
+    bool isSplit,
   ) {
     final distKm = emergency.distanceToCenterKm(center);
     final cardinal = emergency.bearingToCenter(center);
+    final etaText = _formatEta(distKm, isFil);
     final isSelected = _selectedCenter?.id == center.id;
     final isFamilySaved = emergency.isCustomCenter(center.id);
 
     final isHospital = center.facilityType == FacilityType.hospital;
     final isPoliceFire = center.facilityType == FacilityType.policeFire;
 
-    final Color facilityAccent = isHospital
-        ? AppTheme.dangerRed
-        : (isPoliceFire ? Colors.indigo.shade600 : Colors.teal.shade700);
+    final Color facilityAccent = !center.isOpen
+        ? Colors.blueGrey.shade500
+        : (isHospital
+            ? AppTheme.dangerRed
+            : (isPoliceFire ? Colors.indigo.shade600 : Colors.teal.shade700));
     final IconData facilityIcon = isHospital
         ? Icons.local_hospital_rounded
         : (isPoliceFire
@@ -1185,7 +1387,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => _focusCenter(center),
+        onTap: () => _focusCenter(center, scrollToMap: !isSplit),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -1327,7 +1529,16 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                 '${center.address} (${center.city})',
                 style: TextStyle(fontSize: 13.5, color: subtleText),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
+              Text(
+                etaText,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: isDark ? Colors.tealAccent : Colors.teal.shade700,
+                ),
+              ),
+              const SizedBox(height: 4),
               Text(
                 '${center.facilities}${center.capacityPeople > 0 ? ' • ${isFil ? 'Kapasidad' : 'Capacity'}: ${center.capacityPeople}' : ''}',
                 style: TextStyle(
@@ -1372,8 +1583,16 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                       ),
                     ),
                   ),
+                  const SizedBox(width: 6),
+                  IconButton.outlined(
+                    icon: const Icon(Icons.share_rounded, size: 19),
+                    tooltip: isFil
+                        ? 'Ibahagi ang Lokasyon sa Pamilya'
+                        : 'Share Meeting Pin',
+                    onPressed: () => _shareShelterPin(context, center, isFil),
+                  ),
                   if (isFamilySaved) ...[
-                    const SizedBox(width: 6),
+                    const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(
                         Icons.delete_outline_rounded,
@@ -1458,7 +1677,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     final nameCtrl = TextEditingController();
     final addrCtrl = TextEditingController();
     final cityCtrl = TextEditingController(text: 'Manila');
-    final contactCtrl = TextEditingController(text: '911');
+    final contactCtrl = TextEditingController(text: '(02) 8568-6909');
     final miniMapCtrl = MapController();
 
     LatLng pickedPoint = LatLng(emergency.userLat, emergency.userLng);
@@ -1504,8 +1723,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                           Expanded(
                             child: Text(
                               isFil
-                                  ? 'Pribado para sa iyong pamilya at naka-sync na kamag-anak — hindi binabago ang opisyal na LGU shelters.'
-                                  : 'Saved privately for your household & synced relatives — does not alter official LGU shelters.',
+                                  ? 'Pribado para sa iyong pamilya at naka-sync na kamag-anak — hindi binabago ang opisyal na Manila shelters.'
+                                  : 'Saved privately for your household & synced relatives — does not alter official Manila shelters.',
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),
@@ -1525,7 +1744,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                     TextField(
                       controller: addrCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Address / Landmark *',
+                        labelText: 'Address / Barangay / Landmark *',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -1676,7 +1895,9 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                   if (nameCtrl.text.trim().isEmpty) return;
                   Navigator.pop(ctx, true);
                 },
-                child: Text(isFil ? 'I-save para sa Pamilya' : 'Save for Family'),
+                child: Text(
+                  isFil ? 'I-save para sa Pamilya' : 'Save for Family',
+                ),
               ),
             ],
           );
@@ -1700,12 +1921,12 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
       final newCenter = EvacuationCenter(
         id: const Uuid().v4(),
         name: name,
-        address: addr.isEmpty ? 'Local Barangay Site' : addr,
+        address: addr.isEmpty ? 'Local Manila Barangay Site' : addr,
         city: city.isEmpty ? 'Manila' : city,
         latitude: pickedPoint.latitude,
         longitude: pickedPoint.longitude,
         contactPerson: 'Barangay / Family Contact',
-        contactNumber: phone.isEmpty ? '911' : phone,
+        contactNumber: phone.isEmpty ? '(02) 8568-6909' : phone,
         capacityPeople: 0,
         facilities: 'Family-Saved Barangay Shelter / Safe Spot',
       );

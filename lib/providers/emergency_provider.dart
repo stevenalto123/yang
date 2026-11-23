@@ -25,6 +25,8 @@ class EmergencyProvider extends ChangeNotifier {
 
   String _selectedCity = 'All';
   FacilityType? _selectedFacilityType;
+  bool _onlyOpenFacilities = false;
+  String _shelterSearchQuery = '';
   bool _isLoading = true;
 
   // GPS state (defaults to Paco, Manila reference until live GPS is fetched)
@@ -47,6 +49,8 @@ class EmergencyProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get selectedCity => _selectedCity;
   FacilityType? get selectedFacilityType => _selectedFacilityType;
+  bool get onlyOpenFacilities => _onlyOpenFacilities;
+  String get shelterSearchQuery => _shelterSearchQuery;
   HouseholdEmergencyPlan get emergencyPlan => _emergencyPlan;
 
   double get userLat => _userLat;
@@ -72,11 +76,13 @@ class EmergencyProvider extends ChangeNotifier {
   /// Returns facilities sorted by nearest Haversine distance from current GPS
   List<EvacuationCenter> get filteredEvacuationCenters {
     final district = manilaDistrictFilters[_selectedCity];
+    final query = _shelterSearchQuery.trim().toLowerCase();
     final base = allEvacuationCenters.where((center) {
       if (_selectedCity != 'All') {
         if (district != null) {
-          final hay = '${center.name} ${center.address} ${center.city}'
-              .toLowerCase();
+          final hay =
+              '${center.name} ${center.address} ${center.city} ${center.facilities}'
+                  .toLowerCase();
           final matchesDistrict =
               district.keywords.any((kw) => hay.contains(kw));
           if (!matchesDistrict) return false;
@@ -87,6 +93,15 @@ class EmergencyProvider extends ChangeNotifier {
       if (_selectedFacilityType != null &&
           center.facilityType != _selectedFacilityType) {
         return false;
+      }
+      if (_onlyOpenFacilities && !center.isOpen) {
+        return false;
+      }
+      if (query.isNotEmpty) {
+        final searchHay =
+            '${center.name} ${center.address} ${center.city} ${center.facilities} ${center.contactPerson} ${center.contactNumber}'
+                .toLowerCase();
+        if (!searchHay.contains(query)) return false;
       }
       return true;
     }).toList();
@@ -120,6 +135,16 @@ class EmergencyProvider extends ChangeNotifier {
 
   void setSelectedFacilityType(FacilityType? type) {
     _selectedFacilityType = type;
+    notifyListeners();
+  }
+
+  void setOnlyOpenFacilities(bool onlyOpen) {
+    _onlyOpenFacilities = onlyOpen;
+    notifyListeners();
+  }
+
+  void setShelterSearchQuery(String query) {
+    _shelterSearchQuery = query;
     notifyListeners();
   }
 
