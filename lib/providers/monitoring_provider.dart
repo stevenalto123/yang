@@ -615,6 +615,15 @@ class MonitoringProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> clearLocalSafetyLog() async {
+    _safetyLog = [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_checkInLogKey);
+    } catch (_) {}
+    notifyListeners();
+  }
+
   String _decodeWmoWeather(int code) {
     if (code == 0) return 'Clear Sky';
     if (code <= 3) return 'Partly Cloudy / Overcast';

@@ -288,8 +288,9 @@ class KitProvider extends ChangeNotifier {
   Future<void> applyRemoteSync(
     List<Map<String, dynamic>> remoteItems,
     Map<String, dynamic>? profileMap,
-    int? alertDays,
-  ) async {
+    int? alertDays, {
+    bool replaceLocal = false,
+  }) async {
     if (profileMap != null) {
       _householdProfile = HouseholdProfile.fromMap(profileMap);
       try {
@@ -306,19 +307,40 @@ class KitProvider extends ChangeNotifier {
     }
 
     if (remoteItems.isNotEmpty) {
-      final mergedById = <String, KitItem>{
-        for (final item in _items) item.id: item,
-      };
-      for (final raw in remoteItems) {
-        final remote = KitItem.fromMap(raw);
-        final local = mergedById[remote.id];
-        if (local == null || !remote.lastUpdated.isBefore(local.lastUpdated)) {
-          mergedById[remote.id] = remote;
+      if (replaceLocal) {
+        _items = remoteItems.map((raw) => KitItem.fromMap(raw)).toList();
+      } else {
+        final mergedById = <String, KitItem>{
+          for (final item in _items) item.id: item,
+        };
+        for (final raw in remoteItems) {
+          final remote = KitItem.fromMap(raw);
+          final local = mergedById[remote.id];
+          if (local == null || !remote.lastUpdated.isBefore(local.lastUpdated)) {
+            mergedById[remote.id] = remote;
+          }
         }
+        _items = mergedById.values.toList();
       }
-      _items = mergedById.values.toList();
       await _saveToStorage();
     }
+    notifyListeners();
+  }
+
+  /// Resets local device Go-Bag cleanly when signing out (does NOT alter cloud data).
+  Future<void> resetLocalSession() async {
+    _items = getDefaultKitItems();
+    _householdProfile = const HouseholdProfile();
+    _expiryAlertDays = 30;
+    _searchQuery = '';
+    _selectedCategory = null;
+    _filterStatus = ItemFilterStatus.all;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_storageKey);
+      await prefs.remove(_profileKey);
+      await prefs.remove(_alertDaysKey);
+    } catch (_) {}
     notifyListeners();
   }
 

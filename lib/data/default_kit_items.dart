@@ -4,6 +4,8 @@ import '../models/kit_item.dart';
 /// All 22 recommended essentials start honestly unpacked (0% Ready, no fake expiry dates)
 /// with quantities sized for the default 2-adult household profile.
 List<KitItem> getDefaultKitItems() {
+  final untouched = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+
   return [
     // 1. Water & Food (72-hour targets synced for default Family of 2)
     KitItem(
@@ -16,6 +18,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Rotate stored water every 6 months.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'canned_goods',
@@ -27,6 +30,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'No can opener needed; ready to eat.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'energy_biscuits',
@@ -38,6 +42,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Long shelf-life and high carbohydrate.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'water_purification',
@@ -49,6 +54,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'For emergency drinking water purification.',
+      lastUpdated: untouched,
     ),
 
     // 2. First Aid & Medicine
@@ -62,6 +68,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Check sterile dressing seals regularly.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'antiseptic_solution',
@@ -73,6 +80,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Set expiry date once packed to track antiseptic potency.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'paracetamol',
@@ -84,6 +92,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Store in airtight waterproof container.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'antidiarrheal',
@@ -95,6 +104,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Crucial for water contamination outbreaks.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'maintenance_meds',
@@ -106,6 +116,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Blood pressure, asthma inhalers, diabetes insulin.',
+      lastUpdated: untouched,
     ),
 
     // 3. Tools & Lighting
@@ -119,6 +130,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Keep with spare alkaline batteries.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'spare_batteries',
@@ -130,6 +142,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Check for battery leakage twice a year.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'emergency_whistle',
@@ -141,6 +154,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'For signaling rescuers if trapped.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'portable_radio',
@@ -152,6 +166,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Crucial when cellular towers are down.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'power_bank',
@@ -163,6 +178,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Keep charged at 100% capacity.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'multi_tool',
@@ -174,6 +190,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Includes blade, scissors, pliers, can opener.',
+      lastUpdated: untouched,
     ),
 
     // 4. Documents & Cash
@@ -187,6 +204,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Include photocopies and a backup USB drive.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'emergency_cash',
@@ -198,6 +216,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'ATMs and digital e-wallets will not work during blackouts.',
+      lastUpdated: untouched,
     ),
 
     // 5. Sanitation & Hygiene
@@ -211,6 +230,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Essential during volcanic ash or fire smoke.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'wet_wipes',
@@ -222,6 +242,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'For waterless personal sanitation.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'garbage_bags',
@@ -233,6 +254,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Can also be used as makeshift poncho or water barrier.',
+      lastUpdated: untouched,
     ),
 
     // 6. Clothing & Bedding
@@ -246,6 +268,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Retains body heat in wet conditions.',
+      lastUpdated: untouched,
     ),
     KitItem(
       id: 'extra_clothes',
@@ -257,6 +280,7 @@ List<KitItem> getDefaultKitItems() {
       expirationDate: null,
       isPacked: false,
       notes: 'Quick-dry shirts, underwear, socks.',
+      lastUpdated: untouched,
     ),
   ];
 }

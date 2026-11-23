@@ -30,11 +30,16 @@ class AuthProvider extends ChangeNotifier {
   Future<void> Function(
     List<Map<String, dynamic>> items,
     Map<String, dynamic>? profile,
-    int? expiryAlertDays,
-  )? _kitBundleApplier;
-  Future<void> Function(Map<String, dynamic> plan)? _planApplier;
+    int? expiryAlertDays, {
+    bool replaceLocal,
+  })? _kitBundleApplier;
+  Future<void> Function(
+    Map<String, dynamic> plan, {
+    bool forceReplace,
+  })? _planApplier;
   Future<void> Function(List<Map<String, dynamic>> shelters)? _sheltersApplier;
   Future<void> Function(List<Map<String, dynamic>> checkins)? _checkinsApplier;
+  Future<void> Function()? _onLoggedOut;
 
   AuthProvider() {
     _init();
@@ -64,19 +69,25 @@ class AuthProvider extends ChangeNotifier {
     required Future<void> Function(
       List<Map<String, dynamic>> items,
       Map<String, dynamic>? profile,
-      int? expiryAlertDays,
-    ) kitBundleApplier,
-    required Future<void> Function(Map<String, dynamic> plan) planApplier,
+      int? expiryAlertDays, {
+      bool replaceLocal,
+    }) kitBundleApplier,
+    required Future<void> Function(
+      Map<String, dynamic> plan, {
+      bool forceReplace,
+    }) planApplier,
     required Future<void> Function(List<Map<String, dynamic>> shelters)
         sheltersApplier,
     required Future<void> Function(List<Map<String, dynamic>> checkins)
         checkinsApplier,
+    Future<void> Function()? onLoggedOut,
   }) {
     _kitPayloadReader = kitPayloadReader;
     _kitBundleApplier = kitBundleApplier;
     _planApplier = planApplier;
     _sheltersApplier = sheltersApplier;
     _checkinsApplier = checkinsApplier;
+    _onLoggedOut = onLoggedOut;
   }
 
   Future<void> _init() async {
@@ -149,8 +160,24 @@ class AuthProvider extends ChangeNotifier {
 
     await _applyAuthPayload(res.data!);
     final joinedExisting = inviteCode.trim().isNotEmpty;
-    await syncNow(pushLocalKitFirst: !joinedExisting);
+    if (joinedExisting) {
+      await _clearAccountMutations();
+    }
+    await syncNow(
+      pushLocalKitFirst: !joinedExisting,
+      replaceLocalFromCloud: joinedExisting,
+    );
     return (ok: true, error: null);
+  }
+
+  Future<void> _clearAccountMutations() async {
+    final toRemove = _queue.items
+        .where((m) => m.type != 'submit_evaluation')
+        .map((m) => m.id)
+        .toList();
+    for (final id in toRemove) {
+      await _queue.removeById(id);
+    }
   }
 
   Future<({bool ok, String? error})> login({
@@ -170,8 +197,9 @@ class AuthProvider extends ChangeNotifier {
       return (ok: false, error: res.error ?? 'Sign in failed.');
     }
 
+    await _clearAccountMutations();
     await _applyAuthPayload(res.data!);
-    await syncNow(pushLocalKitFirst: false);
+    await syncNow(pushLocalKitFirst: false, replaceLocalFromCloud: true);
     return (ok: true, error: null);
   }
 
@@ -196,8 +224,9 @@ class AuthProvider extends ChangeNotifier {
       _householdName = hh['name']?.toString();
       _inviteCode = hh['inviteCode']?.toString();
     }
+    await _clearAccountMutations();
     await _persistSession();
-    await syncNow(pushLocalKitFirst: false);
+    await syncNow(pushLocalKitFirst: false, replaceLocalFromCloud: true);
     return (ok: true, error: null);
   }
 
@@ -211,11 +240,15 @@ class AuthProvider extends ChangeNotifier {
     _householdName = null;
     _inviteCode = null;
     _lastSyncError = null;
-    notifyListeners();
+    await _clearAccountMutations();
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_sessionKey);
     } catch (_) {}
+    if (_onLoggedOut != null) {
+      await _onLoggedOut!();
+    }
+    notifyListeners();
   }
 
   Future<void> enqueueMutation(String type, Map<String, dynamic> payload) async {
@@ -226,7 +259,10 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<({bool ok, String? error})> syncNow({bool pushLocalKitFirst = true}) async {
+  Future<({bool ok, String? error})> syncNow({
+    bool pushLocalKitFirst = true,
+    bool replaceLocalFromCloud = false,
+  }) async {
     if (_isSyncing) return (ok: true, error: null);
     if (!hasCloudEndpoint) {
       return (ok: false, error: 'No cloud server URL configured.');
@@ -264,7 +300,10 @@ class AuthProvider extends ChangeNotifier {
           return (ok: false, error: _lastSyncError);
         }
 
-        await _applySyncBundle(bundleRes.data!);
+        await _applySyncBundle(
+          bundleRes.data!,
+          replaceLocal: replaceLocalFromCloud,
+        );
         _lastSyncedAt = DateTime.now();
         await _persistSession();
       }
@@ -332,7 +371,10 @@ class AuthProvider extends ChangeNotifier {
     return (sent: true, networkError: false);
   }
 
-  Future<void> _applySyncBundle(Map<String, dynamic> bundle) async {
+  Future<void> _applySyncBundle(
+    Map<String, dynamic> bundle, {
+    bool replaceLocal = false,
+  }) async {
     final household = bundle['household'] as Map<String, dynamic>?;
     final rawItems = (bundle['kitItems'] as List<dynamic>? ?? [])
         .map((e) => Map<String, dynamic>.from(e))
@@ -357,13 +399,21 @@ class AuthProvider extends ChangeNotifier {
             ? Map<String, dynamic>.from(household['profile'])
             : null;
         final alertDays = household['expiryAlertDays'] as int?;
-        await _kitBundleApplier!(rawItems, profile, alertDays);
+        await _kitBundleApplier!(
+          rawItems,
+          profile,
+          alertDays,
+          replaceLocal: replaceLocal,
+        );
       }
 
       if (household['plan'] is Map &&
           (household['plan'] as Map).isNotEmpty &&
           _planApplier != null) {
-        await _planApplier!(Map<String, dynamic>.from(household['plan']));
+        await _planApplier!(
+          Map<String, dynamic>.from(household['plan']),
+          forceReplace: replaceLocal,
+        );
       }
     }
 
@@ -628,7 +678,7 @@ class AuthProvider extends ChangeNotifier {
         'title': title.trim(),
         'message': message.trim(),
         'severity': severity,
-        'area': area.trim().isEmpty ? 'Metro Manila' : area.trim(),
+        'area': area.trim().isEmpty ? 'City of Manila' : area.trim(),
       },
     );
     if (res.ok && res.data?['advisory'] is Map) {

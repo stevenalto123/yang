@@ -220,9 +220,13 @@ class EmergencyProvider extends ChangeNotifier {
     onPlanSaved?.call(plan.toMap());
   }
 
-  Future<void> applyRemotePlan(Map<String, dynamic> planMap) async {
+  Future<void> applyRemotePlan(
+    Map<String, dynamic> planMap, {
+    bool forceReplace = false,
+  }) async {
     final remote = HouseholdEmergencyPlan.fromMap(planMap);
-    if (!remote.lastUpdated.isBefore(_emergencyPlan.lastUpdated) ||
+    if (forceReplace ||
+        !remote.lastUpdated.isBefore(_emergencyPlan.lastUpdated) ||
         (_emergencyPlan.homeAddress.isEmpty && remote.homeAddress.isNotEmpty)) {
       _emergencyPlan = remote;
       try {
@@ -231,6 +235,18 @@ class EmergencyProvider extends ChangeNotifier {
       } catch (_) {}
       notifyListeners();
     }
+  }
+
+  /// Resets local household plan & custom shelters cleanly on Sign Out (cloud data stays safe).
+  Future<void> resetLocalSession() async {
+    _emergencyPlan = HouseholdEmergencyPlan();
+    _customCenters = [];
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_emergencyPlanKey);
+      await prefs.remove(_customSheltersKey);
+    } catch (_) {}
+    notifyListeners();
   }
 
   bool isCustomCenter(String id) => _customCenters.any((c) => c.id == id);

@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Start Go-Bag checklist at 0% with 1-tap Set Expiry and Load Sample Demo option, plus iOS bottom bar fix"
+git commit -m "Fix cloud account sync on sign-in/sign-out, clean 0% starter Go-Bag, and iOS bottom bar fix"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

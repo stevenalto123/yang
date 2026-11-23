@@ -119,6 +119,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         planApplier: emergency.applyRemotePlan,
         sheltersApplier: emergency.applyRemoteShelters,
         checkinsApplier: monitoring.applyRemoteCheckins,
+        onLoggedOut: () async {
+          await kit.resetLocalSession();
+          await emergency.resetLocalSession();
+          await monitoring.clearLocalSafetyLog();
+        },
       );
     });
   }
