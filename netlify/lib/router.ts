@@ -28,7 +28,13 @@ function json(data: unknown, status = 200): Response {
 }
 
 function normalizeApiPath(rawUrl: string): string {
-  const { pathname } = new URL(rawUrl, 'http://localhost');
+  const url = new URL(rawUrl, 'http://localhost');
+  const rewritten = url.searchParams.get('__route');
+  if (rewritten !== null && rewritten.trim() !== '') {
+    const clean = rewritten.trim();
+    return clean.startsWith('/') ? clean : `/${clean}`;
+  }
+  const { pathname } = url;
   if (pathname.startsWith('/.netlify/functions/api')) {
     return pathname.slice('/.netlify/functions/api'.length) || '/';
   }

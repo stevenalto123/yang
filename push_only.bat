@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Expand official shelters, map auto-centering, and hotlines across all 17 Metro Manila LGUs"
+git commit -m "Add Vercel free full-stack deployment support and all 17 Metro Manila LGUs"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

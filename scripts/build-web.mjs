@@ -3,7 +3,10 @@ import { execSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 
 const webIndex = resolve(process.cwd(), 'build', 'web', 'index.html');
-const isNetlify = process.env.NETLIFY === 'true';
+const isCloudCi =
+  process.env.NETLIFY === 'true' ||
+  process.env.VERCEL === '1' ||
+  process.env.VERCEL === 'true';
 
 function hasFlutterCli() {
   try {
@@ -18,10 +21,10 @@ function run(cmd, env = process.env) {
   execSync(cmd, { stdio: 'inherit', env });
 }
 
-if (!isNetlify && hasFlutterCli()) {
+if (!isCloudCi && hasFlutterCli()) {
   console.log('Local Flutter SDK detected — building production Web PWA...');
   run('flutter build web --release --base-href /');
-} else if (isNetlify) {
+} else if (isCloudCi) {
   const flutterRoot = existsSync('/opt/build/cache')
     ? '/opt/build/cache/flutter-sdk'
     : '/tmp/flutter-sdk';

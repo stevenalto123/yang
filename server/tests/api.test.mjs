@@ -28,12 +28,16 @@ async function callApi(store, path, { method = 'GET', token = null, headers = {}
   return { status: res.status, headers: res.headers, json, text };
 }
 
-test('health endpoint returns ok', async () => {
+test('health endpoint returns ok (direct /api/health and Vercel /api?__route=health)', async () => {
   const store = new InMemoryStore();
   const res = await callApi(store, '/health');
   assert.equal(res.status, 200);
   assert.equal(res.json.ok, true);
   assert.equal(res.json.database, 'connected');
+
+  const vercelRes = await callApi(store, '?__route=health');
+  assert.equal(vercelRes.status, 200);
+  assert.equal(vercelRes.json.ok, true);
 });
 
 test('auth, household invite sync, kit timestamp conflict resolution, and plan/checkins', async () => {
