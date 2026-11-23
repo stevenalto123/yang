@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Upgrade shelter map picker: full-screen Grab-style pin map, Manila address search, scroll-lock pan, zoom buttons & form validation"
+git commit -m "Fix Nearby map panning: smooth instant drag with scroll-lock, taller mobile map, and Full-Screen Nearby Map view"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

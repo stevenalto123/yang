@@ -30,7 +30,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
   final GlobalKey _mapSectionKey = GlobalKey();
 
   EvacuationCenter? _selectedCenter;
-  bool _unlockMobileMapPan = false;
+  bool _isPanningMobileMap = false;
 
   @override
   void dispose() {
@@ -599,10 +599,13 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
             );
           }
 
-          // Mobile / Narrow Stacked View: entire screen scrolls smoothly together
+          // Mobile / Narrow Stacked View: page scrolls smoothly while touching outside map,
+          // and touching inside the map locks page scroll so panning works effortlessly in all directions.
           return ListView(
             controller: _mobileScrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
+            physics: _isPanningMobileMap
+                ? const NeverScrollableScrollPhysics()
+                : const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 96),
             children: [
               headerPanel,
@@ -610,20 +613,37 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
               Padding(
                 key: _mapSectionKey,
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                child: SizedBox(
-                  height: 255,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isDark
-                              ? AppTheme.darkBorder
-                              : AppTheme.lightBorder,
+                child: Listener(
+                  onPointerDown: (_) {
+                    if (!_isPanningMobileMap) {
+                      setState(() => _isPanningMobileMap = true);
+                    }
+                  },
+                  onPointerUp: (_) {
+                    if (_isPanningMobileMap) {
+                      setState(() => _isPanningMobileMap = false);
+                    }
+                  },
+                  onPointerCancel: (_) {
+                    if (_isPanningMobileMap) {
+                      setState(() => _isPanningMobileMap = false);
+                    }
+                  },
+                  child: SizedBox(
+                    height: 305,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                            color: isDark
+                                ? AppTheme.darkBorder
+                                : AppTheme.lightBorder,
+                          ),
+                          borderRadius: BorderRadius.circular(18),
                         ),
-                        borderRadius: BorderRadius.circular(18),
+                        child: mapWidget,
                       ),
-                      child: mapWidget,
                     ),
                   ),
                 ),
@@ -659,6 +679,311 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _openFullScreenNearbyMap(
+    BuildContext context,
+    EmergencyProvider emergency,
+    List<EvacuationCenter> centers,
+    bool isDark,
+    bool isFil,
+    bool isFarFromManila,
+  ) async {
+    final fullCtrl = MapController();
+    final userPoint = LatLng(emergency.userLat, emergency.userLng);
+    LatLng startCenter = _selectedCenter != null
+        ? LatLng(_selectedCenter!.latitude, _selectedCenter!.longitude)
+        : (isFarFromManila ? _manilaCenter : userPoint);
+    double startZoom = _selectedCenter != null ? 15.0 : 13.5;
+    try {
+      startCenter = _mapController.camera.center;
+      startZoom = _mapController.camera.zoom;
+    } catch (_) {}
+
+    EvacuationCenter? activeSelected = _selectedCenter;
+
+    final pickedBack = await Navigator.of(context).push<EvacuationCenter?>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (ctx) => StatefulBuilder(
+          builder: (ctx, setFullState) {
+            final showLine = activeSelected != null &&
+                emergency.distanceToCenterKm(activeSelected!) <= 30.0;
+            final hasStandby = centers.any((c) => !c.isOpen);
+
+            void moveFull(LatLng target, double zoom) {
+              try {
+                fullCtrl.move(target, zoom.clamp(10.0, 18.5));
+              } catch (_) {}
+            }
+
+            void zoomFull(double delta) {
+              try {
+                final cam = fullCtrl.camera;
+                fullCtrl.move(cam.center, (cam.zoom + delta).clamp(10.0, 18.5));
+              } catch (_) {}
+            }
+
+            return Scaffold(
+              appBar: AppBar(
+                title: Text(
+                  isFil
+                      ? 'Buong Mapa ng Maynila (${centers.length})'
+                      : 'City of Manila Map (${centers.length})',
+                ),
+              ),
+              body: Stack(
+                children: [
+                  FlutterMap(
+                    mapController: fullCtrl,
+                    options: MapOptions(
+                      initialCenter: startCenter,
+                      initialZoom: startZoom,
+                      minZoom: 10.0,
+                      maxZoom: 18.5,
+                      interactionOptions: const InteractionOptions(
+                        flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+                      ),
+                      onTap: (_, __) {
+                        if (activeSelected != null) {
+                          setFullState(() => activeSelected = null);
+                        }
+                      },
+                    ),
+                    children: [
+                      TileLayer(
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        userAgentPackageName: 'com.lifecheckpoint.app',
+                      ),
+                      if (showLine)
+                        PolylineLayer(
+                          polylines: [
+                            Polyline(
+                              points: [
+                                userPoint,
+                                LatLng(
+                                  activeSelected!.latitude,
+                                  activeSelected!.longitude,
+                                ),
+                              ],
+                              strokeWidth: 3.5,
+                              color: activeSelected!.isOpen
+                                  ? Colors.teal.shade700
+                                  : Colors.blueGrey.shade500,
+                              pattern: StrokePattern.dashed(
+                                segments: const [10, 7],
+                                patternFit: PatternFit.scaleUp,
+                              ),
+                            ),
+                          ],
+                        ),
+                      MarkerLayer(
+                        markers: [
+                          ...centers.map((center) {
+                            final isSel = activeSelected?.id == center.id;
+                            final isHosp =
+                                center.facilityType == FacilityType.hospital;
+                            final isPF =
+                                center.facilityType == FacilityType.policeFire;
+                            final Color pinColor = !center.isOpen
+                                ? Colors.blueGrey.shade500
+                                : (isHosp
+                                    ? AppTheme.dangerRed
+                                    : (isPF
+                                        ? Colors.indigo.shade600
+                                        : Colors.teal.shade700));
+                            final IconData pinIcon = !center.isOpen
+                                ? Icons.pause_circle_outline_rounded
+                                : (isHosp
+                                    ? Icons.local_hospital_rounded
+                                    : (isPF
+                                        ? Icons.local_police_rounded
+                                        : Icons.roofing_rounded));
+                            return Marker(
+                              point: LatLng(center.latitude, center.longitude),
+                              width: isSel ? 48 : 38,
+                              height: isSel ? 48 : 38,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setFullState(() => activeSelected = center);
+                                  moveFull(
+                                    LatLng(center.latitude, center.longitude),
+                                    15.2,
+                                  );
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 160),
+                                  decoration: BoxDecoration(
+                                    color: pinColor,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: isSel ? 3 : 2.2,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withAlpha(80),
+                                        blurRadius: isSel ? 10 : 5,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    pinIcon,
+                                    color: Colors.white,
+                                    size: isSel ? 22 : 18,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                          Marker(
+                            point: userPoint,
+                            width: 32,
+                            height: 32,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2563EB).withAlpha(55),
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white,
+                                    width: 2.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: Column(
+                      children: [
+                        _mapControlButton(
+                          icon: Icons.add_rounded,
+                          tooltip: 'Zoom In',
+                          isDark: isDark,
+                          onTap: () => zoomFull(1.0),
+                        ),
+                        const SizedBox(height: 6),
+                        _mapControlButton(
+                          icon: Icons.remove_rounded,
+                          tooltip: 'Zoom Out',
+                          isDark: isDark,
+                          onTap: () => zoomFull(-1.0),
+                        ),
+                        const SizedBox(height: 6),
+                        _mapControlButton(
+                          icon: Icons.my_location_rounded,
+                          tooltip: isFil ? 'Punta sa GPS Ko' : 'Center on Me',
+                          isDark: isDark,
+                          onTap: () => moveFull(userPoint, 14.5),
+                        ),
+                        const SizedBox(height: 6),
+                        _mapControlButton(
+                          icon: Icons.location_city_rounded,
+                          tooltip: isFil
+                              ? 'I-center sa Maynila'
+                              : 'Center on City of Manila',
+                          isDark: isDark,
+                          onTap: () => moveFull(_manilaCenter, 13.0),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (activeSelected == null)
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 14,
+                      child: SafeArea(
+                        top: false,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: (isDark ? AppTheme.darkCard : Colors.white)
+                                .withAlpha(240),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 4,
+                            children: [
+                              _legendDot(
+                                const Color(0xFF2563EB),
+                                isFil ? 'Ikaw' : 'You',
+                                isDark,
+                              ),
+                              _legendDot(
+                                Colors.teal.shade700,
+                                'Shelter',
+                                isDark,
+                              ),
+                              _legendDot(
+                                AppTheme.dangerRed,
+                                isFil ? 'Ospital' : 'Hospital',
+                                isDark,
+                              ),
+                              _legendDot(
+                                Colors.indigo.shade600,
+                                isFil ? 'Pulis/Bumbero' : 'Police/Fire',
+                                isDark,
+                              ),
+                              if (hasStandby)
+                                _legendDot(
+                                  Colors.blueGrey.shade500,
+                                  'Standby',
+                                  isDark,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (activeSelected != null)
+                    Positioned(
+                      left: 12,
+                      right: 12,
+                      bottom: 14,
+                      child: SafeArea(
+                        top: false,
+                        child: _buildMapPopupCard(
+                          ctx,
+                          activeSelected!,
+                          emergency,
+                          isDark,
+                          isFil,
+                          onClose: () =>
+                              setFullState(() => activeSelected = null),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+
+    if (mounted && pickedBack != null) {
+      setState(() => _selectedCenter = pickedBack);
+    }
   }
 
   Widget _buildInteractiveMap({
@@ -758,7 +1083,6 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
       ),
     ];
 
-    final allowPanAndWheel = isSplit || _unlockMobileMapPan;
     final showGuideLine = _selectedCenter != null &&
         emergency.distanceToCenterKm(_selectedCenter!) <= 30.0;
 
@@ -771,10 +1095,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
             initialZoom: 13.0,
             minZoom: 5.0,
             maxZoom: 18.0,
-            interactionOptions: InteractionOptions(
-              flags: allowPanAndWheel
-                  ? (InteractiveFlag.all & ~InteractiveFlag.rotate)
-                  : (InteractiveFlag.pinchZoom | InteractiveFlag.doubleTapZoom),
+            interactionOptions: const InteractionOptions(
+              flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
             ),
             onTap: (_, __) {
               if (_selectedCenter != null) {
@@ -813,58 +1135,54 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
           ],
         ),
 
-        // Mobile-only Map Pan Unlock Pill so vertical page scrolling never gets trapped
-        if (!isSplit)
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Material(
-              color: _unlockMobileMapPan
-                  ? Colors.teal.shade700
-                  : (isDark ? AppTheme.darkCard : Colors.white).withAlpha(240),
-              elevation: 2,
+        // Top-left Full-Screen Map Expand Button
+        Positioned(
+          top: 12,
+          left: 12,
+          child: Material(
+            color: (isDark ? AppTheme.darkCard : Colors.white).withAlpha(242),
+            elevation: 2,
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
               borderRadius: BorderRadius.circular(10),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => setState(
-                  () => _unlockMobileMapPan = !_unlockMobileMapPan,
+              onTap: () => _openFullScreenNearbyMap(
+                context,
+                emergency,
+                centers,
+                isDark,
+                isFil,
+                isFarFromManila,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 7,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _unlockMobileMapPan
-                            ? Icons.lock_open_rounded
-                            : Icons.pan_tool_alt_outlined,
-                        size: 15,
-                        color: _unlockMobileMapPan
-                            ? Colors.white
-                            : (isDark ? Colors.white : AppTheme.darkSlate),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.open_in_full_rounded,
+                      size: 15,
+                      color: isDark
+                          ? Colors.lightBlue.shade200
+                          : AppTheme.primaryNavy,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isFil ? 'Buong Mapa' : 'Full Screen',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.white : AppTheme.darkSlate,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _unlockMobileMapPan
-                            ? (isFil ? 'Tapos Gumalaw' : 'Done Moving')
-                            : (isFil ? 'Igalaw ang Mapa' : 'Move Map'),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: _unlockMobileMapPan
-                              ? Colors.white
-                              : (isDark ? Colors.white : AppTheme.darkSlate),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
+        ),
 
         // Top-right Map Controls (+, -, My Location, City of Manila)
         Positioned(
@@ -1183,8 +1501,9 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
     EvacuationCenter center,
     EmergencyProvider emergency,
     bool isDark,
-    bool isFil,
-  ) {
+    bool isFil, {
+    VoidCallback? onClose,
+  }) {
     final distKm = emergency.distanceToCenterKm(center);
     final cardinal = emergency.bearingToCenter(center);
     final etaText = _formatEta(distKm, isFil);
@@ -1225,7 +1544,8 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                 ),
                 const SizedBox(width: 4),
                 InkWell(
-                  onTap: () => setState(() => _selectedCenter = null),
+                  onTap:
+                      onClose ?? () => setState(() => _selectedCenter = null),
                   child: Icon(Icons.close_rounded, size: 19, color: subtleText),
                 ),
               ],
