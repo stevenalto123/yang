@@ -31,11 +31,29 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
   late List<FamilyMemberProfile> _members;
   bool _initialized = false;
   bool _hasUnsavedChanges = false;
+  bool _isPopulating = false;
+  DateTime? _syncedPlanTimestamp;
 
   void _markDirty() {
+    if (_isPopulating) return;
     if (!_hasUnsavedChanges && mounted) {
       setState(() => _hasUnsavedChanges = true);
     }
+  }
+
+  void _populateControllersFromPlan(HouseholdEmergencyPlan plan) {
+    _isPopulating = true;
+    _householdCtrl.text = plan.householdName;
+    _addressCtrl.text = plan.homeAddress;
+    _primaryMeetCtrl.text = plan.primaryMeetingPoint;
+    _secondarySiteCtrl.text = plan.secondaryEvacuationSite;
+    _goBagLocCtrl.text = plan.goBagLocation;
+    _breakerCtrl.text = plan.mainBreakerLocation;
+    _lpgCtrl.text = plan.lpgValveLocation;
+    _waterCtrl.text = plan.waterValveLocation;
+    _members = List<FamilyMemberProfile>.from(plan.members);
+    _syncedPlanTimestamp = plan.lastUpdated;
+    _isPopulating = false;
   }
 
   @override
@@ -61,6 +79,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
       _waterCtrl = TextEditingController(text: plan.waterValveLocation)
         ..addListener(_markDirty);
       _members = List<FamilyMemberProfile>.from(plan.members);
+      _syncedPlanTimestamp = plan.lastUpdated;
       _initialized = true;
     }
   }
@@ -95,7 +114,10 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
     );
     await emergency.saveEmergencyPlan(updated);
     if (mounted) {
-      setState(() => _hasUnsavedChanges = false);
+      setState(() {
+        _syncedPlanTimestamp = updated.lastUpdated;
+        _hasUnsavedChanges = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Household Emergency Plan saved offline!'),
@@ -384,6 +406,24 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                               ),
                             ),
                       ],
+                      const Divider(height: 20),
+                      Text(
+                        isFil
+                            ? 'Opisyal na Hotline ng Lungsod ng Maynila'
+                            : 'Official City of Manila Hotlines',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '• Emergency: 911  • Red Cross: 143\n• Manila DRRMO: (02) 8568-6909 / 0932-662-2322',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -455,6 +495,19 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
+    final remotePlan = context.watch<EmergencyProvider>().emergencyPlan;
+    if (_initialized &&
+        !_hasUnsavedChanges &&
+        _syncedPlanTimestamp != remotePlan.lastUpdated) {
+      _syncedPlanTimestamp = remotePlan.lastUpdated;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_hasUnsavedChanges) {
+          setState(() {
+            _populateControllersFromPlan(remotePlan);
+          });
+        }
+      });
+    }
     final isDark = settings.isDarkMode;
     final isFil = settings.isFilipino;
     final s = AppStrings(isFil);
@@ -628,8 +681,8 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.roofing_rounded, size: 20),
                         tooltip: isFil
-                            ? 'Pumili mula sa Shelters'
-                            : 'Pick from Metro Manila Shelters',
+                            ? 'Pumili mula sa Manila Shelters'
+                            : 'Pick from City of Manila Shelters',
                         onPressed: () =>
                             _showShelterPicker(_primaryMeetCtrl, isFil),
                       ),
@@ -646,8 +699,8 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                       suffixIcon: IconButton(
                         icon: const Icon(Icons.location_searching_rounded, size: 20),
                         tooltip: isFil
-                            ? 'Pumili mula sa Shelters'
-                            : 'Pick from Metro Manila Shelters',
+                            ? 'Pumili mula sa Manila Shelters'
+                            : 'Pick from City of Manila Shelters',
                         onPressed: () =>
                             _showShelterPicker(_secondarySiteCtrl, isFil),
                       ),
@@ -725,7 +778,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
               TextButton.icon(
                 icon: const Icon(Icons.person_add, size: 18),
                 label: Text(isFil ? 'Magdagdag' : 'Add Member'),
-                onPressed: () => _showAddMemberDialog(isFil),
+                onPressed: () => _showMemberDialog(isFil),
               ),
             ],
           ),
@@ -746,6 +799,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
               (m) => Card(
                 margin: const EdgeInsets.only(bottom: 8),
                 child: ListTile(
+                  onTap: () => _showMemberDialog(isFil, existing: m),
                   leading: CircleAvatar(
                     backgroundColor: AppTheme.primaryNavy.withAlpha(30),
                     child: Text(
@@ -770,17 +824,32 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                     '${isFil ? 'Medikal/Allergy' : 'Medical/Allergies'}: ${m.medicalConditions}',
                     style: const TextStyle(fontSize: 14),
                   ),
-                  trailing: IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline,
-                      color: AppTheme.dangerRed,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _members.removeWhere((item) => item.id == m.id);
-                      });
-                      _savePlan();
-                    },
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.edit_outlined,
+                          size: 20,
+                          color: subColor,
+                        ),
+                        tooltip: isFil ? 'I-edit' : 'Edit Member',
+                        onPressed: () => _showMemberDialog(isFil, existing: m),
+                      ),
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: AppTheme.dangerRed,
+                        ),
+                        tooltip: isFil ? 'Burahin' : 'Remove Member',
+                        onPressed: () {
+                          setState(() {
+                            _members.removeWhere((item) => item.id == m.id);
+                          });
+                          _savePlan();
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -843,18 +912,43 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
     );
   }
 
-  void _showAddMemberDialog(bool isFil) {
-    final nameCtrl = TextEditingController();
-    final roleCtrl = TextEditingController();
-    final medCtrl = TextEditingController();
-    String bloodType = 'O+';
+  void _showMemberDialog(bool isFil, {FamilyMemberProfile? existing}) {
+    final isEdit = existing != null;
+    final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final roleCtrl = TextEditingController(text: existing?.roleOrAge ?? '');
+    final medCtrl = TextEditingController(
+      text: existing != null &&
+              existing.medicalConditions != 'None' &&
+              existing.medicalConditions != 'Wala'
+          ? existing.medicalConditions
+          : '',
+    );
+    const validBloodTypes = [
+      'A+',
+      'A-',
+      'B+',
+      'B-',
+      'AB+',
+      'AB-',
+      'O+',
+      'O-',
+      'Unknown',
+    ];
+    String bloodType = existing != null &&
+            validBloodTypes.contains(existing.bloodType)
+        ? existing.bloodType
+        : 'O+';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(
-            isFil ? 'Magdagdag ng Miyembro ng Pamilya' : 'Add Household Member',
+            isEdit
+                ? (isFil ? 'I-edit ang Miyembro' : 'Edit Household Member')
+                : (isFil
+                    ? 'Magdagdag ng Miyembro ng Pamilya'
+                    : 'Add Household Member'),
           ),
           content: SingleChildScrollView(
             child: Column(
@@ -882,17 +976,7 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
                     labelText:
                         isFil ? 'Uri ng Dugo (Blood Type)' : 'Blood Type',
                   ),
-                  items: [
-                    'A+',
-                    'A-',
-                    'B+',
-                    'B-',
-                    'AB+',
-                    'AB-',
-                    'O+',
-                    'O-',
-                    'Unknown',
-                  ]
+                  items: validBloodTypes
                       .map((b) => DropdownMenuItem(value: b, child: Text(b)))
                       .toList(),
                   onChanged: (v) {
@@ -922,29 +1006,46 @@ class _EmergencyPlanScreenState extends State<EmergencyPlanScreen> {
             ElevatedButton(
               onPressed: () {
                 if (nameCtrl.text.trim().isEmpty) return;
+                final updatedProfile = FamilyMemberProfile(
+                  id: existing?.id ?? const Uuid().v4(),
+                  name: nameCtrl.text.trim(),
+                  roleOrAge: roleCtrl.text.trim().isEmpty
+                      ? (isFil ? 'Miyembro' : 'Member')
+                      : roleCtrl.text.trim(),
+                  bloodType: bloodType,
+                  medicalConditions: medCtrl.text.trim().isEmpty
+                      ? (isFil ? 'Wala' : 'None')
+                      : medCtrl.text.trim(),
+                );
                 setState(() {
-                  _members.add(
-                    FamilyMemberProfile(
-                      id: const Uuid().v4(),
-                      name: nameCtrl.text.trim(),
-                      roleOrAge: roleCtrl.text.trim().isEmpty
-                          ? (isFil ? 'Miyembro' : 'Member')
-                          : roleCtrl.text.trim(),
-                      bloodType: bloodType,
-                      medicalConditions: medCtrl.text.trim().isEmpty
-                          ? (isFil ? 'Wala' : 'None')
-                          : medCtrl.text.trim(),
-                    ),
-                  );
+                  if (isEdit) {
+                    final idx =
+                        _members.indexWhere((m) => m.id == existing.id);
+                    if (idx != -1) {
+                      _members[idx] = updatedProfile;
+                    }
+                  } else {
+                    _members.add(updatedProfile);
+                  }
                 });
                 Navigator.pop(ctx);
                 _savePlan();
               },
-              child: Text(isFil ? 'Idagdag' : 'Add'),
+              child: Text(
+                isEdit
+                    ? (isFil ? 'I-save' : 'Save')
+                    : (isFil ? 'Idagdag' : 'Add'),
+              ),
             ),
           ],
         ),
       ),
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 350), () {
+        nameCtrl.dispose();
+        roleCtrl.dispose();
+        medCtrl.dispose();
+      });
+    });
   }
 }

@@ -120,6 +120,7 @@ class _DisasterGuideScreenState extends State<DisasterGuideScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: ChoiceChip(
+                    showCheckmark: false,
                     padding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     label: Row(

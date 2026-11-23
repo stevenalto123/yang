@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import '../data/evacuation_centers_data.dart';
 import '../providers/auth_provider.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/monitoring_provider.dart';
@@ -22,13 +23,14 @@ class _CityPreset {
   const _CityPreset(this.label, this.city, this.coords);
 }
 
-const List<_CityPreset> _metroManilaPresets = [
+const List<_CityPreset> _manilaPresets = [
   _CityPreset('Ermita / Malate', 'Manila', LatLng(14.5735, 120.9875)),
   _CityPreset('Paco', 'Manila', LatLng(14.5794, 120.9936)),
   _CityPreset('San Andres', 'Manila', LatLng(14.5701, 120.9918)),
   _CityPreset('Tondo / San Nicolas', 'Manila', LatLng(14.6120, 120.9690)),
   _CityPreset('Port Area / Baseco', 'Manila', LatLng(14.5889, 120.9622)),
   _CityPreset('Sampaloc', 'Manila', LatLng(14.6158, 120.9950)),
+  _CityPreset('Sta. Mesa / San Miguel', 'Manila', LatLng(14.6020, 121.0125)),
   _CityPreset('Sta. Ana / Pandacan', 'Manila', LatLng(14.5812, 121.0128)),
   _CityPreset('Quiapo / Sta. Cruz', 'Manila', LatLng(14.6010, 120.9830)),
   _CityPreset('Intramuros / Binondo', 'Manila', LatLng(14.5945, 120.9745)),
@@ -51,7 +53,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   final _checkinSearchCtrl = TextEditingController();
   final _advisoryTitleCtrl = TextEditingController();
   final _advisoryMsgCtrl = TextEditingController();
-  final _advisoryAreaCtrl = TextEditingController(text: 'Metro Manila');
+  final _advisoryAreaCtrl = TextEditingController(text: 'City of Manila');
 
   String _activeAdminCode = '';
   bool _unlocked = false;
@@ -176,6 +178,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         _error = res.error ?? 'Invalid Admin Code or server unreachable.';
       }
     });
+
+    // Keep local Nearby Map shelters immediately synced with Admin changes
+    if (res.ok && res.data != null && mounted) {
+      final rawShelters = res.data!['shelters'];
+      if (rawShelters is List) {
+        final mapped = rawShelters
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+        if (mapped.isNotEmpty) {
+          context.read<EmergencyProvider>().applyRemoteShelters(mapped);
+        }
+      }
+    }
   }
 
   Future<void> _toggleShelterOpen(
@@ -249,11 +265,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     );
     final contactPersonCtrl = TextEditingController(
       text: isEdit
-          ? (existing['contactPerson'] ?? 'City DRRMO').toString()
-          : 'City DRRMO',
+          ? (existing['contactPerson'] ?? 'Manila DRRMO').toString()
+          : 'Manila DRRMO',
     );
     final phoneCtrl = TextEditingController(
-      text: isEdit ? (existing['contactNumber'] ?? '911').toString() : '911',
+      text: isEdit
+          ? (existing['contactNumber'] ?? '(02) 8568-6909').toString()
+          : '(02) 8568-6909',
     );
     final capCtrl = TextEditingController(
       text: isEdit
@@ -370,7 +388,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                     const SizedBox(height: 14),
                     const Text(
-                      'Pin Location on Map (Tap map or choose a Metro Manila preset)',
+                      'Pin Location on Map (Tap map or choose a City of Manila district)',
                       style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,
@@ -380,7 +398,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     Wrap(
                       spacing: 6,
                       runSpacing: 6,
-                      children: _metroManilaPresets.map((preset) {
+                      children: _manilaPresets.map((preset) {
                         return ActionChip(
                           visualDensity: VisualDensity.compact,
                           label: Text(
@@ -536,7 +554,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       final res = await auth.updateOfficialShelter(
         id: (existing['id'] ?? '').toString(),
         name: name,
-        address: address.isEmpty ? 'Metro Manila' : address,
+        address: address.isEmpty ? 'City of Manila' : address,
         city: city.isEmpty ? 'Manila' : city,
         contactPerson: contactPerson,
         contactNumber: phone,
@@ -558,7 +576,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         adminCode: _activeAdminCode.isNotEmpty ? _activeAdminCode : null,
         shelter: {
           'name': name,
-          'address': address.isEmpty ? 'Metro Manila' : address,
+          'address': address.isEmpty ? 'City of Manila' : address,
           'city': city.isEmpty ? 'Manila' : city,
           'contactPerson': contactPerson,
           'contactNumber': phone,
@@ -656,7 +674,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       title: title,
       message: message,
       severity: _advisorySeverity,
-      area: area.isEmpty ? 'Metro Manila' : area,
+      area: area.isEmpty ? 'City of Manila' : area,
       adminCode: _activeAdminCode.isNotEmpty ? _activeAdminCode : null,
     );
     if (!mounted) return;
@@ -1134,7 +1152,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'Enter your authorized Admin Code to manage Metro Manila evacuation centers, broadcast advisories, monitor emergency check-ins, and export ISO/IEC 25010 research surveys.',
+                        'Enter your authorized Admin Code to manage City of Manila evacuation centers, broadcast advisories, monitor emergency check-ins, and export ISO/IEC 25010 research surveys.',
                         style: TextStyle(
                           fontSize: 13.5,
                           color: subtleText,
@@ -1449,6 +1467,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           .compareTo((a['updatedAt'] ?? '').toString());
     });
 
+    final avgReadinessPct = rawHouseholds.isEmpty
+        ? 0.0
+        : rawHouseholds
+                .map((h) => ((h['readinessPct'] ?? 0) as num).toDouble())
+                .reduce((a, b) => a + b) /
+            rawHouseholds.length;
+
     final kpiCards = [
       _kpiCard(
         isDark: isDark,
@@ -1456,7 +1481,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         color: AppTheme.primaryAccent,
         label: 'Households',
         value: '${counts['households'] ?? 0}',
-        sub: '${counts['users'] ?? 0} registered user(s)',
+        sub: rawHouseholds.isNotEmpty
+            ? 'Avg ${avgReadinessPct.toStringAsFixed(0)}% ready • ${counts['users'] ?? 0} user(s)'
+            : '${counts['users'] ?? 0} registered user(s)',
         headingColor: headingColor,
         subtleText: subtleText,
         onTap: () {
@@ -1636,7 +1663,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 ),
                 subtitle: Text(
                   activeAdvisories > 0
-                      ? 'Visible right now on every Metro Manila household dashboard.'
+                      ? 'Visible right now on every City of Manila household dashboard.'
                       : 'Broadcast flood, typhoon, or shelter announcements to all families.',
                   style: TextStyle(fontSize: 12.5, color: subtleText),
                 ),
@@ -1702,7 +1729,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   padding: const EdgeInsets.all(20),
                   child: Text(
                     rawHouseholds.isEmpty
-                        ? 'No households have signed in for cloud sync yet. As Metro Manila families create accounts and sync their Go-Bag, their readiness progress will appear here.'
+                        ? 'No households have signed in for cloud sync yet. As City of Manila families create accounts and sync their Go-Bag, their readiness progress will appear here.'
                         : 'No households match "$_householdQuery".',
                     style: TextStyle(fontSize: 13.5, color: subtleText),
                   ),
@@ -1834,6 +1861,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Widget _sortChip(String label, String key, Color headingColor) {
     final selected = _householdSort == key;
     return ChoiceChip(
+      showCheckmark: false,
       visualDensity: VisualDensity.compact,
       label: Text(label, style: const TextStyle(fontSize: 12.5)),
       selected: selected,
@@ -1848,25 +1876,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
 
-    final cities = <String>{'ALL'};
-    for (final s in allShelters) {
-      final city = (s['city'] ?? '').toString().trim();
-      if (city.isNotEmpty) cities.add(city);
-    }
+    final districts = <String>['ALL', ...manilaDistrictFilters.keys];
 
     final q = _shelterQuery.trim().toLowerCase();
     final shelters = allShelters.where((s) {
       final isOpen = s['isOpen'] == true;
       if (_shelterStatusFilter == 'OPEN' && !isOpen) return false;
       if (_shelterStatusFilter == 'STANDBY' && isOpen) return false;
-      if (_shelterCityFilter != 'ALL' &&
-          (s['city'] ?? '').toString().trim() != _shelterCityFilter) {
-        return false;
-      }
-      if (q.isEmpty) return true;
       final hay =
           '${s['name']} ${s['address']} ${s['city']} ${s['facilities']}'
               .toLowerCase();
+      if (_shelterCityFilter != 'ALL') {
+        final d = manilaDistrictFilters[_shelterCityFilter];
+        if (d != null) {
+          if (!d.keywords.any((kw) => hay.contains(kw))) return false;
+        } else if ((s['city'] ?? '').toString().trim() != _shelterCityFilter) {
+          return false;
+        }
+      }
+      if (q.isEmpty) return true;
       return hay.contains(q);
     }).toList();
 
@@ -1884,7 +1912,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Evacuation Centers (${shelters.length}/${allShelters.length})',
+                        'City of Manila Shelters (${shelters.length}/${allShelters.length})',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w800,
@@ -1930,6 +1958,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               runSpacing: 6,
               children: [
                 ChoiceChip(
+                  showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   label: const Text('All Status'),
                   selected: _shelterStatusFilter == 'ALL',
@@ -1943,6 +1972,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       setState(() => _shelterStatusFilter = 'ALL'),
                 ),
                 ChoiceChip(
+                  showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   label: const Text('Open'),
                   selected: _shelterStatusFilter == 'OPEN',
@@ -1956,6 +1986,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       setState(() => _shelterStatusFilter = 'OPEN'),
                 ),
                 ChoiceChip(
+                  showCheckmark: false,
                   visualDensity: VisualDensity.compact,
                   label: const Text('Standby'),
                   selected: _shelterStatusFilter == 'STANDBY',
@@ -1968,20 +1999,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   onSelected: (_) =>
                       setState(() => _shelterStatusFilter = 'STANDBY'),
                 ),
-                ...cities.map((city) {
-                  final sel = _shelterCityFilter == city;
-                  return FilterChip(
-                    visualDensity: VisualDensity.compact,
-                    label: Text(city == 'ALL' ? 'All Cities' : city),
-                    selected: sel,
-                    selectedColor: AppTheme.primaryAccent.withAlpha(
-                      isDark ? 70 : 32,
-                    ),
-                    onSelected: (_) =>
-                        setState(() => _shelterCityFilter = city),
-                  );
-                }),
               ],
+            ),
+            const SizedBox(height: 6),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: districts.map((district) {
+                  final sel = _shelterCityFilter == district;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      showCheckmark: false,
+                      visualDensity: VisualDensity.compact,
+                      label: Text(district == 'ALL' ? 'All Manila' : district),
+                      selected: sel,
+                      selectedColor: Colors.teal.shade700,
+                      labelStyle: TextStyle(
+                        fontSize: 12.5,
+                        color: sel ? Colors.white : headingColor,
+                        fontWeight: sel ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                      onSelected: (_) =>
+                          setState(() => _shelterCityFilter = district),
+                    ),
+                  );
+                }).toList(),
+              ),
             ),
             const SizedBox(height: 14),
             if (shelters.isEmpty)
@@ -2215,6 +2259,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               runSpacing: 8,
               children: [
                 ChoiceChip(
+                  showCheckmark: false,
                   label: Text('All (${allCheckins.length})'),
                   selected: _checkinFilter == 'ALL',
                   selectedColor: AppTheme.primaryNavy,
@@ -2225,6 +2270,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   onSelected: (_) => setState(() => _checkinFilter = 'ALL'),
                 ),
                 ChoiceChip(
+                  showCheckmark: false,
                   label: Text('Need Help ($pendingHelpCount)'),
                   selected: _checkinFilter == 'HELP',
                   selectedColor: AppTheme.dangerRed,
@@ -2235,6 +2281,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   onSelected: (_) => setState(() => _checkinFilter = 'HELP'),
                 ),
                 ChoiceChip(
+                  showCheckmark: false,
                   label: const Text('Evacuating'),
                   selected: _checkinFilter == 'EVAC',
                   selectedColor: AppTheme.warningAmber,
@@ -2245,6 +2292,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   onSelected: (_) => setState(() => _checkinFilter = 'EVAC'),
                 ),
                 ChoiceChip(
+                  showCheckmark: false,
                   label: const Text('Safe'),
                   selected: _checkinFilter == 'SAFE',
                   selectedColor: AppTheme.safeGreen,
@@ -2255,6 +2303,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   onSelected: (_) => setState(() => _checkinFilter = 'SAFE'),
                 ),
                 ChoiceChip(
+                  showCheckmark: false,
                   label: Text('Assisted ($assistedCount)'),
                   selected: _checkinFilter == 'ASSISTED',
                   selectedColor: Colors.teal.shade700,
@@ -2551,12 +2600,95 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Quick Manila DRRMO Templates:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: subtleText,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(
+                            Icons.water_drop_outlined,
+                            size: 15,
+                            color: AppTheme.warningAmber,
+                          ),
+                          label: const Text(
+                            'Flood Watch',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _advisorySeverity = 'warning';
+                              _advisoryTitleCtrl.text =
+                                  'City of Manila Flood Watch — España, Taft & Paco';
+                              _advisoryMsgCtrl.text =
+                                  'Heavy rainfall detected over Manila. Monitor low-lying streets, prepare Go-Bags, and move to designated City of Manila evacuation centers if water rises. Manila DRRMO: (02) 8568-6909.';
+                              _advisoryAreaCtrl.text = 'City of Manila';
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          avatar: const Icon(
+                            Icons.thermostat_rounded,
+                            size: 15,
+                            color: AppTheme.dangerRed,
+                          ),
+                          label: const Text(
+                            'Heat Index Danger',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _advisorySeverity = 'warning';
+                              _advisoryTitleCtrl.text =
+                                  'PAGASA Danger Heat Index Advisory (42°C+)';
+                              _advisoryMsgCtrl.text =
+                                  'Dangerous heat index recorded in the City of Manila. Limit outdoor activity between 10 AM and 4 PM, hydrate frequently, and check on seniors and infants.';
+                              _advisoryAreaCtrl.text = 'City of Manila';
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          avatar: Icon(
+                            Icons.roofing_rounded,
+                            size: 15,
+                            color: Colors.teal.shade700,
+                          ),
+                          label: const Text(
+                            'Shelters Open',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _advisorySeverity = 'critical';
+                              _advisoryTitleCtrl.text =
+                                  'Manila Evacuation Shelters OPEN — Pre-Emptive Evacuation';
+                              _advisoryMsgCtrl.text =
+                                  'Official City of Manila evacuation centers (Rizal Memorial, Paco Arena, San Andres, Delpan, Baseco, Dapitan, Patricia) are OPEN. Proceed safely with your Go-Bag. Emergency: (02) 8568-6909 / 911.';
+                              _advisoryAreaCtrl.text = 'City of Manila';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         ChoiceChip(
+                          showCheckmark: false,
                           label: const Text('Info'),
                           selected: _advisorySeverity == 'info',
                           selectedColor: AppTheme.primaryAccent,
@@ -2569,6 +2701,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               setState(() => _advisorySeverity = 'info'),
                         ),
                         ChoiceChip(
+                          showCheckmark: false,
                           label: const Text('Warning'),
                           selected: _advisorySeverity == 'warning',
                           selectedColor: AppTheme.warningAmber,
@@ -2581,6 +2714,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               setState(() => _advisorySeverity = 'warning'),
                         ),
                         ChoiceChip(
+                          showCheckmark: false,
                           label: const Text('Critical Alert'),
                           selected: _advisorySeverity == 'critical',
                           selectedColor: AppTheme.dangerRed,
@@ -2600,7 +2734,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       decoration: const InputDecoration(
                         labelText: 'Headline / Title *',
                         hintText:
-                            'e.g. Metro Manila Flood Watch — Evacuation Shelters OPEN',
+                            'e.g. City of Manila Flood Watch — Evacuation Shelters OPEN',
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -2697,7 +2831,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Text(
-                    'No advisories published yet. Use the form above to broadcast official Metro Manila DRRM updates to households.',
+                    'No advisories published yet. Use the form above to broadcast official City of Manila DRRM updates to households.',
                     style: TextStyle(fontSize: 13.5, color: subtleText),
                   ),
                 ),
@@ -2755,7 +2889,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                         ),
                                       ),
                                       Text(
-                                        '${a['area'] ?? 'Metro Manila'}${created != null ? ' • ${DateFormat('MMM d, h:mm a').format(created.toLocal())}' : ''}',
+                                        '${a['area'] ?? 'City of Manila'}${created != null ? ' • ${DateFormat('MMM d, h:mm a').format(created.toLocal())}' : ''}',
                                         style: TextStyle(
                                           fontSize: 12,
                                           color: subtleText,

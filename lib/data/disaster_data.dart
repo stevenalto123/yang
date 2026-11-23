@@ -22,7 +22,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
         'Do not go outside during the "eye" of the typhoon; strong winds will resume suddenly from the opposite direction.',
       ],
       afterSteps: [
-        'Wait for official clearance from NDRRMC/LGU before returning home.',
+        'Wait for official clearance from Manila DRRMO ((02) 8568-6909) or NDRRMC before returning home.',
         'Inspect your house for structural damage, gas leaks, and exposed live wires.',
         'Boil water for drinking or use purification tablets until tested safe.',
         'Clear standing water and debris to prevent dengue mosquito breeding.',
@@ -40,7 +40,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
     const DisasterGuide(
       type: DisasterType.earthquake,
       overview:
-          'Earthquakes occur without warning due to active fault systems across Metro Manila and nearby regions (such as the West Valley Fault System).',
+          'Earthquakes occur without warning due to active fault systems near the City of Manila (such as the West Valley Fault System).',
       beforeSteps: [
         'Practice "Duck, Cover, and Hold" drills with all household members.',
         'Fasten heavy furniture, cupboards, and appliances securely to walls.',
@@ -74,17 +74,17 @@ List<DisasterGuide> getDefaultDisasterGuides() {
     const DisasterGuide(
       type: DisasterType.flood,
       overview:
-          'Monsoon rains (Habagat), tropical cyclones, and river overflow cause severe flooding across low-lying Metro Manila communities.',
+          'Monsoon rains (Habagat), tropical cyclones, and Pasig River / estero overflow cause rapid flooding across low-lying City of Manila communities.',
       beforeSteps: [
         'Elevate furniture, appliances, and valuables to upper floors.',
         'Seal important documents in waterproof zip bags.',
         'Clean drainage gutters and community canals to prevent clogging.',
-        'Identify local high-ground evacuation shelters in your barangay.',
+        'Identify local high-ground evacuation shelters in your Manila barangay.',
         'Pre-charge communication devices and power banks.',
       ],
       duringSteps: [
         'Turn off the main electrical switch / breaker before water touches outlets.',
-        'Evacuate early if advised by barangay officials or if living in flood-prone zones.',
+        'Evacuate early if advised by Manila DRRMO ((02) 8568-6909) or barangay officials.',
         'Do NOT walk or drive through moving floodwaters (just 6 inches of rushing water can sweep an adult off their feet).',
         'Wear protective boots if wading is unavoidable to protect against leptospirosis and sharp debris.',
       ],
@@ -105,7 +105,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
     const DisasterGuide(
       type: DisasterType.fire,
       overview:
-          'Structural fires can spread within minutes in dense urban residential zones. Quick reaction and escape plans are vital.',
+          'Structural fires can spread within minutes in dense urban residential zones of Manila. Quick reaction and escape plans are vital.',
       beforeSteps: [
         'Install and test smoke alarms in key living areas.',
         'Keep a working ABC fire extinguisher in the kitchen area.',
@@ -118,7 +118,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
         'Feel doors with the back of your hand before opening. If hot, use your secondary exit.',
         'GET OUT AND STAY OUT! Never re-enter a burning house for possessions.',
         'If your clothes catch fire: STOP, DROP, AND ROLL immediately.',
-        'Call BFP (Bureau of Fire Protection) or 911 once safely outside.',
+        'Call BFP Manila COMMEL ((02) 5336-5138 / 0966-476-9700) or 911 once safely outside.',
       ],
       afterSteps: [
         'Proceed directly to your pre-agreed family assembly point.',
@@ -167,7 +167,7 @@ List<DisasterGuide> getDefaultDisasterGuides() {
     const DisasterGuide(
       type: DisasterType.volcanicEruption,
       overview:
-          'Nearby volcanic eruptions (such as Taal or Pinatubo) can produce dangerous ashfall and hazardous air quality across Metro Manila.',
+          'Nearby volcanic eruptions (such as Taal or Pinatubo) can produce dangerous ashfall and hazardous air quality across the City of Manila.',
       beforeSteps: [
         'Know the danger zones and alert levels set by PHIVOLCS.',
         'Stockpile N95 / KN95 masks for all household members.',
