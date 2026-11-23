@@ -21,6 +21,36 @@ class EmergencyContactsScreen extends StatefulWidget {
 
 class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
   ContactCategory? _selectedCategory;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  bool _matchesQuery(EmergencyContact c, String q) {
+    if (q.isEmpty) return true;
+    final lower = q.toLowerCase();
+    if (c.name.toLowerCase().contains(lower) ||
+        c.agencyOrRelationship.toLowerCase().contains(lower) ||
+        c.phoneNumber.toLowerCase().contains(lower) ||
+        c.alternativeNumber.toLowerCase().contains(lower) ||
+        c.description.toLowerCase().contains(lower)) {
+      return true;
+    }
+    return c.subHotlines.any(
+      (s) =>
+          s.label.toLowerCase().contains(lower) ||
+          s.number.toLowerCase().contains(lower),
+    );
+  }
+
+  bool _isMobileNumber(String numStr) {
+    final digits = numStr.replaceAll(RegExp(r'[^0-9]'), '');
+    return digits.startsWith('09') || digits.startsWith('639');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +61,14 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
     final headingColor = isDark ? Colors.white : AppTheme.darkSlate;
     final subColor = isDark ? Colors.white70 : AppTheme.mutedSlate;
+    final query = _searchQuery.trim();
 
-    final filtered = _selectedCategory == null
-        ? emergency.allContacts
-        : emergency.allContacts
-            .where((c) => c.category == _selectedCategory)
-            .toList();
+    final filtered = emergency.allContacts.where((c) {
+      if (_selectedCategory != null && c.category != _selectedCategory) {
+        return false;
+      }
+      return _matchesQuery(c, query);
+    }).toList();
 
     final content = ResponsiveContainer(
       maxWidth: 960,
@@ -51,7 +83,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   context: context,
                   number: '911',
                   title: isFil ? 'Pambansang Emergency' : 'National Emergency',
-                  subtitle: isFil ? 'Pulis, Bumbero, Medikal' : 'Police, Fire & Medical',
+                  subtitle:
+                      isFil ? 'Pulis, Bumbero, Medikal' : 'Police, Fire & Medical',
                   color: AppTheme.dangerRed,
                   icon: Icons.call_rounded,
                   onTap: () => ActionFeedback.callWithFeedback(
@@ -80,6 +113,15 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+
+          // 1B. Official City of Manila DRRMO (MDRRMO) Quick-Dial Banner (MPIO)
+          _buildManilaDrrmoHeroBanner(
+            context: context,
+            emergency: emergency,
+            isDark: isDark,
+            isFil: isFil,
           ),
           const SizedBox(height: 12),
 
@@ -131,12 +173,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         onPressed: () {
                           final target = emergency.personalContacts.isNotEmpty
                               ? emergency.personalContacts.first.phoneNumber
-                              : '911';
+                              : '0932-662-2322';
                           ActionFeedback.smsWithFeedback(
                             context,
                             emergency,
                             target,
-                            'EMERGENCY (${emergency.emergencyPlan.householdName}): Need help. My GPS location: https://maps.google.com/?q=${emergency.userLat.toStringAsFixed(5)},${emergency.userLng.toStringAsFixed(5)}',
+                            'EMERGENCY (${emergency.emergencyPlan.householdName}): Need help in Manila. My GPS location: https://maps.google.com/?q=${emergency.userLat.toStringAsFixed(5)},${emergency.userLng.toStringAsFixed(5)}',
                           );
                         },
                       ),
@@ -145,7 +187,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                           minimumSize: const Size(0, 40),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
-                        icon: const Icon(Icons.person_add_alt_1_rounded, size: 17),
+                        icon:
+                            const Icon(Icons.person_add_alt_1_rounded, size: 17),
                         label: Text(
                           isFil ? 'Dagdag Contact' : 'Add Family',
                           style: const TextStyle(fontSize: 13),
@@ -202,13 +245,57 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
           const SizedBox(height: 14),
 
-          // 3. Category Filter Chips
+          // 3. Search Bar for Manila Districts, Fire Stations, MPD Stations & PCPs
+          TextField(
+            controller: _searchController,
+            onChanged: (val) => setState(() => _searchQuery = val),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search_rounded, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      tooltip: 'Clear search',
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                    )
+                  : null,
+              hintText: isFil
+                  ? 'Hanapin ang distrito, istasyon, o PCP (hal. Paco, Tondo, Baseco)...'
+                  : 'Search Manila district, station, or PCP (e.g. Paco, Tondo, Baseco)...',
+              filled: true,
+              fillColor: isDark ? AppTheme.darkCard : Colors.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                  color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 4. Category Filter Chips (with live counts)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 ChoiceChip(
-                  label: Text(isFil ? 'Lahat' : 'All'),
+                  showCheckmark: false,
+                  label: Text(
+                    '${isFil ? 'Lahat' : 'All'} (${emergency.allContacts.length})',
+                  ),
                   selected: _selectedCategory == null,
                   selectedColor: AppTheme.primaryNavy,
                   backgroundColor:
@@ -220,17 +307,21 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                     fontWeight: _selectedCategory == null
                         ? FontWeight.w700
                         : FontWeight.w500,
-                    fontSize: 13.5,
+                    fontSize: 13,
                   ),
                   onSelected: (_) => setState(() => _selectedCategory = null),
                 ),
                 const SizedBox(width: 8),
                 ...ContactCategory.values.map((cat) {
+                  final count = emergency.allContacts
+                      .where((c) => c.category == cat)
+                      .length;
                   final isSelected = _selectedCategory == cat;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(cat.displayName),
+                      showCheckmark: false,
+                      label: Text('${cat.displayName} ($count)'),
                       selected: isSelected,
                       selectedColor: AppTheme.primaryNavy,
                       backgroundColor:
@@ -239,7 +330,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         color: isSelected ? Colors.white : headingColor,
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
-                        fontSize: 13.5,
+                        fontSize: 13,
                       ),
                       onSelected: (_) =>
                           setState(() => _selectedCategory = cat),
@@ -251,15 +342,67 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           ),
           const SizedBox(height: 12),
 
-          // 4. Contacts List
-          ...filtered.map(
-            (contact) => _buildContactCard(
-              context,
-              contact,
-              emergency,
-              isDark,
-              headingColor,
-              subColor,
+          // 5. Contacts List
+          if (filtered.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.search_off_rounded,
+                      size: 32,
+                      color: subColor,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      isFil
+                          ? 'Walang nahanap na hotline para sa "$query".'
+                          : 'No Manila hotline matched "$query".',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: headingColor,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {
+                          _searchQuery = '';
+                          _selectedCategory = null;
+                        });
+                      },
+                      child: Text(isFil ? 'Ipakita Lahat' : 'Show All Hotlines'),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...filtered.map(
+              (contact) => _buildContactCard(
+                context,
+                contact,
+                emergency,
+                isDark,
+                isFil,
+                headingColor,
+                subColor,
+                query,
+              ),
+            ),
+
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              isFil
+                  ? 'Opisyal na direktoryo ng City of Manila • Manila Public Information Office (MPIO)'
+                  : 'Official City of Manila Directory • Manila Public Information Office (MPIO)',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: subColor),
             ),
           ),
         ],
@@ -273,7 +416,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          isFil ? 'Mga Emergency Hotline' : 'Emergency Hotlines',
+          isFil ? 'Mga Emergency Hotline (Maynila)' : 'Manila Emergency Hotlines',
         ),
         actions: [
           IconButton(
@@ -285,6 +428,134 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
         ],
       ),
       body: content,
+    );
+  }
+
+  Widget _buildManilaDrrmoHeroBanner({
+    required BuildContext context,
+    required EmergencyProvider emergency,
+    required bool isDark,
+    required bool isFil,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isDark
+              ? [const Color(0xFF1E3A5F), const Color(0xFF0F2544)]
+              : [const Color(0xFF0F2A52), const Color(0xFF1D4ED8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withAlpha(45),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.shield_rounded,
+                  color: Color(0xFFFCD34D),
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isFil
+                          ? 'Manila DRRMO • Opisyal na 24/7 Hotline'
+                          : 'City of Manila DRRMO • Official 24/7 Hotlines',
+                      style: const TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const Text(
+                      'Manila Disaster Risk Reduction & Management Office (MPIO)',
+                      style: TextStyle(fontSize: 11.5, color: Colors.white70),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildQuickPillCall(
+                context: context,
+                emergency: emergency,
+                label: '(02) 8568-6909',
+                callLabel: 'Manila DRRMO Landline',
+              ),
+              _buildQuickPillCall(
+                context: context,
+                emergency: emergency,
+                label: '0932-662-2322',
+                callLabel: 'Manila DRRMO Mobile 1',
+              ),
+              _buildQuickPillCall(
+                context: context,
+                emergency: emergency,
+                label: '0950-700-3710',
+                callLabel: 'Manila DRRMO Mobile 2',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickPillCall({
+    required BuildContext context,
+    required EmergencyProvider emergency,
+    required String label,
+    required String callLabel,
+  }) {
+    return Material(
+      color: Colors.white.withAlpha(28),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => ActionFeedback.callWithFeedback(
+          context,
+          emergency,
+          label,
+          callLabel,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.call_rounded, size: 15, color: Color(0xFFFCD34D)),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -363,8 +634,10 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
     EmergencyContact contact,
     EmergencyProvider emergency,
     bool isDark,
+    bool isFil,
     Color headingColor,
     Color subColor,
+    String searchQuery,
   ) {
     Color badgeColor;
     IconData agencyIcon;
@@ -398,6 +671,25 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
 
     final isCritical = contact.category == ContactCategory.nationalHotline ||
         contact.category == ContactCategory.medicalAndRedCross;
+
+    // Prefer mobile number for SMS if primary is a landline and alternative is mobile
+    final smsTarget = !_isMobileNumber(contact.phoneNumber) &&
+            _isMobileNumber(contact.alternativeNumber)
+        ? contact.alternativeNumber
+        : contact.phoneNumber;
+
+    // Avoid duplicating alternativeNumber if it's already included inside subHotlines
+    final altAlreadyInSubs = contact.alternativeNumber.isNotEmpty &&
+        contact.subHotlines.any((s) => s.number == contact.alternativeNumber);
+    final showStandaloneAlt =
+        contact.alternativeNumber.isNotEmpty && !altAlreadyInSubs;
+
+    final hasSubMatches = searchQuery.isNotEmpty &&
+        contact.subHotlines.any(
+          (s) =>
+              s.label.toLowerCase().contains(searchQuery.toLowerCase()) ||
+              s.number.toLowerCase().contains(searchQuery.toLowerCase()),
+        );
 
     return Card(
       margin: const EdgeInsets.only(bottom: 10),
@@ -435,7 +727,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                       Text(
                         contact.agencyOrRelationship,
                         style: TextStyle(
-                          fontSize: 13.5,
+                          fontSize: 13,
                           color: subColor,
                           fontWeight: FontWeight.w500,
                         ),
@@ -444,7 +736,7 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         const SizedBox(height: 3),
                         Text(
                           contact.description,
-                          style: TextStyle(fontSize: 13, color: subColor),
+                          style: TextStyle(fontSize: 12.5, color: subColor),
                         ),
                       ],
                     ],
@@ -476,7 +768,10 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                       minimumSize: const Size(0, 44),
                     ),
                     icon: const Icon(Icons.call_rounded, size: 18),
-                    label: Text('Call ${contact.phoneNumber}'),
+                    label: Text(
+                      'Call ${contact.phoneNumber}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     onPressed: () => ActionFeedback.callWithFeedback(
                       context,
                       emergency,
@@ -496,13 +791,182 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                   onPressed: () => ActionFeedback.smsWithFeedback(
                     context,
                     emergency,
-                    contact.phoneNumber,
-                    'EMERGENCY: Urgent assistance needed (${emergency.emergencyPlan.householdName}). Location: ${emergency.userLat.toStringAsFixed(4)}, ${emergency.userLng.toStringAsFixed(4)}',
+                    smsTarget,
+                    'EMERGENCY: Urgent assistance needed in Manila (${emergency.emergencyPlan.householdName}). Location: ${emergency.userLat.toStringAsFixed(4)}, ${emergency.userLng.toStringAsFixed(4)}',
                   ),
                 ),
               ],
             ),
+            if (showStandaloneAlt) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  _buildSubHotlineChip(
+                    context: context,
+                    emergency: emergency,
+                    parentName: contact.name,
+                    sub: SubHotline(
+                      label: _isMobileNumber(contact.alternativeNumber)
+                          ? 'Mobile'
+                          : 'Alt Line',
+                      number: contact.alternativeNumber,
+                    ),
+                    isDark: isDark,
+                    headingColor: headingColor,
+                    subColor: subColor,
+                  ),
+                ],
+              ),
+            ],
+            if (contact.subHotlines.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              if (contact.category == ContactCategory.police &&
+                  contact.subHotlines.length > 2)
+                Theme(
+                  data: Theme.of(context)
+                      .copyWith(dividerColor: Colors.transparent),
+                  child: ExpansionTile(
+                    key: PageStorageKey('${contact.id}_${hasSubMatches ? 'open' : 'closed'}'),
+                    initiallyExpanded: hasSubMatches,
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: const EdgeInsets.only(top: 6),
+                    dense: true,
+                    title: Text(
+                      isFil
+                          ? 'Mga PCP Sub-Station (${contact.subHotlines.length})'
+                          : 'PCP Sub-Stations (${contact.subHotlines.length})',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: badgeColor,
+                      ),
+                    ),
+                    children: [
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: contact.subHotlines
+                              .map(
+                                (sub) => _buildSubHotlineChip(
+                                  context: context,
+                                  emergency: emergency,
+                                  parentName: contact.name,
+                                  sub: sub,
+                                  isDark: isDark,
+                                  headingColor: headingColor,
+                                  subColor: subColor,
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: contact.subHotlines
+                      .map(
+                        (sub) => _buildSubHotlineChip(
+                          context: context,
+                          emergency: emergency,
+                          parentName: contact.name,
+                          sub: sub,
+                          isDark: isDark,
+                          headingColor: headingColor,
+                          subColor: subColor,
+                        ),
+                      )
+                      .toList(),
+                ),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubHotlineChip({
+    required BuildContext context,
+    required EmergencyProvider emergency,
+    required String parentName,
+    required SubHotline sub,
+    required bool isDark,
+    required Color headingColor,
+    required Color subColor,
+  }) {
+    if (sub.isRadioOnly) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.radio_rounded, size: 14, color: subColor),
+            const SizedBox(width: 6),
+            Text(
+              '${sub.label}: ${sub.number}',
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: subColor,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Material(
+      color: isDark ? AppTheme.darkElevated : AppTheme.surfaceBg,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => ActionFeedback.callWithFeedback(
+          context,
+          emergency,
+          sub.number,
+          '$parentName (${sub.label})',
+        ),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.call_rounded,
+                size: 14,
+                color: isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${sub.label}: ${sub.number}',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: headingColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -521,7 +985,9 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(
-          isFil ? 'Magdagdag ng Family Contact' : 'Add Family / Emergency Contact',
+          isFil
+              ? 'Magdagdag ng Family Contact'
+              : 'Add Family / Emergency Contact',
         ),
         content: SingleChildScrollView(
           child: Column(
@@ -551,7 +1017,8 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                 controller: phoneCtrl,
                 keyboardType: TextInputType.phone,
                 decoration: InputDecoration(
-                  labelText: isFil ? 'Numero ng Telepono *' : 'Mobile Number *',
+                  labelText:
+                      isFil ? 'Numero ng Telepono *' : 'Mobile Number *',
                   hintText: 'e.g. 09171234567',
                 ),
               ),
@@ -590,6 +1057,12 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
           ),
         ],
       ),
-    );
+    ).then((_) {
+      Future.delayed(const Duration(milliseconds: 400), () {
+        nameCtrl.dispose();
+        relationCtrl.dispose();
+        phoneCtrl.dispose();
+      });
+    });
   }
 }

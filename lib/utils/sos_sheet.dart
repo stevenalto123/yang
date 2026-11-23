@@ -167,6 +167,34 @@ class SosSheet {
                 ListTile(
                   minVerticalPadding: 8,
                   leading: const CircleAvatar(
+                    backgroundColor: Color(0xFFFFF8E1),
+                    child: Icon(
+                      Icons.shield_rounded,
+                      color: Color(0xFFB45309),
+                    ),
+                  ),
+                  title: const Text(
+                    'Call Manila DRRMO (02) 8568-6909',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  ),
+                  subtitle: const Text(
+                    'City of Manila 24/7 Rescue • 0932-662-2322 / 0950-700-3710',
+                  ),
+                  trailing:
+                      const Icon(Icons.call, color: Color(0xFFB45309)),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ActionFeedback.callWithFeedback(
+                      context,
+                      emergency,
+                      '(02) 8568-6909',
+                      'Manila DRRMO',
+                    );
+                  },
+                ),
+                ListTile(
+                  minVerticalPadding: 8,
+                  leading: const CircleAvatar(
                     backgroundColor: Color(0xFFE3F2FD),
                     child: Icon(
                       Icons.share_location_rounded,

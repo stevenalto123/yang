@@ -181,7 +181,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Rizal Memorial Sports Complex (Official City Shelter)',
         'Pablo Ocampo Sr. St. (Vito Cruz), Malate, Manila',
         'Manila', 14.5633, 120.9922,
-        'Manila DRRMO Operations Center', '(02) 8527-5174', 3000, TRUE,
+        'Manila DRRMO Operations Center', '(02) 8568-6909', 3000, TRUE,
         'Large Indoor Arena, Medical Staging Area, Relief Distribution Hub', TRUE
       ),
       (
@@ -189,7 +189,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Paco Arena & Sports Complex (City Evacuation Center)',
         'Paz St. cor. Perdigon St., Paco, Manila',
         'Manila', 14.5794, 120.9936,
-        'Manila DRRMO Dispatch', '(02) 8527-5174', 1000, TRUE,
+        'Manila DRRMO Dispatch', '(02) 8568-6909', 1000, TRUE,
         'Multi-Purpose Covered Arena, Community Assembly & Relief Staging', TRUE
       ),
       (
@@ -197,7 +197,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Delpan Sports Complex Evacuation Center',
         'Delpan St., San Nicolas / Tondo, Manila',
         'Manila', 14.5988, 120.9647,
-        'Manila DRRMO Operations Center', '(02) 8527-5174', 1200, TRUE,
+        'Manila DRRMO Operations Center', '(02) 8568-6909', 1200, TRUE,
         'Designated City of Manila Typhoon & Fire Evacuation Complex', TRUE
       ),
       (
@@ -205,7 +205,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Baseco Evacuation Center',
         'Baseco Compound, Port Area, Manila',
         'Manila', 14.5889, 120.9622,
-        'Manila DRRMO Operations Center', '(02) 8527-5174', 1500, TRUE,
+        'Manila DRRMO Operations Center', '(02) 8568-6909', 1500, TRUE,
         'Coastal Surge & Flood Evacuation Facility, Relief Staging', TRUE
       ),
       (
@@ -213,7 +213,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'San Andres Sports Complex (Manila Evacuation Center)',
         'San Andres St., Malate / San Andres, Manila',
         'Manila', 14.5701, 120.9918,
-        'Manila DRRMO Operations Center', '(02) 8527-5174', 2000, TRUE,
+        'Manila DRRMO Operations Center', '(02) 8568-6909', 2000, TRUE,
         'Indoor Sports Arena, Medical Triage & Relief Distribution Hub', TRUE
       ),
       (
@@ -221,7 +221,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Paraiso ng Batang Maynila Evacuation Complex',
         'Quirino Ave. cor. Adriatico St., Malate, Manila',
         'Manila', 14.5661, 120.9896,
-        'Manila DRRMO Operations Center', '(02) 8527-5174', 1200, TRUE,
+        'Manila DRRMO Operations Center', '(02) 8568-6909', 1200, TRUE,
         'Covered Assembly Grounds, First-Aid & Community Relief Post', TRUE
       ),
       (
@@ -229,7 +229,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Dapitan Sports Complex Evacuation Center',
         'Instruccion St. cor. Dapitan St., Sampaloc, Manila',
         'Manila', 14.6158, 120.9950,
-        'Manila DRRMO Operations Center', '(02) 8527-5174', 1500, TRUE,
+        'Manila DRRMO Operations Center', '(02) 8568-6909', 1500, TRUE,
         'Covered Multi-Purpose Court, Sampaloc District Evacuation Hub', TRUE
       ),
       (
@@ -237,7 +237,7 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
         'Patricia Sports Complex Evacuation Center',
         'Gagalangin, Tondo, Manila',
         'Manila', 14.6260, 120.9735,
-        'Manila DRRMO Operations Center', '(02) 8527-5174', 1500, TRUE,
+        'Manila DRRMO Operations Center', '(02) 8568-6909', 1500, TRUE,
         'Covered Gymnasium, Tondo District Typhoon & Fire Evacuation Center', TRUE
       )
     ON CONFLICT (id) DO NOTHING

@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Upgrade Alerts page for City of Manila (Heat Index, 6h rain, flood hotspots, quake distance, DRRM assisted badge)"
+git commit -m "City of Manila scope, Alerts upgrades, and official MPIO emergency hotlines (DRRMO, BFP, MPD)"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master
@@ -24,8 +24,8 @@ if errorlevel 1 goto :error
 echo.
 echo ============================================================
 echo PUSHED TO GITHUB!
-echo Netlify is now building your new UI in the cloud (~1-2 mins).
-echo Reply "Done" in chat so I can verify https://yangjd.netlify.app!
+echo Vercel is now building and deploying your updated app (~1-2 mins).
+echo Reply "Done" in chat with your .vercel.app link so I can verify it live!
 echo ============================================================
 pause
 exit /b 0
