@@ -2,12 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/evacuation_center.dart';
 import '../models/kit_item.dart';
 import '../providers/auth_provider.dart';
 import '../providers/emergency_provider.dart';
 import '../providers/kit_provider.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/settings_provider.dart';
+import '../utils/action_feedback.dart';
 import '../utils/app_strings.dart';
 import '../utils/app_theme.dart';
 import '../utils/pwa_bridge.dart';
@@ -145,6 +147,8 @@ class HomeDashboardScreen extends StatelessWidget {
                   ),
                 ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   icon: Icon(
                     isDark
                         ? Icons.light_mode_outlined
@@ -157,6 +161,8 @@ class HomeDashboardScreen extends StatelessWidget {
                 ),
                 if (auth.isAdmin)
                   IconButton(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     icon: Icon(
                       Icons.admin_panel_settings_outlined,
                       color: isDark
@@ -174,6 +180,8 @@ class HomeDashboardScreen extends StatelessWidget {
                     },
                   ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   icon: auth.pendingSyncCount > 0
                       ? Badge(
                           label: Text('${auth.pendingSyncCount}'),
@@ -204,6 +212,8 @@ class HomeDashboardScreen extends StatelessWidget {
                   },
                 ),
                 IconButton(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
                   icon: alertCount > 0
                       ? Badge(
                           label: Text('$alertCount'),
@@ -387,10 +397,9 @@ class HomeDashboardScreen extends StatelessWidget {
 
                       const SizedBox(height: 12),
 
-                      // Smart "Next Best Step" Card
-                      _buildNextBestStepCard(
+                      // Nearest Open Manila Shelter + Official Manila DRRMO Quick Card
+                      _buildManilaQuickAccessCard(
                         context,
-                        kit: kit,
                         emergency: emergency,
                         isDark: isDark,
                         isFil: isFil,
@@ -409,6 +418,21 @@ class HomeDashboardScreen extends StatelessWidget {
                           isFil,
                         ),
                       ],
+
+                      const SizedBox(height: 12),
+
+                      // Smart "Next Best Step" Card (never duplicates the expiry banner above)
+                      _buildNextBestStepCard(
+                        context,
+                        kit: kit,
+                        emergency: emergency,
+                        skipExpiredStep:
+                            expiredCount > 0 || expiringSoonCount > 0,
+                        isDark: isDark,
+                        isFil: isFil,
+                        headingColor: headingColor,
+                        subtleText: subtleText,
+                      ),
 
                       const SizedBox(height: 24),
                       Row(
@@ -541,34 +565,41 @@ class HomeDashboardScreen extends StatelessWidget {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: Colors.white.withAlpha(20),
-                  borderRadius: BorderRadius.circular(99),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.groups_outlined,
-                      size: 15,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isFil
-                          ? 'Kit para sa $totalMembers miyembro'
-                          : 'Kit for $totalMembers ${totalMembers == 1 ? 'person' : 'people'}',
-                      style: const TextStyle(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
+              InkWell(
+                onTap: () {
+                  kit.setFilterStatus(ItemFilterStatus.all);
+                  onNavigateTab(1);
+                },
+                borderRadius: BorderRadius.circular(99),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(20),
+                    borderRadius: BorderRadius.circular(99),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.groups_outlined,
+                        size: 15,
                         color: Colors.white,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Text(
+                        isFil
+                            ? 'Kit para sa $totalMembers miyembro'
+                            : 'Kit for $totalMembers ${totalMembers == 1 ? 'person' : 'people'}',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               InkWell(
@@ -741,7 +772,10 @@ class HomeDashboardScreen extends StatelessWidget {
                         isFil ? 'Buksan ang Go-Bag' : 'Update Go-Bag',
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      onPressed: () => onNavigateTab(1),
+                      onPressed: () {
+                        kit.setFilterStatus(ItemFilterStatus.all);
+                        onNavigateTab(1);
+                      },
                     ),
                   ],
                 ),
@@ -760,7 +794,10 @@ class HomeDashboardScreen extends StatelessWidget {
                   value: '${kit.packedItemsCount}/${kit.totalItemsCount}',
                   sub: isFil ? 'mga gamit' : 'items ready',
                   accent: const Color(0xFF38BDF8),
-                  onTap: () => onNavigateTab(1),
+                  onTap: () {
+                    kit.setFilterStatus(ItemFilterStatus.packed);
+                    onNavigateTab(1);
+                  },
                 ),
               ),
               const SizedBox(width: 10),
@@ -881,14 +918,25 @@ class HomeDashboardScreen extends StatelessWidget {
         : (isDark ? Colors.green.shade300 : AppTheme.safeGreen);
 
     final areaName = emergency.hasLiveGps
-        ? (isFil ? 'Iyong Lokasyon' : 'Your Area')
+        ? (isFil ? 'Iyong Lokasyon (Maynila)' : 'Your Area (Manila)')
         : (isFil ? 'Lungsod ng Maynila' : 'City of Manila');
 
-    final weatherLine = monitoring.weather != null
-        ? '$areaName • ${monitoring.weather!.temperatureC.toStringAsFixed(0)}°C • ${monitoring.weather!.conditionText}'
-        : (isFil
-            ? 'I-tap para makita ang panahon, lindol, at family check-in'
-            : 'Tap to view local weather, earthquakes & family check-in');
+    final w = monitoring.weather;
+    final String weatherLine;
+    if (w != null) {
+      final feels = isFil
+          ? 'Ramdam ${w.apparentTemperatureC.toStringAsFixed(0)}°C'
+          : 'Feels ${w.apparentTemperatureC.toStringAsFixed(0)}°C';
+      final rainPart = w.rainChance6hPct >= 30
+          ? ' • ${w.rainChance6hPct}% ${isFil ? 'ulan (6h)' : 'rain (6h)'}'
+          : '';
+      weatherLine =
+          '$areaName • ${w.temperatureC.toStringAsFixed(0)}°C ($feels) • ${w.conditionText}$rainPart';
+    } else {
+      weatherLine = isFil
+          ? 'I-tap para makita ang panahon, heat index, lindol, at family check-in'
+          : 'Tap to view Manila weather, heat index, earthquakes & check-in';
+    }
 
     return Material(
       color: isHazardAlert
@@ -1282,6 +1330,15 @@ class HomeDashboardScreen extends StatelessWidget {
     final latest =
         monitoring.safetyLog.isNotEmpty ? monitoring.safetyLog.first : null;
     final latestStatus = latest?['status'];
+    final isAssisted = (latest?['acknowledgedAt'] ?? '').isNotEmpty;
+    final statusBadgeColor = isAssisted
+        ? (isDark ? Colors.tealAccent : Colors.teal.shade700)
+        : (latestStatus == 'SAFE' ? AppTheme.safeGreen : AppTheme.dangerRed);
+    final statusBadgeLabel = isAssisted
+        ? (isFil ? 'DRRM Tinugunan ✓' : 'DRRM Assisted ✓')
+        : (latestStatus == 'SAFE'
+            ? (isFil ? 'Huli: Ligtas' : 'Last: Safe')
+            : (isFil ? 'Huli: Humingi ng Tulong' : 'Last: Help Sent'));
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1323,22 +1380,15 @@ class HomeDashboardScreen extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: (latestStatus == 'SAFE'
-                            ? AppTheme.safeGreen
-                            : AppTheme.dangerRed)
-                        .withAlpha(isDark ? 45 : 20),
+                    color: statusBadgeColor.withAlpha(isDark ? 45 : 20),
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
-                    latestStatus == 'SAFE'
-                        ? (isFil ? 'Huli: Ligtas' : 'Last: Safe')
-                        : (isFil ? 'Huli: Humingi ng Tulong' : 'Last: Help Sent'),
+                    statusBadgeLabel,
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
-                      color: latestStatus == 'SAFE'
-                          ? AppTheme.safeGreen
-                          : AppTheme.dangerRed,
+                      color: statusBadgeColor,
                     ),
                   ),
                 ),
@@ -1493,10 +1543,160 @@ class HomeDashboardScreen extends StatelessWidget {
     });
   }
 
+  Widget _buildManilaQuickAccessCard(
+    BuildContext context, {
+    required EmergencyProvider emergency,
+    required bool isDark,
+    required bool isFil,
+    required Color headingColor,
+    required Color subtleText,
+  }) {
+    final openShelters = emergency.allEvacuationCenters
+        .where(
+          (c) => c.facilityType == FacilityType.evacuationShelter && c.isOpen,
+        )
+        .toList();
+    openShelters.sort(
+      (a, b) => emergency
+          .distanceToCenterKm(a)
+          .compareTo(emergency.distanceToCenterKm(b)),
+    );
+    final nearest = openShelters.isNotEmpty ? openShelters.first : null;
+    final distKm =
+        nearest != null ? emergency.distanceToCenterKm(nearest) : null;
+    final bearing = nearest != null ? emergency.bearingToCenter(nearest) : null;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark ? AppTheme.darkCard : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (nearest != null) ...[
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => onNavigateTab(3),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(9),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withAlpha(isDark ? 45 : 20),
+                      borderRadius: BorderRadius.circular(11),
+                    ),
+                    child: Icon(
+                      Icons.roofing_rounded,
+                      size: 20,
+                      color: isDark ? Colors.tealAccent : Colors.teal.shade700,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isFil
+                              ? 'Pinakamalapit na Bukas na Shelter (Maynila)'
+                              : 'Nearest Open Manila Shelter',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: isDark
+                                ? Colors.tealAccent
+                                : Colors.teal.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Text(
+                          nearest.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            color: headingColor,
+                          ),
+                        ),
+                        Text(
+                          '${distKm!.toStringAsFixed(1)} km $bearing • ${nearest.address}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 12, color: subtleText),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: subtleText,
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 18),
+          ],
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.primaryNavy,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                  ),
+                  icon: const Icon(Icons.call_rounded, size: 16),
+                  label: const Text(
+                    'Manila DRRMO (02) 8568-6909',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                  onPressed: () => ActionFeedback.callWithFeedback(
+                    context,
+                    emergency,
+                    '(02) 8568-6909',
+                    'Manila DRRMO',
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, 40),
+                  padding: const EdgeInsets.symmetric(horizontal: 11),
+                ),
+                icon: const Icon(Icons.phone_in_talk_rounded, size: 16),
+                label: Text(
+                  isFil ? 'Hotlines' : 'Hotlines',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: () => onNavigateTab(4),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildNextBestStepCard(
     BuildContext context, {
     required KitProvider kit,
     required EmergencyProvider emergency,
+    required bool skipExpiredStep,
     required bool isDark,
     required bool isFil,
     required Color headingColor,
@@ -1509,7 +1709,7 @@ class HomeDashboardScreen extends StatelessWidget {
     late final Color accent;
     late final VoidCallback onTap;
 
-    if (kit.expiredItems.isNotEmpty) {
+    if (!skipExpiredStep && kit.expiredItems.isNotEmpty) {
       final firstExp = kit.expiredItems.first;
       title = isFil
           ? 'Susunod na Hakbang: Palitan ang ${firstExp.name}'
