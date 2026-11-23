@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
   full_name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'household' CHECK (role IN ('household', 'admin')),
   household_id UUID REFERENCES households(id) ON DELETE SET NULL,
+  password_reset_code_hash TEXT NULL,
+  password_reset_expires_at TIMESTAMPTZ NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

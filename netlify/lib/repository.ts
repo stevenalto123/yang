@@ -42,6 +42,12 @@ export interface DataStore {
     householdId: string;
   }): Promise<UserRecord>;
   updateUserHousehold(userId: string, householdId: string): Promise<void>;
+  updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+  setPasswordResetCode(
+    email: string,
+    codeHash: string,
+    expiresAtIso: string,
+  ): Promise<{ id: string; email: string; fullName: string; role: UserRole } | null>;
   deleteUserAccount(
     userId: string,
   ): Promise<{ deleted: boolean; householdDeleted: boolean }>;
@@ -197,6 +203,12 @@ function mapUserRow(row: Record<string, unknown>): UserRecord {
     fullName: String(row.full_name),
     role: row.role === 'admin' ? 'admin' : 'household',
     householdId: String(row.household_id ?? ''),
+    passwordResetCodeHash: row.password_reset_code_hash
+      ? String(row.password_reset_code_hash)
+      : null,
+    passwordResetExpiresAt: row.password_reset_expires_at
+      ? toIso(row.password_reset_expires_at)
+      : null,
     createdAt: toIso(row.created_at),
   };
 }
@@ -334,6 +346,40 @@ export class PostgresStore implements DataStore {
     await sql`
       UPDATE users SET household_id = ${householdId} WHERE id = ${userId}
     `;
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    const sql = await ensureSchema();
+    await sql`
+      UPDATE users
+      SET password_hash = ${passwordHash},
+          password_reset_code_hash = NULL,
+          password_reset_expires_at = NULL
+      WHERE id = ${userId}
+    `;
+  }
+
+  async setPasswordResetCode(
+    email: string,
+    codeHash: string,
+    expiresAtIso: string,
+  ): Promise<{ id: string; email: string; fullName: string; role: UserRole } | null> {
+    const sql = await ensureSchema();
+    const rows = await sql`
+      UPDATE users
+      SET password_reset_code_hash = ${codeHash},
+          password_reset_expires_at = ${expiresAtIso}
+      WHERE LOWER(email) = LOWER(${email.trim()})
+      RETURNING id, email, full_name, role
+    `;
+    if (rows.length === 0) return null;
+    const r = rows[0];
+    return {
+      id: String(r.id),
+      email: String(r.email),
+      fullName: String(r.full_name),
+      role: r.role === 'admin' ? 'admin' : 'household',
+    };
   }
 
   async deleteUserAccount(
@@ -898,13 +944,17 @@ export class PostgresStore implements DataStore {
               h.plan_json,
               h.updated_at,
               COALESCE(u_cnt.account_count, 0)::int AS account_count,
+              COALESCE(u_cnt.member_emails, '[]'::json) AS member_emails,
               COALESCE(k.item_count, 0)::int AS item_count,
               COALESCE(k.packed_count, 0)::int AS packed_count,
               COALESCE(k.total_weight, 0)::double precision AS total_weight,
               COALESCE(k.ready_weight, 0)::double precision AS ready_weight
             FROM households h
             INNER JOIN (
-              SELECT household_id, COUNT(*)::int AS account_count
+              SELECT
+                household_id,
+                COUNT(*)::int AS account_count,
+                json_agg(email ORDER BY created_at ASC) AS member_emails
               FROM users
               WHERE role = 'household'
               GROUP BY household_id
@@ -1021,6 +1071,7 @@ export class PostgresStore implements DataStore {
         profile,
         primaryMeetingPoint: String(plan.primaryMeetingPoint ?? ''),
         secondaryMeetingPoint: String(plan.secondaryMeetingPoint ?? ''),
+        memberEmails: parseJsonArray<string>(row.member_emails).map(String),
       };
     });
 
@@ -1133,6 +1184,32 @@ export class InMemoryStore implements DataStore {
     if (user) {
       user.householdId = householdId;
     }
+  }
+
+  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+    const user = this.users.get(userId);
+    if (user) {
+      user.passwordHash = passwordHash;
+      user.passwordResetCodeHash = null;
+      user.passwordResetExpiresAt = null;
+    }
+  }
+
+  async setPasswordResetCode(
+    email: string,
+    codeHash: string,
+    expiresAtIso: string,
+  ): Promise<{ id: string; email: string; fullName: string; role: UserRole } | null> {
+    const user = await this.getUserByEmail(email);
+    if (!user) return null;
+    user.passwordResetCodeHash = codeHash;
+    user.passwordResetExpiresAt = expiresAtIso;
+    return {
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      role: user.role,
+    };
   }
 
   async deleteUserAccount(
@@ -1560,6 +1637,9 @@ export class InMemoryStore implements DataStore {
           profile: p,
           primaryMeetingPoint: String(h.plan.primaryMeetingPoint ?? ''),
           secondaryMeetingPoint: String(h.plan.secondaryMeetingPoint ?? ''),
+          memberEmails: householdUsers
+            .filter((u) => u.householdId === h.id)
+            .map((u) => u.email),
         };
       });
 

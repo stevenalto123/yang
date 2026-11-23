@@ -29,6 +29,8 @@ export interface UserRecord {
   fullName: string;
   role: UserRole;
   householdId: string;
+  passwordResetCodeHash?: string | null;
+  passwordResetExpiresAt?: string | null;
   createdAt: string;
 }
 
@@ -137,6 +139,7 @@ export interface AdminHouseholdSummary {
   profile: HouseholdProfileData;
   primaryMeetingPoint: string;
   secondaryMeetingPoint: string;
+  memberEmails?: string[];
 }
 
 export interface AdminCheckinItem extends SafetyCheckinRecord {

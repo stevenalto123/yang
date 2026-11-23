@@ -513,3 +513,105 @@ test('BOLA shelter protection, RA 10173 cloud account deletion, and weighted adm
   });
   assert.equal(meAfterDelete.status, 401);
 });
+
+test('forgot password (Family Invite Code & Admin 1-time Reset Code) and change password', async () => {
+  const store = new InMemoryStore();
+
+  const reg = await callApi(store, '/auth/register', {
+    method: 'POST',
+    body: {
+      email: 'forgot.user@manila.ph',
+      password: 'OldPassword1!',
+      fullName: 'Manila Resident',
+      householdName: 'Paco Family',
+    },
+  });
+  assert.equal(reg.status, 201);
+  const inviteCode = reg.json.household.inviteCode;
+
+  // 1. Wrong recovery code fails
+  const badReset = await callApi(store, '/auth/reset-password', {
+    method: 'POST',
+    body: {
+      email: 'forgot.user@manila.ph',
+      recoveryCode: 'WRONG1',
+      newPassword: 'NewPassword2!',
+    },
+  });
+  assert.equal(badReset.status, 400);
+
+  // 2. Valid Family Invite Code resets password
+  const inviteReset = await callApi(store, '/auth/reset-password', {
+    method: 'POST',
+    body: {
+      email: 'forgot.user@manila.ph',
+      recoveryCode: inviteCode,
+      newPassword: 'NewPassword2!',
+    },
+  });
+  assert.equal(inviteReset.status, 200);
+
+  const oldLogin = await callApi(store, '/auth/login', {
+    method: 'POST',
+    body: { email: 'forgot.user@manila.ph', password: 'OldPassword1!' },
+  });
+  assert.equal(oldLogin.status, 401);
+
+  const newLogin = await callApi(store, '/auth/login', {
+    method: 'POST',
+    body: { email: 'forgot.user@manila.ph', password: 'NewPassword2!' },
+  });
+  assert.equal(newLogin.status, 200);
+
+  // 3. Authenticated Change Password (rejects wrong current, accepts right current)
+  const badChange = await callApi(store, '/auth/password', {
+    method: 'PATCH',
+    token: newLogin.json.token,
+    body: { currentPassword: 'WrongCurrent', newPassword: 'ChangedPass3!' },
+  });
+  assert.equal(badChange.status, 401);
+
+  const okChange = await callApi(store, '/auth/password', {
+    method: 'PATCH',
+    token: newLogin.json.token,
+    body: { currentPassword: 'NewPassword2!', newPassword: 'ChangedPass3!' },
+  });
+  assert.equal(okChange.status, 200);
+
+  // 4. Admin issues 1-time 15-min reset code -> works once, cannot be reused
+  const issueRes = await callApi(store, '/admin/users/reset-code', {
+    method: 'POST',
+    headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
+    body: { email: 'forgot.user@manila.ph' },
+  });
+  assert.equal(issueRes.status, 200);
+  const oneTimeCode = issueRes.json.resetCode;
+  assert.equal(oneTimeCode.length, 6);
+
+  const adminReset = await callApi(store, '/auth/reset-password', {
+    method: 'POST',
+    body: {
+      email: 'forgot.user@manila.ph',
+      recoveryCode: oneTimeCode,
+      newPassword: 'AdminResetPass4!',
+    },
+  });
+  assert.equal(adminReset.status, 200);
+
+  // Reusing the consumed 1-time code fails
+  const reuseAttempt = await callApi(store, '/auth/reset-password', {
+    method: 'POST',
+    body: {
+      email: 'forgot.user@manila.ph',
+      recoveryCode: oneTimeCode,
+      newPassword: 'AnotherPass5!',
+    },
+  });
+  assert.equal(reuseAttempt.status, 400);
+
+  const finalLogin = await callApi(store, '/auth/login', {
+    method: 'POST',
+    body: { email: 'forgot.user@manila.ph', password: 'AdminResetPass4!' },
+  });
+  assert.equal(finalLogin.status, 200);
+});

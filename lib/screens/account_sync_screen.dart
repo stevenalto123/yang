@@ -520,6 +520,17 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
+                  icon: const Icon(Icons.key_outlined, size: 19),
+                  label: Text(
+                    isFil ? 'Palitan ang Password' : 'Change Password',
+                  ),
+                  onPressed: () => _showChangePasswordDialog(auth, isFil),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
                   icon: const Icon(
                     Icons.logout_rounded,
                     color: AppTheme.dangerRed,
@@ -653,6 +664,30 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 ),
               ),
             ),
+            if (!_isRegisterMode) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                  ),
+                  icon: const Icon(Icons.lock_reset_rounded, size: 17),
+                  label: Text(
+                    isFil ? 'Nakalimutan ang Password?' : 'Forgot Password?',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  onPressed: () => _showForgotPasswordDialog(auth, isFil),
+                ),
+              ),
+            ],
             if (_isRegisterMode) ...[
               const SizedBox(height: 10),
               TextField(
@@ -918,6 +953,374 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
         isFil
             ? 'Nabura na ang lokal na datos.'
             : 'All local device data has been erased.',
+      );
+    }
+  }
+
+  Future<void> _showForgotPasswordDialog(AuthProvider auth, bool isFil) async {
+    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
+    final codeCtrl = TextEditingController();
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool obscureNew = true;
+    bool isSubmitting = false;
+    String? errorMsg;
+
+    final didReset = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(
+                  Icons.lock_reset_rounded,
+                  color: AppTheme.primaryNavy,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isFil ? 'I-reset ang Password' : 'Reset Forgotten Password',
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 440,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isFil
+                          ? 'Ilagay ang iyong email at 6-character na Family Invite Code (itanong sa kasama sa bahay) o ang 1-time Reset Code mula sa Manila DRRMO Admin.'
+                          : 'Enter your email and your 6-character Family Invite Code (ask a family member in your household) OR a 1-time Reset Code issued by your Manila DRRMO Admin.',
+                      style: const TextStyle(fontSize: 13, height: 1.4),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email Address *',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: codeCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Family Invite Code o Admin Reset Code *'
+                            : 'Family Invite Code or Admin Reset Code *',
+                        hintText: 'e.g. A7K9P2',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: newPassCtrl,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Bagong Password (min. 6 karakter) *'
+                            : 'New Password (min. 6 characters) *',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureNew
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () =>
+                              setDialogState(() => obscureNew = !obscureNew),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: confirmPassCtrl,
+                      obscureText: obscureNew,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Ulitin ang Bagong Password *'
+                            : 'Confirm New Password *',
+                      ),
+                    ),
+                    if (errorMsg != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        errorMsg!,
+                        style: const TextStyle(
+                          color: AppTheme.dangerRed,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx, false),
+                child: Text(isFil ? 'Kanselahin' : 'Cancel'),
+              ),
+              FilledButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        final email = emailCtrl.text.trim();
+                        final code = codeCtrl.text.trim();
+                        final np = newPassCtrl.text;
+                        final cp = confirmPassCtrl.text;
+
+                        if (email.isEmpty || !email.contains('@')) {
+                          setDialogState(
+                            () => errorMsg = isFil
+                                ? 'Maglagay ng wastong email.'
+                                : 'Please enter a valid email address.',
+                          );
+                          return;
+                        }
+                        if (code.isEmpty) {
+                          setDialogState(
+                            () => errorMsg = isFil
+                                ? 'Ilagay ang Family Invite Code o Reset Code.'
+                                : 'Please enter your Family Invite Code or Admin Reset Code.',
+                          );
+                          return;
+                        }
+                        if (np.length < 6) {
+                          setDialogState(
+                            () => errorMsg = isFil
+                                ? 'Dapat hindi bababa sa 6 na karakter ang bagong password.'
+                                : 'New password must be at least 6 characters.',
+                          );
+                          return;
+                        }
+                        if (np != cp) {
+                          setDialogState(
+                            () => errorMsg = isFil
+                                ? 'Hindi magkatugma ang bagong password.'
+                                : 'Passwords do not match.',
+                          );
+                          return;
+                        }
+
+                        setDialogState(() {
+                          isSubmitting = true;
+                          errorMsg = null;
+                        });
+                        final res = await auth.resetPassword(
+                          email: email,
+                          recoveryCode: code,
+                          newPassword: np,
+                        );
+                        if (!ctx.mounted) return;
+                        if (res.ok) {
+                          _emailCtrl.text = email;
+                          _passwordCtrl.clear();
+                          Navigator.pop(ctx, true);
+                        } else {
+                          setDialogState(() {
+                            isSubmitting = false;
+                            errorMsg = res.error ?? 'Reset failed.';
+                          });
+                        }
+                      },
+                child: Text(
+                  isSubmitting
+                      ? (isFil ? 'Pinapalitan...' : 'Resetting...')
+                      : (isFil ? 'I-reset ang Password' : 'Reset Password'),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      emailCtrl.dispose();
+      codeCtrl.dispose();
+      newPassCtrl.dispose();
+      confirmPassCtrl.dispose();
+    });
+
+    if (didReset == true && mounted) {
+      _showSnack(
+        isFil
+            ? 'Napalitan na ang iyong password! Maaari ka nang mag-sign in.'
+            : 'Password updated! You can now sign in with your new password.',
+      );
+    }
+  }
+
+  Future<void> _showChangePasswordDialog(AuthProvider auth, bool isFil) async {
+    final currentCtrl = TextEditingController();
+    final newCtrl = TextEditingController();
+    final confirmCtrl = TextEditingController();
+    bool obscure = true;
+    bool isSubmitting = false;
+    String? errorMsg;
+
+    final didChange = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            title: Row(
+              children: [
+                const Icon(Icons.key_rounded, color: AppTheme.primaryNavy),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    isFil ? 'Palitan ang Password' : 'Change Password',
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 420,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: currentCtrl,
+                      obscureText: obscure,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Kasalukuyang Password *'
+                            : 'Current Password *',
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: newCtrl,
+                      obscureText: obscure,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Bagong Password (min. 6 karakter) *'
+                            : 'New Password (min. 6 characters) *',
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscure
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                          ),
+                          onPressed: () =>
+                              setDialogState(() => obscure = !obscure),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: confirmCtrl,
+                      obscureText: obscure,
+                      decoration: InputDecoration(
+                        labelText: isFil
+                            ? 'Ulitin ang Bagong Password *'
+                            : 'Confirm New Password *',
+                      ),
+                    ),
+                    if (errorMsg != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        errorMsg!,
+                        style: const TextStyle(
+                          color: AppTheme.dangerRed,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting ? null : () => Navigator.pop(ctx, false),
+                child: Text(isFil ? 'Kanselahin' : 'Cancel'),
+              ),
+              FilledButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        final cur = currentCtrl.text;
+                        final np = newCtrl.text;
+                        final cp = confirmCtrl.text;
+                        if (cur.isEmpty) {
+                          setDialogState(
+                            () => errorMsg = isFil
+                                ? 'Ilagay ang kasalukuyang password.'
+                                : 'Enter your current password.',
+                          );
+                          return;
+                        }
+                        if (np.length < 6) {
+                          setDialogState(
+                            () => errorMsg = isFil
+                                ? 'Dapat hindi bababa sa 6 na karakter ang bagong password.'
+                                : 'New password must be at least 6 characters.',
+                          );
+                          return;
+                        }
+                        if (np != cp) {
+                          setDialogState(
+                            () => errorMsg = isFil
+                                ? 'Hindi magkatugma ang bagong password.'
+                                : 'New passwords do not match.',
+                          );
+                          return;
+                        }
+
+                        setDialogState(() {
+                          isSubmitting = true;
+                          errorMsg = null;
+                        });
+                        final res = await auth.changePassword(
+                          currentPassword: cur,
+                          newPassword: np,
+                        );
+                        if (!ctx.mounted) return;
+                        if (res.ok) {
+                          Navigator.pop(ctx, true);
+                        } else {
+                          setDialogState(() {
+                            isSubmitting = false;
+                            errorMsg = res.error ?? 'Update failed.';
+                          });
+                        }
+                      },
+                child: Text(
+                  isSubmitting
+                      ? (isFil ? 'Sine-save...' : 'Saving...')
+                      : (isFil ? 'I-save ang Password' : 'Update Password'),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      currentCtrl.dispose();
+      newCtrl.dispose();
+      confirmCtrl.dispose();
+    });
+
+    if (didChange == true && mounted) {
+      _showSnack(
+        isFil
+            ? 'Matagumpay na napalitan ang iyong password!'
+            : 'Password updated successfully!',
       );
     }
   }

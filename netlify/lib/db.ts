@@ -29,10 +29,23 @@ export async function ensureSchema(): Promise<SqlClient> {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
       const check = await sql`
-        SELECT to_regclass('public.drrm_advisories') AS ready
+        SELECT
+          to_regclass('public.drrm_advisories') AS ready,
+          EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'users'
+              AND column_name = 'password_reset_code_hash'
+          ) AS has_reset_cols
       `;
       if (!check[0]?.ready) {
         await runBootstrap(sql);
+      } else if (!check[0]?.has_reset_cols) {
+        await sql`
+          ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS password_reset_code_hash TEXT NULL,
+            ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ NULL
+        `;
       }
     })().catch((err) => {
       schemaReadyPromise = null;
@@ -67,8 +80,16 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
       full_name TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'household' CHECK (role IN ('household', 'admin')),
       household_id UUID REFERENCES households(id) ON DELETE SET NULL,
+      password_reset_code_hash TEXT NULL,
+      password_reset_expires_at TIMESTAMPTZ NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
+  `;
+
+  await sql`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS password_reset_code_hash TEXT NULL,
+      ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ NULL
   `;
 
   await sql`

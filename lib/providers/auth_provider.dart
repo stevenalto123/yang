@@ -786,6 +786,82 @@ class AuthProvider extends ChangeNotifier {
     return (ok: false, error: res.error ?? 'Could not delete shelter.');
   }
 
+  Future<({bool ok, String? error})> resetPassword({
+    required String email,
+    required String recoveryCode,
+    required String newPassword,
+  }) async {
+    final res = await _api.request(
+      'POST',
+      '/auth/reset-password',
+      body: {
+        'email': email.trim(),
+        'recoveryCode': recoveryCode.trim().toUpperCase(),
+        'newPassword': newPassword,
+      },
+    );
+    if (res.ok) return (ok: true, error: null);
+    return (
+      ok: false,
+      error: res.error ?? 'Could not reset password. Check your email and code.',
+    );
+  }
+
+  Future<({bool ok, String? error})> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (!isAuthenticated) {
+      return (ok: false, error: 'Sign in first to change your password.');
+    }
+    final res = await _api.request(
+      'PATCH',
+      '/auth/password',
+      token: _token,
+      body: {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+      },
+    );
+    if (res.ok) return (ok: true, error: null);
+    return (
+      ok: false,
+      error: res.error ?? 'Could not update password.',
+    );
+  }
+
+  Future<({bool ok, String? resetCode, String? fullName, String? expiresAt, String? error})>
+      issueAdminResetCode({
+    required String email,
+    String? adminCode,
+  }) async {
+    final res = await _api.request(
+      'POST',
+      '/admin/users/reset-code',
+      token: _token,
+      headers: adminCode != null && adminCode.trim().isNotEmpty
+          ? {'x-admin-code': adminCode.trim()}
+          : null,
+      body: {'email': email.trim()},
+    );
+    if (res.ok && res.data != null) {
+      return (
+        ok: true,
+        resetCode: res.data!['resetCode']?.toString(),
+        fullName: res.data!['fullName']?.toString(),
+        expiresAt: res.data!['expiresAt']?.toString(),
+        error: null,
+      );
+    }
+    return (
+      ok: false,
+      resetCode: null,
+      fullName: null,
+      expiresAt: null,
+      error: res.error ?? 'Could not generate reset code.',
+    );
+  }
+
   Future<({bool ok, String? error})> checkHealth() async {
     final res = await _api.request('GET', '/health');
     if (res.ok && res.data?['ok'] == true) {

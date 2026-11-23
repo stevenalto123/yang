@@ -347,6 +347,151 @@ export async function handleApiRequest(
       });
     }
 
+    if (method === 'PATCH' && path === '/auth/password') {
+      const claims = getBearerClaims(req);
+      if (!claims) return json({ error: 'Unauthorized' }, 401);
+
+      const body = await parseJsonBody(req);
+      const currentPassword =
+        typeof body.currentPassword === 'string' ? body.currentPassword : '';
+      const newPassword =
+        typeof body.newPassword === 'string' ? body.newPassword : '';
+
+      if (!currentPassword || newPassword.length < 6) {
+        return json(
+          {
+            error:
+              'Enter your current password and a new password (min 6 characters).',
+          },
+          400,
+        );
+      }
+
+      const user = await store.getUserById(claims.sub);
+      if (!user || !verifyPassword(currentPassword, user.passwordHash)) {
+        return json({ error: 'Current password is incorrect.' }, 401);
+      }
+
+      await store.updateUserPassword(user.id, hashPassword(newPassword));
+      return json({ ok: true, message: 'Password updated successfully.' });
+    }
+
+    if (method === 'POST' && path === '/auth/reset-password') {
+      const body = await parseJsonBody(req);
+      const email =
+        typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+      const recoveryCode =
+        typeof body.recoveryCode === 'string'
+          ? body.recoveryCode.trim().toUpperCase()
+          : '';
+      const newPassword =
+        typeof body.newPassword === 'string' ? body.newPassword : '';
+
+      if (!email || !email.includes('@') || !recoveryCode || newPassword.length < 6) {
+        return json(
+          {
+            error:
+              'Provide your email, recovery/invite code, and a new password (min 6 chars).',
+          },
+          400,
+        );
+      }
+
+      const user = await store.getUserByEmail(email);
+      if (!user || user.role === 'admin') {
+        return json({ error: 'Invalid email or recovery code.' }, 400);
+      }
+
+      let verified = false;
+
+      // Method 1: Admin-issued 1-time 15-minute Reset Code
+      if (user.passwordResetCodeHash && user.passwordResetExpiresAt) {
+        const expiresMs = new Date(user.passwordResetExpiresAt).getTime();
+        if (
+          Number.isFinite(expiresMs) &&
+          expiresMs > Date.now() &&
+          verifyPassword(recoveryCode, user.passwordResetCodeHash)
+        ) {
+          verified = true;
+        }
+      }
+
+      // Method 2: Household's 6-character Family Invite Code
+      if (!verified && user.householdId) {
+        const hh = await store.getHouseholdById(user.householdId);
+        if (hh && hh.inviteCode) {
+          const expected = Buffer.from(hh.inviteCode.trim().toUpperCase());
+          const provided = Buffer.from(recoveryCode);
+          if (
+            expected.length === provided.length &&
+            timingSafeEqual(expected, provided)
+          ) {
+            verified = true;
+          }
+        }
+      }
+
+      if (!verified) {
+        return json(
+          {
+            error:
+              'Invalid or expired recovery code. Use your Family Invite Code or ask your DRRM Admin for a 1-time reset code.',
+          },
+          400,
+        );
+      }
+
+      await store.updateUserPassword(user.id, hashPassword(newPassword));
+      return json({
+        ok: true,
+        message: 'Password reset! You can now sign in with your new password.',
+      });
+    }
+
+    if (method === 'POST' && path === '/admin/users/reset-code') {
+      const claims = getBearerClaims(req);
+      if (!isAdminAuthorized(req, claims)) {
+        return json({ error: 'Admin authorization required.' }, 403);
+      }
+
+      const body = await parseJsonBody(req);
+      const email =
+        typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+      if (!email || !email.includes('@')) {
+        return json({ error: 'Provide a valid resident email address.' }, 400);
+      }
+
+      const existing = await store.getUserByEmail(email);
+      if (!existing) {
+        return json({ error: 'No account found with that email address.' }, 404);
+      }
+      if (existing.role === 'admin') {
+        return json(
+          { error: 'Reset codes can only be issued for household resident accounts.' },
+          403,
+        );
+      }
+
+      const resetCode = generateInviteCode(6);
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      const updated = await store.setPasswordResetCode(
+        email,
+        hashPassword(resetCode),
+        expiresAt,
+      );
+      if (!updated) {
+        return json({ error: 'Could not issue reset code.' }, 500);
+      }
+
+      return json({
+        ok: true,
+        email: updated.email,
+        fullName: updated.fullName,
+        resetCode,
+        expiresAt,
+      });
+    }
+
     if (method === 'POST' && path === '/households/join') {
       const claims = getBearerClaims(req);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
