@@ -143,10 +143,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
+    // Strict RBAC UI separation: Admin sessions open directly into the dedicated
+    // Admin & DRRM Operations Portal (never mixed with resident Go-Bag / Check-In UI).
+    if (auth.isAdmin) {
+      return const AdminDashboardScreen(isRootShell: true);
+    }
+
     final kit = context.watch<KitProvider>();
     final monitoring = context.watch<MonitoringProvider>();
     final settings = context.watch<SettingsProvider>();
-    final auth = context.watch<AuthProvider>();
 
     final isDark = settings.isDarkMode;
     final isDesktop = ResponsiveBreakpoints.isDesktop(context);

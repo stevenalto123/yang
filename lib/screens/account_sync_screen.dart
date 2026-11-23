@@ -96,10 +96,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     if (res.ok) {
       if (auth.isAdmin) {
         _showSnack('Signed in as Admin! Opening Admin Portal...');
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
-        );
+        Navigator.popUntil(context, (route) => route.isFirst);
       } else {
         _showSnack(
           _isRegisterMode

@@ -37,7 +37,9 @@ const List<_CityPreset> _manilaPresets = [
 ];
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
+  final bool isRootShell;
+
+  const AdminDashboardScreen({super.key, this.isRootShell = false});
 
   @override
   State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
@@ -1230,19 +1232,52 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        automaticallyImplyLeading: !widget.isRootShell,
+        title: Row(
           children: [
-            const Text('Admin & DRRM Portal'),
-            if (_lastFetchedAt != null)
-              Text(
-                'Updated ${DateFormat('h:mm:ss a').format(_lastFetchedAt!)} • ${_autoRefreshEnabled ? 'Auto-sync 30s' : 'Manual sync'}',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                  color: subtleText,
+            if (widget.isRootShell) ...[
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.primaryNavy, AppTheme.primaryAccent],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.admin_panel_settings_rounded,
+                  color: Colors.white,
+                  size: 20,
                 ),
               ),
+              const SizedBox(width: 10),
+            ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.isRootShell
+                        ? 'LifeCheckpoint Admin Portal'
+                        : 'Admin & DRRM Portal',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (_lastFetchedAt != null)
+                    Text(
+                      '${auth.isAdmin && (auth.fullName ?? '').isNotEmpty ? '${auth.fullName} • ' : ''}Updated ${DateFormat('h:mm:ss a').format(_lastFetchedAt!)} • ${_autoRefreshEnabled ? 'Auto-sync 30s' : 'Manual'}',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: subtleText,
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: [
@@ -1272,17 +1307,51 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             tooltip: 'Refresh Live Data',
             onPressed: _isLoading ? null : () => _loadOverview(),
           ),
+          IconButton(
+            icon: Icon(
+              isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+            ),
+            tooltip: isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode',
+            onPressed: () => settings.toggleDarkMode(),
+          ),
           if (auth.isAdmin)
-            IconButton(
-              icon: const Icon(Icons.logout_rounded),
-              tooltip: 'Sign Out of Admin Account',
-              onPressed: () async {
-                _autoRefreshTimer?.cancel();
-                await auth.logout();
-                if (!context.mounted) return;
-                Navigator.pop(context);
-              },
-            )
+            MediaQuery.of(context).size.width >= 600
+                ? Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.dangerRed,
+                      ),
+                      icon: const Icon(Icons.logout_rounded, size: 18),
+                      label: const Text(
+                        'Sign Out',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      onPressed: () async {
+                        _autoRefreshTimer?.cancel();
+                        await auth.logout();
+                        if (!context.mounted) return;
+                        if (!widget.isRootShell && Navigator.canPop(context)) {
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
+                  )
+                : IconButton(
+                    icon: const Icon(
+                      Icons.logout_rounded,
+                      color: AppTheme.dangerRed,
+                    ),
+                    tooltip: 'Sign Out of Admin Account',
+                    onPressed: () async {
+                      _autoRefreshTimer?.cancel();
+                      await auth.logout();
+                      if (!context.mounted) return;
+                      if (!widget.isRootShell && Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
+                    },
+                  )
           else
             IconButton(
               icon: const Icon(Icons.lock_outline_rounded),

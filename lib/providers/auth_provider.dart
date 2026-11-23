@@ -114,7 +114,7 @@ class AuthProvider extends ChangeNotifier {
     } catch (_) {}
     notifyListeners();
 
-    if (isAuthenticated && hasCloudEndpoint) {
+    if (isAuthenticated && !isAdmin && hasCloudEndpoint) {
       syncNow(pushLocalKitFirst: false);
     }
   }
@@ -159,6 +159,10 @@ class AuthProvider extends ChangeNotifier {
     }
 
     await _applyAuthPayload(res.data!);
+    if (isAdmin) {
+      await _clearAccountMutations();
+      return (ok: true, error: null);
+    }
     final joinedExisting = inviteCode.trim().isNotEmpty;
     if (joinedExisting) {
       await _clearAccountMutations();
@@ -199,7 +203,9 @@ class AuthProvider extends ChangeNotifier {
 
     await _clearAccountMutations();
     await _applyAuthPayload(res.data!);
-    await syncNow(pushLocalKitFirst: false, replaceLocalFromCloud: true);
+    if (!isAdmin) {
+      await syncNow(pushLocalKitFirst: false, replaceLocalFromCloud: true);
+    }
     return (ok: true, error: null);
   }
 
@@ -272,6 +278,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> enqueueMutation(String type, Map<String, dynamic> payload) async {
+    if (isAdmin && type != 'submit_evaluation') return;
     await _queue.enqueue(type, payload);
     notifyListeners();
     if (hasCloudEndpoint && (isAuthenticated || type == 'submit_evaluation')) {
@@ -284,6 +291,7 @@ class AuthProvider extends ChangeNotifier {
     bool replaceLocalFromCloud = false,
   }) async {
     if (_isSyncing) return (ok: true, error: null);
+    if (isAdmin) return (ok: true, error: null);
     if (!hasCloudEndpoint) {
       return (ok: false, error: 'No cloud server URL configured.');
     }

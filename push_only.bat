@@ -15,7 +15,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Panelist QA fixes: BOLA shelter guard, RA 10173 cloud delete, Reset crash fix, Morse strobe fix, ISO 25010 neutral default, compact SOS FAB, Manila scope & security headers"
+git commit -m "Strict RBAC Admin-only portal view on login, skip household sync for admins, and root security headers"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master
