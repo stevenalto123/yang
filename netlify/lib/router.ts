@@ -1,6 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import {
   generateInviteCode,
+  generateNumericOtp,
   hashPassword,
   signJwt,
   verifyJwt,
@@ -8,6 +9,11 @@ import {
   type JwtClaims,
 } from './crypto.js';
 import { getEnv, getRequiredEnv } from './env.js';
+import {
+  isEmailResetConfigured,
+  sendPasswordResetEmail,
+  type ResetEmailPayload,
+} from './mailer.js';
 import type { DataStore } from './repository.js';
 import type {
   AdvisorySeverity,
@@ -158,6 +164,9 @@ function buildEvaluationSummary(rows: IsoEvaluationRecord[]) {
 export async function handleApiRequest(
   req: Request,
   store: DataStore,
+  opts?: {
+    sendResetEmail?: (payload: ResetEmailPayload) => Promise<void>;
+  },
 ): Promise<Response> {
   try {
     const path = normalizeApiPath(req.url);
@@ -376,66 +385,105 @@ export async function handleApiRequest(
       return json({ ok: true, message: 'Password updated successfully.' });
     }
 
+    if (method === 'POST' && path === '/auth/forgot-password') {
+      const body = await parseJsonBody(req);
+      const email =
+        typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+      if (!email || !email.includes('@')) {
+        return json({ error: 'Please enter a valid email address.' }, 400);
+      }
+
+      const sender = opts?.sendResetEmail ?? sendPasswordResetEmail;
+      if (!opts?.sendResetEmail && !isEmailResetConfigured()) {
+        return json(
+          {
+            error:
+              'Email password reset is not configured yet (set GMAIL_USER and GMAIL_APP_PASSWORD in Vercel).',
+          },
+          503,
+        );
+      }
+
+      const user = await store.getUserByEmail(email);
+      if (user && user.role !== 'admin') {
+        const otp = generateNumericOtp(6);
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        await store.setPasswordResetCode(email, hashPassword(otp), expiresAt);
+        try {
+          await sender({
+            to: user.email,
+            fullName: user.fullName,
+            code: otp,
+          });
+        } catch (err) {
+          const detail = err instanceof Error ? err.message : 'SMTP error';
+          return json(
+            {
+              error: `Unable to send reset email right now (${detail}). Check Gmail App Password settings.`,
+            },
+            502,
+          );
+        }
+      }
+
+      // Generic 200 response prevents email enumeration attacks
+      return json({
+        ok: true,
+        message:
+          'If an account exists for that email, a 6-digit reset code has been sent to your inbox.',
+      });
+    }
+
     if (method === 'POST' && path === '/auth/reset-password') {
       const body = await parseJsonBody(req);
       const email =
         typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-      const recoveryCode =
-        typeof body.recoveryCode === 'string'
-          ? body.recoveryCode.trim().toUpperCase()
-          : '';
+      const rawCode =
+        typeof body.code === 'string'
+          ? body.code
+          : typeof body.recoveryCode === 'string'
+            ? body.recoveryCode
+            : '';
+      const code = rawCode.trim();
       const newPassword =
         typeof body.newPassword === 'string' ? body.newPassword : '';
 
-      if (!email || !email.includes('@') || !recoveryCode || newPassword.length < 6) {
+      if (!email || !email.includes('@') || !code || newPassword.length < 6) {
         return json(
           {
             error:
-              'Provide your email, recovery/invite code, and a new password (min 6 chars).',
+              'Provide your email, 6-digit email reset code, and a new password (min 6 chars).',
           },
           400,
         );
       }
 
       const user = await store.getUserByEmail(email);
-      if (!user || user.role === 'admin') {
-        return json({ error: 'Invalid email or recovery code.' }, 400);
-      }
-
-      let verified = false;
-
-      // Method 1: Admin-issued 1-time 15-minute Reset Code
-      if (user.passwordResetCodeHash && user.passwordResetExpiresAt) {
-        const expiresMs = new Date(user.passwordResetExpiresAt).getTime();
-        if (
-          Number.isFinite(expiresMs) &&
-          expiresMs > Date.now() &&
-          verifyPassword(recoveryCode, user.passwordResetCodeHash)
-        ) {
-          verified = true;
-        }
-      }
-
-      // Method 2: Household's 6-character Family Invite Code
-      if (!verified && user.householdId) {
-        const hh = await store.getHouseholdById(user.householdId);
-        if (hh && hh.inviteCode) {
-          const expected = Buffer.from(hh.inviteCode.trim().toUpperCase());
-          const provided = Buffer.from(recoveryCode);
-          if (
-            expected.length === provided.length &&
-            timingSafeEqual(expected, provided)
-          ) {
-            verified = true;
-          }
-        }
-      }
-
-      if (!verified) {
+      if (
+        !user ||
+        user.role === 'admin' ||
+        !user.passwordResetCodeHash ||
+        !user.passwordResetExpiresAt
+      ) {
         return json(
           {
             error:
-              'Invalid or expired recovery code. Use your Family Invite Code or ask your DRRM Admin for a 1-time reset code.',
+              'Invalid or expired 6-digit reset code. Please request a new code.',
+          },
+          400,
+        );
+      }
+
+      const expiresMs = new Date(user.passwordResetExpiresAt).getTime();
+      if (
+        !Number.isFinite(expiresMs) ||
+        expiresMs <= Date.now() ||
+        !verifyPassword(code, user.passwordResetCodeHash)
+      ) {
+        return json(
+          {
+            error:
+              'Invalid or expired 6-digit reset code. Please request a new code.',
           },
           400,
         );
@@ -445,50 +493,6 @@ export async function handleApiRequest(
       return json({
         ok: true,
         message: 'Password reset! You can now sign in with your new password.',
-      });
-    }
-
-    if (method === 'POST' && path === '/admin/users/reset-code') {
-      const claims = getBearerClaims(req);
-      if (!isAdminAuthorized(req, claims)) {
-        return json({ error: 'Admin authorization required.' }, 403);
-      }
-
-      const body = await parseJsonBody(req);
-      const email =
-        typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-      if (!email || !email.includes('@')) {
-        return json({ error: 'Provide a valid resident email address.' }, 400);
-      }
-
-      const existing = await store.getUserByEmail(email);
-      if (!existing) {
-        return json({ error: 'No account found with that email address.' }, 404);
-      }
-      if (existing.role === 'admin') {
-        return json(
-          { error: 'Reset codes can only be issued for household resident accounts.' },
-          403,
-        );
-      }
-
-      const resetCode = generateInviteCode(6);
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-      const updated = await store.setPasswordResetCode(
-        email,
-        hashPassword(resetCode),
-        expiresAt,
-      );
-      if (!updated) {
-        return json({ error: 'Could not issue reset code.' }, 500);
-      }
-
-      return json({
-        ok: true,
-        email: updated.email,
-        fullName: updated.fullName,
-        resetCode,
-        expiresAt,
       });
     }
 

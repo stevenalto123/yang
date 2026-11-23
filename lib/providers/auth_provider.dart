@@ -786,9 +786,32 @@ class AuthProvider extends ChangeNotifier {
     return (ok: false, error: res.error ?? 'Could not delete shelter.');
   }
 
+  Future<({bool ok, String? message, String? error})> requestPasswordResetCode({
+    required String email,
+  }) async {
+    final res = await _api.request(
+      'POST',
+      '/auth/forgot-password',
+      body: {'email': email.trim()},
+    );
+    if (res.ok) {
+      return (
+        ok: true,
+        message: res.data?['message']?.toString() ??
+            'If an account exists for that email, a 6-digit reset code has been sent.',
+        error: null,
+      );
+    }
+    return (
+      ok: false,
+      message: null,
+      error: res.error ?? 'Could not send reset code right now.',
+    );
+  }
+
   Future<({bool ok, String? error})> resetPassword({
     required String email,
-    required String recoveryCode,
+    required String code,
     required String newPassword,
   }) async {
     final res = await _api.request(
@@ -796,14 +819,14 @@ class AuthProvider extends ChangeNotifier {
       '/auth/reset-password',
       body: {
         'email': email.trim(),
-        'recoveryCode': recoveryCode.trim().toUpperCase(),
+        'code': code.trim(),
         'newPassword': newPassword,
       },
     );
     if (res.ok) return (ok: true, error: null);
     return (
       ok: false,
-      error: res.error ?? 'Could not reset password. Check your email and code.',
+      error: res.error ?? 'Invalid or expired 6-digit reset code.',
     );
   }
 
@@ -827,38 +850,6 @@ class AuthProvider extends ChangeNotifier {
     return (
       ok: false,
       error: res.error ?? 'Could not update password.',
-    );
-  }
-
-  Future<({bool ok, String? resetCode, String? fullName, String? expiresAt, String? error})>
-      issueAdminResetCode({
-    required String email,
-    String? adminCode,
-  }) async {
-    final res = await _api.request(
-      'POST',
-      '/admin/users/reset-code',
-      token: _token,
-      headers: adminCode != null && adminCode.trim().isNotEmpty
-          ? {'x-admin-code': adminCode.trim()}
-          : null,
-      body: {'email': email.trim()},
-    );
-    if (res.ok && res.data != null) {
-      return (
-        ok: true,
-        resetCode: res.data!['resetCode']?.toString(),
-        fullName: res.data!['fullName']?.toString(),
-        expiresAt: res.data!['expiresAt']?.toString(),
-        error: null,
-      );
-    }
-    return (
-      ok: false,
-      resetCode: null,
-      fullName: null,
-      expiresAt: null,
-      error: res.error ?? 'Could not generate reset code.',
     );
   }
 

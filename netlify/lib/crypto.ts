@@ -40,6 +40,15 @@ export function generateInviteCode(length = 6): string {
   return code;
 }
 
+export function generateNumericOtp(length = 6): string {
+  const bytes = randomBytes(length);
+  let otp = '';
+  for (let i = 0; i < length; i++) {
+    otp += String(bytes[i] % 10);
+  }
+  return otp;
+}
+
 function base64UrlEncode(input: Buffer | string): string {
   return Buffer.from(input)
     .toString('base64')

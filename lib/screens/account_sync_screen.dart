@@ -963,18 +963,51 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
     final newPassCtrl = TextEditingController();
     final confirmPassCtrl = TextEditingController();
     bool obscureNew = true;
+    bool isSendingCode = false;
+    bool codeSent = false;
     bool isSubmitting = false;
+    String? infoMsg;
     String? errorMsg;
 
     final didReset = await showDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          Future<void> sendCode() async {
+            final email = emailCtrl.text.trim();
+            if (email.isEmpty || !email.contains('@') || !email.contains('.')) {
+              setDialogState(
+                () => errorMsg = isFil
+                    ? 'Maglagay ng wastong email address.'
+                    : 'Please enter a valid email address.',
+              );
+              return;
+            }
+            setDialogState(() {
+              isSendingCode = true;
+              errorMsg = null;
+              infoMsg = null;
+            });
+            final res = await auth.requestPasswordResetCode(email: email);
+            if (!ctx.mounted) return;
+            setDialogState(() {
+              isSendingCode = false;
+              if (res.ok) {
+                codeSent = true;
+                infoMsg = isFil
+                    ? 'Naipadala ang 6-digit code sa iyong email (tingnan din ang Spam). May bisa ito sa loob ng 15 minuto.'
+                    : '6-digit reset code sent! Check your Gmail inbox (and Spam folder). Valid for 15 minutes.';
+              } else {
+                errorMsg = res.error ?? 'Could not send reset email.';
+              }
+            });
+          }
+
           return AlertDialog(
             title: Row(
               children: [
                 const Icon(
-                  Icons.lock_reset_rounded,
+                  Icons.mark_email_read_outlined,
                   color: AppTheme.primaryNavy,
                 ),
                 const SizedBox(width: 8),
@@ -995,58 +1028,115 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                   children: [
                     Text(
                       isFil
-                          ? 'Ilagay ang iyong email at 6-character na Family Invite Code (itanong sa kasama sa bahay) o ang 1-time Reset Code mula sa Manila DRRMO Admin.'
-                          : 'Enter your email and your 6-character Family Invite Code (ask a family member in your household) OR a 1-time Reset Code issued by your Manila DRRMO Admin.',
+                          ? 'Ilagay ang iyong email address para makatanggap ng 6-digit na reset code sa iyong Gmail.'
+                          : 'Enter your registered email address and we will send a 6-digit verification code to your inbox.',
                       style: const TextStyle(fontSize: 13, height: 1.4),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: emailCtrl,
                       keyboardType: TextInputType.emailAddress,
+                      enabled: !isSendingCode && !isSubmitting,
                       decoration: const InputDecoration(
                         labelText: 'Email Address *',
+                        prefixIcon: Icon(Icons.email_outlined, size: 19),
                       ),
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: codeCtrl,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: InputDecoration(
-                        labelText: isFil
-                            ? 'Family Invite Code o Admin Reset Code *'
-                            : 'Family Invite Code or Admin Reset Code *',
-                        hintText: 'e.g. A7K9P2',
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.tonalIcon(
+                        icon: isSendingCode
+                            ? const SizedBox(
+                                width: 15,
+                                height: 15,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.send_rounded, size: 17),
+                        label: Text(
+                          isSendingCode
+                              ? (isFil ? 'Ipinapadala...' : 'Sending Code...')
+                              : (codeSent
+                                  ? (isFil
+                                      ? 'Ipadala Ulit ang 6-Digit Code'
+                                      : 'Resend 6-Digit Code')
+                                  : (isFil
+                                      ? 'Ipadala ang 6-Digit Code sa Email'
+                                      : 'Send 6-Digit Code to Email')),
+                        ),
+                        onPressed:
+                            isSendingCode || isSubmitting ? null : sendCode,
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: newPassCtrl,
-                      obscureText: obscureNew,
-                      decoration: InputDecoration(
-                        labelText: isFil
-                            ? 'Bagong Password (min. 6 karakter) *'
-                            : 'New Password (min. 6 characters) *',
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            obscureNew
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined,
+                    if (infoMsg != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.safeGreen.withAlpha(24),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: AppTheme.safeGreen.withAlpha(100),
                           ),
-                          onPressed: () =>
-                              setDialogState(() => obscureNew = !obscureNew),
+                        ),
+                        child: Text(
+                          infoMsg!,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.safeGreen,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: confirmPassCtrl,
-                      obscureText: obscureNew,
-                      decoration: InputDecoration(
-                        labelText: isFil
-                            ? 'Ulitin ang Bagong Password *'
-                            : 'Confirm New Password *',
+                    ],
+                    if (codeSent) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: codeCtrl,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        decoration: InputDecoration(
+                          counterText: '',
+                          labelText: isFil
+                              ? '6-Digit Code mula sa Email *'
+                              : '6-Digit Email Code *',
+                          hintText: 'e.g. 482915',
+                          prefixIcon: const Icon(Icons.pin_outlined, size: 19),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: newPassCtrl,
+                        obscureText: obscureNew,
+                        decoration: InputDecoration(
+                          labelText: isFil
+                              ? 'Bagong Password (min. 6 karakter) *'
+                              : 'New Password (min. 6 characters) *',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureNew
+                                  ? Icons.visibility_outlined
+                                  : Icons.visibility_off_outlined,
+                            ),
+                            onPressed: () =>
+                                setDialogState(() => obscureNew = !obscureNew),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: confirmPassCtrl,
+                        obscureText: obscureNew,
+                        decoration: InputDecoration(
+                          labelText: isFil
+                              ? 'Ulitin ang Bagong Password *'
+                              : 'Confirm New Password *',
+                        ),
+                      ),
+                    ],
                     if (errorMsg != null) ...[
                       const SizedBox(height: 10),
                       Text(
@@ -1067,75 +1157,68 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 onPressed: isSubmitting ? null : () => Navigator.pop(ctx, false),
                 child: Text(isFil ? 'Kanselahin' : 'Cancel'),
               ),
-              FilledButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        final email = emailCtrl.text.trim();
-                        final code = codeCtrl.text.trim();
-                        final np = newPassCtrl.text;
-                        final cp = confirmPassCtrl.text;
+              if (codeSent)
+                FilledButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final email = emailCtrl.text.trim();
+                          final code = codeCtrl.text.trim();
+                          final np = newPassCtrl.text;
+                          final cp = confirmPassCtrl.text;
 
-                        if (email.isEmpty || !email.contains('@')) {
-                          setDialogState(
-                            () => errorMsg = isFil
-                                ? 'Maglagay ng wastong email.'
-                                : 'Please enter a valid email address.',
-                          );
-                          return;
-                        }
-                        if (code.isEmpty) {
-                          setDialogState(
-                            () => errorMsg = isFil
-                                ? 'Ilagay ang Family Invite Code o Reset Code.'
-                                : 'Please enter your Family Invite Code or Admin Reset Code.',
-                          );
-                          return;
-                        }
-                        if (np.length < 6) {
-                          setDialogState(
-                            () => errorMsg = isFil
-                                ? 'Dapat hindi bababa sa 6 na karakter ang bagong password.'
-                                : 'New password must be at least 6 characters.',
-                          );
-                          return;
-                        }
-                        if (np != cp) {
-                          setDialogState(
-                            () => errorMsg = isFil
-                                ? 'Hindi magkatugma ang bagong password.'
-                                : 'Passwords do not match.',
-                          );
-                          return;
-                        }
+                          if (code.length != 6) {
+                            setDialogState(
+                              () => errorMsg = isFil
+                                  ? 'Ilagay ang 6-digit na code mula sa iyong email.'
+                                  : 'Please enter the 6-digit code sent to your email.',
+                            );
+                            return;
+                          }
+                          if (np.length < 6) {
+                            setDialogState(
+                              () => errorMsg = isFil
+                                  ? 'Dapat hindi bababa sa 6 na karakter ang bagong password.'
+                                  : 'New password must be at least 6 characters.',
+                            );
+                            return;
+                          }
+                          if (np != cp) {
+                            setDialogState(
+                              () => errorMsg = isFil
+                                  ? 'Hindi magkatugma ang bagong password.'
+                                  : 'Passwords do not match.',
+                            );
+                            return;
+                          }
 
-                        setDialogState(() {
-                          isSubmitting = true;
-                          errorMsg = null;
-                        });
-                        final res = await auth.resetPassword(
-                          email: email,
-                          recoveryCode: code,
-                          newPassword: np,
-                        );
-                        if (!ctx.mounted) return;
-                        if (res.ok) {
-                          _emailCtrl.text = email;
-                          _passwordCtrl.clear();
-                          Navigator.pop(ctx, true);
-                        } else {
                           setDialogState(() {
-                            isSubmitting = false;
-                            errorMsg = res.error ?? 'Reset failed.';
+                            isSubmitting = true;
+                            errorMsg = null;
                           });
-                        }
-                      },
-                child: Text(
-                  isSubmitting
-                      ? (isFil ? 'Pinapalitan...' : 'Resetting...')
-                      : (isFil ? 'I-reset ang Password' : 'Reset Password'),
+                          final res = await auth.resetPassword(
+                            email: email,
+                            code: code,
+                            newPassword: np,
+                          );
+                          if (!ctx.mounted) return;
+                          if (res.ok) {
+                            _emailCtrl.text = email;
+                            _passwordCtrl.clear();
+                            Navigator.pop(ctx, true);
+                          } else {
+                            setDialogState(() {
+                              isSubmitting = false;
+                              errorMsg = res.error ?? 'Reset failed.';
+                            });
+                          }
+                        },
+                  child: Text(
+                    isSubmitting
+                        ? (isFil ? 'Pinapalitan...' : 'Resetting...')
+                        : (isFil ? 'I-reset ang Password' : 'Reset Password'),
+                  ),
                 ),
-              ),
             ],
           );
         },

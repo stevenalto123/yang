@@ -6,18 +6,26 @@ import { handleApiRequest } from '../../.test-dist/netlify/lib/router.js';
 process.env.JWT_SECRET = 'test_jwt_secret_for_lifecheckpoint_unit_tests_2026';
 process.env.ADMIN_INVITE_CODE = 'DRRM-TEST-ADMIN';
 
-async function callApi(store, path, { method = 'GET', token = null, headers = {}, body = null } = {}) {
+async function callApi(
+  store,
+  path,
+  { method = 'GET', token = null, headers = {}, body = null, sendResetEmail = undefined } = {},
+) {
   const reqHeaders = { ...headers };
   if (token) reqHeaders.authorization = `Bearer ${token}`;
   if (body !== null) reqHeaders['content-type'] = 'application/json';
 
-  const req = new Request(`https://lifecheckpoint.netlify.app/api${path}`, {
+  const req = new Request(`https://lifecheckpoint.vercel.app/api${path}`, {
     method,
     headers: reqHeaders,
     body: body !== null ? JSON.stringify(body) : undefined,
   });
 
-  const res = await handleApiRequest(req, store);
+  const res = await handleApiRequest(
+    req,
+    store,
+    sendResetEmail ? { sendResetEmail } : undefined,
+  );
   const text = await res.text();
   let json = null;
   try {
@@ -514,56 +522,90 @@ test('BOLA shelter protection, RA 10173 cloud account deletion, and weighted adm
   assert.equal(meAfterDelete.status, 401);
 });
 
-test('forgot password (Family Invite Code & Admin 1-time Reset Code) and change password', async () => {
+test('forgot password via Gmail 6-digit email OTP and authenticated change password', async () => {
   const store = new InMemoryStore();
+  const sentEmails = [];
+  const mockSendEmail = async (payload) => {
+    sentEmails.push(payload);
+  };
 
   const reg = await callApi(store, '/auth/register', {
     method: 'POST',
     body: {
-      email: 'forgot.user@manila.ph',
+      email: 'forgot.user@gmail.com',
       password: 'OldPassword1!',
       fullName: 'Manila Resident',
       householdName: 'Paco Family',
     },
   });
   assert.equal(reg.status, 201);
-  const inviteCode = reg.json.household.inviteCode;
 
-  // 1. Wrong recovery code fails
+  // 1. Requesting a reset code for an unknown email still returns 200 (no account enumeration)
+  const unknownReq = await callApi(store, '/auth/forgot-password', {
+    method: 'POST',
+    body: { email: 'nobody@gmail.com' },
+    sendResetEmail: mockSendEmail,
+  });
+  assert.equal(unknownReq.status, 200);
+  assert.equal(sentEmails.length, 0);
+
+  // 2. Requesting a reset code for a registered email sends a 6-digit numeric OTP
+  const forgotRes = await callApi(store, '/auth/forgot-password', {
+    method: 'POST',
+    body: { email: 'forgot.user@gmail.com' },
+    sendResetEmail: mockSendEmail,
+  });
+  assert.equal(forgotRes.status, 200);
+  assert.equal(sentEmails.length, 1);
+  const otpCode = sentEmails[0].code;
+  assert.match(otpCode, /^\d{6}$/);
+
+  // 3. Wrong code fails
   const badReset = await callApi(store, '/auth/reset-password', {
     method: 'POST',
     body: {
-      email: 'forgot.user@manila.ph',
-      recoveryCode: 'WRONG1',
+      email: 'forgot.user@gmail.com',
+      code: '000000',
       newPassword: 'NewPassword2!',
     },
   });
   assert.equal(badReset.status, 400);
 
-  // 2. Valid Family Invite Code resets password
-  const inviteReset = await callApi(store, '/auth/reset-password', {
+  // 4. Valid 6-digit emailed OTP resets password cleanly
+  const okReset = await callApi(store, '/auth/reset-password', {
     method: 'POST',
     body: {
-      email: 'forgot.user@manila.ph',
-      recoveryCode: inviteCode,
+      email: 'forgot.user@gmail.com',
+      code: otpCode,
       newPassword: 'NewPassword2!',
     },
   });
-  assert.equal(inviteReset.status, 200);
+  assert.equal(okReset.status, 200);
+
+  // 5. Reusing the same 6-digit OTP fails (single-use)
+  const reuseAttempt = await callApi(store, '/auth/reset-password', {
+    method: 'POST',
+    body: {
+      email: 'forgot.user@gmail.com',
+      code: otpCode,
+      newPassword: 'AnotherPass3!',
+    },
+  });
+  assert.equal(reuseAttempt.status, 400);
 
   const oldLogin = await callApi(store, '/auth/login', {
     method: 'POST',
-    body: { email: 'forgot.user@manila.ph', password: 'OldPassword1!' },
+    body: { email: 'forgot.user@gmail.com', password: 'OldPassword1!' },
   });
   assert.equal(oldLogin.status, 401);
 
   const newLogin = await callApi(store, '/auth/login', {
     method: 'POST',
-    body: { email: 'forgot.user@manila.ph', password: 'NewPassword2!' },
+    body: { email: 'forgot.user@gmail.com', password: 'NewPassword2!' },
   });
   assert.equal(newLogin.status, 200);
 
-  // 3. Authenticated Change Password (rejects wrong current, accepts right current)
+  // 6. Authenticated Change Password (rejects wrong current, accepts right current)
   const badChange = await callApi(store, '/auth/password', {
     method: 'PATCH',
     token: newLogin.json.token,
@@ -578,40 +620,9 @@ test('forgot password (Family Invite Code & Admin 1-time Reset Code) and change 
   });
   assert.equal(okChange.status, 200);
 
-  // 4. Admin issues 1-time 15-min reset code -> works once, cannot be reused
-  const issueRes = await callApi(store, '/admin/users/reset-code', {
-    method: 'POST',
-    headers: { 'x-admin-code': 'DRRM-TEST-ADMIN' },
-    body: { email: 'forgot.user@manila.ph' },
-  });
-  assert.equal(issueRes.status, 200);
-  const oneTimeCode = issueRes.json.resetCode;
-  assert.equal(oneTimeCode.length, 6);
-
-  const adminReset = await callApi(store, '/auth/reset-password', {
-    method: 'POST',
-    body: {
-      email: 'forgot.user@manila.ph',
-      recoveryCode: oneTimeCode,
-      newPassword: 'AdminResetPass4!',
-    },
-  });
-  assert.equal(adminReset.status, 200);
-
-  // Reusing the consumed 1-time code fails
-  const reuseAttempt = await callApi(store, '/auth/reset-password', {
-    method: 'POST',
-    body: {
-      email: 'forgot.user@manila.ph',
-      recoveryCode: oneTimeCode,
-      newPassword: 'AnotherPass5!',
-    },
-  });
-  assert.equal(reuseAttempt.status, 400);
-
   const finalLogin = await callApi(store, '/auth/login', {
     method: 'POST',
-    body: { email: 'forgot.user@manila.ph', password: 'AdminResetPass4!' },
+    body: { email: 'forgot.user@gmail.com', password: 'ChangedPass3!' },
   });
   assert.equal(finalLogin.status, 200);
 });
