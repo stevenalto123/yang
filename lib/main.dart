@@ -160,7 +160,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final s = AppStrings(settings.isFilipino);
 
     final alertCount = kit.expiredItemsCount + kit.expiringSoonItemsCount;
-    final isDrillActive = monitoring.drillMode != DrillAlertMode.liveNormal;
+    final hasActiveHazard = monitoring.isHazardActive;
 
     final selectedColor =
         isDark ? Colors.lightBlue.shade200 : AppTheme.primaryNavy;
@@ -185,19 +185,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       children: screens,
     );
 
-    final hasTopBanner = isDrillActive || !_isOnline;
-    final contentWithDrill = hasTopBanner
+    final bodyContent = !_isOnline
         ? Column(
             children: [
-              if (!_isOnline)
-                _OfflineModeBanner(isFil: settings.isFilipino),
-              if (isDrillActive)
-                _DrillModeBanner(
-                  label: '${s.drillBannerText}: ${monitoring.drillMode.label}',
-                  exitLabel: s.exitDrill,
-                  onExit: () =>
-                      monitoring.setDrillMode(DrillAlertMode.liveNormal),
-                ),
+              _OfflineModeBanner(isFil: settings.isFilipino),
               Expanded(
                 child: MediaQuery.removePadding(
                   context: context,
@@ -217,7 +208,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               currentIndex: _currentIndex,
               onSelectTab: _onNavigateTab,
               alertCount: alertCount,
-              isDrillActive: isDrillActive,
+              hasActiveHazard: hasActiveHazard,
               isDark: isDark,
               settings: settings,
               auth: auth,
@@ -227,14 +218,14 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
               width: 1,
               color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
             ),
-            Expanded(child: contentWithDrill),
+            Expanded(child: bodyContent),
           ],
         ),
       );
     }
 
     return Scaffold(
-      body: contentWithDrill,
+      body: bodyContent,
       floatingActionButton: SizedBox(
         width: 54,
         height: 54,
@@ -302,7 +293,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
                 label: s.navKit,
               ),
               NavigationDestination(
-                icon: isDrillActive
+                icon: hasActiveHazard
                     ? const Badge(
                         backgroundColor: AppTheme.dangerRed,
                         child: Icon(Icons.notifications_active_outlined),
@@ -337,7 +328,7 @@ class _DesktopSidebar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onSelectTab;
   final int alertCount;
-  final bool isDrillActive;
+  final bool hasActiveHazard;
   final bool isDark;
   final SettingsProvider settings;
   final AuthProvider auth;
@@ -347,7 +338,7 @@ class _DesktopSidebar extends StatelessWidget {
     required this.currentIndex,
     required this.onSelectTab,
     required this.alertCount,
-    required this.isDrillActive,
+    required this.hasActiveHazard,
     required this.isDark,
     required this.settings,
     required this.auth,
@@ -379,7 +370,7 @@ class _DesktopSidebar extends StatelessWidget {
         selectedIcon: Icons.notifications_active_rounded,
         label: s.navMonitor,
         badgeCount: 0,
-        showDot: isDrillActive,
+        showDot: hasActiveHazard,
       ),
       (
         icon: Icons.location_on_outlined,
@@ -714,76 +705,6 @@ class _DesktopSidebar extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DrillModeBanner extends StatelessWidget {
-  final String label;
-  final String exitLabel;
-  final VoidCallback onExit;
-
-  const _DrillModeBanner({
-    required this.label,
-    required this.exitLabel,
-    required this.onExit,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      color: const Color(0xFFFEF3C7),
-      child: SafeArea(
-        bottom: false,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: const BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: Color(0xFFF59E0B), width: 1.5),
-            ),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.info_outline_rounded,
-                color: Color(0xFF92400E),
-                size: 19,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF78350F),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              FilledButton(
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFF92400E),
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                onPressed: onExit,
-                child: Text(
-                  exitLabel,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

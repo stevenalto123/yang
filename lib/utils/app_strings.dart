@@ -64,11 +64,7 @@ class AppStrings {
     }
   }
 
-  // Practice Drill & SOS
-  String get drillBannerText => fil
-      ? 'PRACTICE DRILL LAMANG — HINDI ITO TOTOONG SAKUNA'
-      : 'PRACTICE DRILL ACTIVE — NOT A REAL EMERGENCY';
-  String get exitDrill => fil ? 'Tapusin' : 'End Drill';
+  // SOS
   String get sosDispatchTitle =>
       fil ? 'Mabilisang Tawag at SOS' : 'Emergency Help & SOS';
   String get sosButtonLabel => 'SOS';

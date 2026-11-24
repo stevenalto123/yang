@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/disaster_protocol.dart';
 import '../utils/location_service.dart';
 
 class SeismicEvent {
@@ -110,41 +109,6 @@ class WeatherSnapshot {
   }
 }
 
-enum DrillAlertMode {
-  liveNormal,
-  typhoonSignal3,
-  earthquakeAlert,
-  floodRedWarning,
-}
-
-extension DrillAlertModeExt on DrillAlertMode {
-  String get label {
-    switch (this) {
-      case DrillAlertMode.liveNormal:
-        return 'Live Monitoring (Normal)';
-      case DrillAlertMode.typhoonSignal3:
-        return 'Typhoon Signal #3';
-      case DrillAlertMode.earthquakeAlert:
-        return 'Earthquake (M6.2)';
-      case DrillAlertMode.floodRedWarning:
-        return 'Red Flood Warning';
-    }
-  }
-
-  DisasterType? get linkedDisaster {
-    switch (this) {
-      case DrillAlertMode.liveNormal:
-        return null;
-      case DrillAlertMode.typhoonSignal3:
-        return DisasterType.typhoon;
-      case DrillAlertMode.earthquakeAlert:
-        return DisasterType.earthquake;
-      case DrillAlertMode.floodRedWarning:
-        return DisasterType.flood;
-    }
-  }
-}
-
 class DrrmAdvisory {
   final String id;
   final String title;
@@ -198,7 +162,6 @@ class MonitoringProvider extends ChangeNotifier {
   WeatherSnapshot? _weather;
   List<SeismicEvent> _earthquakes = [];
   List<DrrmAdvisory> _advisories = [];
-  DrillAlertMode _drillMode = DrillAlertMode.liveNormal;
   List<Map<String, String>> _safetyLog = [];
   double _lastLat = 14.5822;
   double _lastLng = 120.9882;
@@ -218,7 +181,6 @@ class MonitoringProvider extends ChangeNotifier {
   WeatherSnapshot? get weather => _weather;
   List<SeismicEvent> get earthquakes => List.unmodifiable(_earthquakes);
   List<DrrmAdvisory> get advisories => List.unmodifiable(_advisories);
-  DrillAlertMode get drillMode => _drillMode;
   List<Map<String, String>> get safetyLog => List.unmodifiable(_safetyLog);
 
   bool _hasSignificantManilaQuake() {
@@ -235,10 +197,6 @@ class MonitoringProvider extends ChangeNotifier {
       _weather != null && _weather!.apparentTemperatureC >= 42.0;
 
   bool get isFloodRiskElevated {
-    if (_drillMode == DrillAlertMode.floodRedWarning ||
-        _drillMode == DrillAlertMode.typhoonSignal3) {
-      return true;
-    }
     if (_weather == null) return false;
     return _weather!.precipitationMm >= 5.0 ||
         _weather!.rainExpected6hMm >= 15.0 ||
@@ -246,7 +204,6 @@ class MonitoringProvider extends ChangeNotifier {
   }
 
   bool get isHazardActive {
-    if (_drillMode != DrillAlertMode.liveNormal) return true;
     if (_advisories
         .any((a) => a.severity == 'critical' || a.severity == 'warning')) {
       return true;
@@ -262,15 +219,6 @@ class MonitoringProvider extends ChangeNotifier {
   }
 
   String friendlyStatusLabel(bool isFil) {
-    if (_drillMode == DrillAlertMode.earthquakeAlert) {
-      return isFil ? 'Practice: Alerto sa Lindol' : 'Practice: Earthquake Alert';
-    }
-    if (_drillMode == DrillAlertMode.typhoonSignal3) {
-      return isFil ? 'Practice: Bagyo Signal #3' : 'Practice: Typhoon Signal #3';
-    }
-    if (_drillMode == DrillAlertMode.floodRedWarning) {
-      return isFil ? 'Practice: Red Flood Warning' : 'Practice: Red Flood Warning';
-    }
     if (_advisories.any((a) => a.severity == 'critical')) {
       return isFil
           ? 'Opisyal na Kritikal na Abiso (Manila DRRMO)'
@@ -299,10 +247,12 @@ class MonitoringProvider extends ChangeNotifier {
   }
 
   String get currentThreatLevel {
-    if (_drillMode == DrillAlertMode.earthquakeAlert) return 'CRITICAL ALERT';
-    if (_drillMode == DrillAlertMode.typhoonSignal3) return 'HIGH ALERT (TCWS #3)';
-    if (_drillMode == DrillAlertMode.floodRedWarning) return 'RED RAINFALL WARNING';
-
+    if (_advisories.any((a) => a.severity == 'critical')) {
+      return 'CRITICAL DRRM ADVISORY';
+    }
+    if (_advisories.any((a) => a.severity == 'warning')) {
+      return 'MANILA DRRMO WARNING';
+    }
     if (_weather != null &&
         (_weather!.windSpeedKmh >= 60 || _weather!.precipitationMm >= 15)) {
       return 'ELEVATED WEATHER ADVISORY';
@@ -310,11 +260,6 @@ class MonitoringProvider extends ChangeNotifier {
     if (isHeatDanger) return 'DANGER HEAT INDEX';
     if (_hasSignificantManilaQuake()) return 'SIGNIFICANT SEISMIC ACTIVITY';
     return 'All Clear';
-  }
-
-  void setDrillMode(DrillAlertMode mode) {
-    _drillMode = mode;
-    notifyListeners();
   }
 
   Future<void> _loadCachedData() async {
