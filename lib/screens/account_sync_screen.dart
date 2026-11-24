@@ -98,11 +98,17 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
         _showSnack('Signed in as Admin! Opening Admin Portal...');
         Navigator.popUntil(context, (route) => route.isFirst);
       } else {
+        final code = auth.inviteCode;
         _showSnack(
           _isRegisterMode
-              ? 'Account created and synced with your family!'
+              ? (code != null && code.isNotEmpty
+                  ? 'Account created & synced! Family Code: $code'
+                  : 'Account created and synced with your family!')
               : 'Signed in and synced!',
         );
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context, true);
+        }
       }
     } else {
       _showSnack(
@@ -130,6 +136,17 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
               ? 'Admin Account'
               : (isFil ? 'Family Backup at Sync' : 'Family Backup & Sync'),
         ),
+        actions: [
+          if (Navigator.canPop(context) && !auth.isAdmin)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: TextButton.icon(
+                icon: const Icon(Icons.home_outlined, size: 18),
+                label: Text(isFil ? 'Home' : 'Back to Home'),
+                onPressed: () => Navigator.pop(context, true),
+              ),
+            ),
+        ],
       ),
       body: ResponsiveContainer(
         maxWidth: 740,

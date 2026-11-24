@@ -604,11 +604,14 @@ class _DesktopSidebar extends StatelessWidget {
           // Family Backup & Sync Tile
           InkWell(
             borderRadius: BorderRadius.circular(12),
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              final goHome = await Navigator.push<bool>(
                 context,
                 MaterialPageRoute(builder: (_) => const AccountSyncScreen()),
               );
+              if (goHome == true) {
+                onSelectTab(0);
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(10),

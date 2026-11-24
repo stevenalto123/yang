@@ -33,7 +33,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Switch Forgot Password to real Gmail 6-digit email OTP reset and remove Admin reset code tool"
+git commit -m "Auto-redirect to Home dashboard immediately after resident sign in or registration"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master
