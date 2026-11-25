@@ -55,6 +55,11 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
   Future<void> _submitAuth(AuthProvider auth) async {
     final email = _emailCtrl.text.trim();
     final password = _passwordCtrl.text;
+    final fullName = _nameCtrl.text.trim();
+    if (_isRegisterMode && fullName.isEmpty) {
+      _showSnack('Please enter your full name.', isError: true);
+      return;
+    }
     if (email.isEmpty || password.isEmpty) {
       _showSnack('Please enter your email and password.', isError: true);
       return;
@@ -80,9 +85,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
         ? await auth.register(
             email: _emailCtrl.text,
             password: _passwordCtrl.text,
-            fullName: _nameCtrl.text.trim().isEmpty
-                ? 'Family Member'
-                : _nameCtrl.text,
+            fullName: fullName,
             householdName: _householdCtrl.text,
             inviteCode: _inviteCtrl.text,
           )
@@ -597,8 +600,12 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 Expanded(
                   child: ChoiceChip(
                     showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                     label: Center(
-                      child: Text(isFil ? 'Mag-sign In' : 'Sign In'),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(isFil ? 'Mag-sign In' : 'Sign In'),
+                      ),
                     ),
                     selected: !_isRegisterMode,
                     selectedColor: AppTheme.primaryNavy,
@@ -613,9 +620,12 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 Expanded(
                   child: ChoiceChip(
                     showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                     label: Center(
-                      child:
-                          Text(isFil ? 'Gumawa ng Account' : 'Create Account'),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(isFil ? 'Magrehistro' : 'Create Account'),
+                      ),
                     ),
                     selected: _isRegisterMode,
                     selectedColor: AppTheme.primaryNavy,
@@ -1002,7 +1012,7 @@ class _AccountSyncScreenState extends State<AccountSyncScreen> {
                 codeSent = true;
                 infoMsg = isFil
                     ? 'Naipadala ang 6-digit code sa iyong email (tingnan din ang Spam). May bisa ito sa loob ng 15 minuto.'
-                    : '6-digit reset code sent! Check your Gmail inbox (and Spam folder). Valid for 15 minutes.';
+                    : '6-digit reset code sent! Check your email inbox (and Spam folder). Valid for 15 minutes.';
               } else {
                 errorMsg = res.error ?? 'Could not send reset email.';
               }

@@ -846,7 +846,15 @@ class AuthProvider extends ChangeNotifier {
         'newPassword': newPassword,
       },
     );
-    if (res.ok) return (ok: true, error: null);
+    if (res.ok) {
+      final nextToken = res.data?['token']?.toString();
+      if (nextToken != null && nextToken.isNotEmpty) {
+        _token = nextToken;
+        await _persistSession();
+        notifyListeners();
+      }
+      return (ok: true, error: null);
+    }
     return (
       ok: false,
       error: res.error ?? 'Could not update password.',

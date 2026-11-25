@@ -318,7 +318,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         ),
                         const SizedBox(width: 8),
                         _buildFacilityChip(
-                          label: 'Shelters',
+                          label: isFil ? 'Mga Shelter' : 'Shelters',
                           icon: Icons.roofing_rounded,
                           selected: emergency.selectedFacilityType ==
                               FacilityType.evacuationShelter,
@@ -1269,7 +1269,7 @@ class _EvacuationMapScreenState extends State<EvacuationMapScreen> {
                         isDark,
                       ),
                       _legendDot(
-                        Colors.indigo.shade600,
+                        isDark ? Colors.indigo.shade300 : Colors.indigo.shade600,
                         isFil ? 'Pulis/Bumbero' : 'Police/Fire',
                         isDark,
                       ),

@@ -946,9 +946,9 @@ class EmergencyMonitoringScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  isFil
-                      ? 'Flood-Watch Hotspots (Maynila)'
-                      : 'Manila Flood-Watch Hotspots',
+                  isFil ? 'Manila Flood Watch' : 'Manila Flood-Watch',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -956,6 +956,7 @@ class EmergencyMonitoringScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                 decoration: BoxDecoration(

@@ -31,6 +31,16 @@ export async function sendPasswordResetEmail(
     throw new Error('GMAIL_USER and GMAIL_APP_PASSWORD are not configured.');
   }
 
+  const recipient = payload.to.trim();
+  if (
+    !recipient ||
+    recipient.length > 254 ||
+    /[\r\n<>]/.test(recipient) ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)
+  ) {
+    throw new Error('Invalid recipient email address.');
+  }
+
   const safeName = payload.fullName.replace(/[<>"]/g, '').trim() || 'Resident';
   const subject = `LifeCheckpoint Password Reset Code: ${payload.code}`;
   const htmlBody = `<!DOCTYPE html>
@@ -66,7 +76,7 @@ export async function sendPasswordResetEmail(
 
   const rawMessage = [
     `From: LifeCheckpoint <${user}>`,
-    `To: <${payload.to}>`,
+    `To: <${recipient}>`,
     `Subject: ${subject}`,
     `Date: ${new Date().toUTCString()}`,
     'MIME-Version: 1.0',
@@ -81,7 +91,7 @@ export async function sendPasswordResetEmail(
     port,
     user,
     pass,
-    to: payload.to,
+    to: recipient,
     rawMessage,
   });
 }

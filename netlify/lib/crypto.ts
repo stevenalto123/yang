@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from 'node:crypto';
 import type { UserRole } from './types.js';
 
 export interface JwtClaims {
@@ -7,6 +7,7 @@ export interface JwtClaims {
   fullName: string;
   role: UserRole;
   householdId: string;
+  tv?: number;
   iat: number;
   exp: number;
 }
@@ -41,10 +42,9 @@ export function generateInviteCode(length = 6): string {
 }
 
 export function generateNumericOtp(length = 6): string {
-  const bytes = randomBytes(length);
   let otp = '';
   for (let i = 0; i < length; i++) {
-    otp += String(bytes[i] % 10);
+    otp += String(randomInt(0, 10));
   }
   return otp;
 }

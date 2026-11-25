@@ -31,6 +31,9 @@ export interface UserRecord {
   householdId: string;
   passwordResetCodeHash?: string | null;
   passwordResetExpiresAt?: string | null;
+  passwordResetAttempts?: number;
+  passwordResetSentAt?: string | null;
+  tokenVersion: number;
   createdAt: string;
 }
 

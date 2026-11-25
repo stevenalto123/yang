@@ -25,6 +25,18 @@ import type {
 } from './types.js';
 
 const TELEMETRY_TTL_MS = 10 * 60 * 1000;
+const MAX_OTP_ATTEMPTS = 5;
+const RESET_RESEND_COOLDOWN_MS = 60 * 1000;
+const EMAIL_REGEX = /^[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+$/;
+
+function isValidEmail(email: string): boolean {
+  return (
+    email.length > 0 &&
+    email.length <= 254 &&
+    !/[\r\n<>]/.test(email) &&
+    EMAIL_REGEX.test(email)
+  );
+}
 
 function json(data: unknown, status = 200): Response {
   return Response.json(data, {
@@ -69,6 +81,26 @@ function getBearerClaims(req: Request): JwtClaims | null {
   } catch {
     return null;
   }
+}
+
+async function getActiveSession(
+  req: Request,
+  store: DataStore,
+): Promise<JwtClaims | null> {
+  const claims = getBearerClaims(req);
+  if (!claims) return null;
+  const user = await store.getUserById(claims.sub);
+  if (!user) return null;
+  if (claims.tv !== undefined && claims.tv !== user.tokenVersion) {
+    return null;
+  }
+  return {
+    ...claims,
+    role: user.role,
+    householdId: user.householdId || claims.householdId,
+    fullName: user.fullName || claims.fullName,
+    tv: user.tokenVersion,
+  };
 }
 
 function hasValidAdminCode(provided: string | null | undefined): boolean {
@@ -186,15 +218,18 @@ export async function handleApiRequest(
       const body = await parseJsonBody(req);
       const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
       const password = typeof body.password === 'string' ? body.password : '';
-      const fullName = typeof body.fullName === 'string' ? body.fullName.trim() : '';
+      const fullName =
+        typeof body.fullName === 'string' ? body.fullName.trim().slice(0, 100) : '';
       const householdName =
-        typeof body.householdName === 'string' ? body.householdName.trim() : '';
+        typeof body.householdName === 'string'
+          ? body.householdName.trim().slice(0, 100)
+          : '';
       const inviteCode =
-        typeof body.inviteCode === 'string' ? body.inviteCode.trim().toUpperCase() : '';
+        typeof body.inviteCode === 'string' ? body.inviteCode.trim().toUpperCase().slice(0, 16) : '';
       const adminCode =
         typeof body.adminCode === 'string' ? body.adminCode.trim() : '';
 
-      if (!email || !email.includes('@') || password.length < 6 || !fullName) {
+      if (!isValidEmail(email) || password.length < 6 || password.length > 128 || !fullName) {
         return json(
           { error: 'Provide a valid email, full name, and password (min 6 chars).' },
           400,
@@ -242,6 +277,7 @@ export async function handleApiRequest(
           fullName: user.fullName,
           role: user.role,
           householdId: household.id,
+          tv: user.tokenVersion,
         },
         getRequiredEnv('JWT_SECRET'),
       );
@@ -269,7 +305,7 @@ export async function handleApiRequest(
       const body = await parseJsonBody(req);
       const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
       const password = typeof body.password === 'string' ? body.password : '';
-      if (!email || !password) {
+      if (!isValidEmail(email) || !password || password.length > 128) {
         return json({ error: 'Email and password are required.' }, 400);
       }
 
@@ -294,6 +330,7 @@ export async function handleApiRequest(
           fullName: user.fullName,
           role: user.role,
           householdId: household.id,
+          tv: user.tokenVersion,
         },
         getRequiredEnv('JWT_SECRET'),
       );
@@ -315,7 +352,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && path === '/auth/me') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
       const user = await store.getUserById(claims.sub);
       const household = await store.getHouseholdById(claims.householdId);
@@ -337,7 +374,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'DELETE' && path === '/auth/me') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
       if (claims.role === 'admin') {
         return json(
@@ -357,7 +394,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'PATCH' && path === '/auth/password') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const body = await parseJsonBody(req);
@@ -366,7 +403,7 @@ export async function handleApiRequest(
       const newPassword =
         typeof body.newPassword === 'string' ? body.newPassword : '';
 
-      if (!currentPassword || newPassword.length < 6) {
+      if (!currentPassword || newPassword.length < 6 || newPassword.length > 128) {
         return json(
           {
             error:
@@ -381,15 +418,30 @@ export async function handleApiRequest(
         return json({ error: 'Current password is incorrect.' }, 401);
       }
 
-      await store.updateUserPassword(user.id, hashPassword(newPassword));
-      return json({ ok: true, message: 'Password updated successfully.' });
+      const nextTv = await store.updateUserPassword(user.id, hashPassword(newPassword));
+      const refreshedToken = signJwt(
+        {
+          sub: user.id,
+          email: user.email,
+          fullName: user.fullName,
+          role: user.role,
+          householdId: user.householdId,
+          tv: nextTv,
+        },
+        getRequiredEnv('JWT_SECRET'),
+      );
+      return json({
+        ok: true,
+        token: refreshedToken,
+        message: 'Password updated successfully.',
+      });
     }
 
     if (method === 'POST' && path === '/auth/forgot-password') {
       const body = await parseJsonBody(req);
       const email =
         typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
-      if (!email || !email.includes('@')) {
+      if (!isValidEmail(email)) {
         return json({ error: 'Please enter a valid email address.' }, 400);
       }
 
@@ -397,8 +449,7 @@ export async function handleApiRequest(
       if (!opts?.sendResetEmail && !isEmailResetConfigured()) {
         return json(
           {
-            error:
-              'Email password reset is not configured yet (set GMAIL_USER and GMAIL_APP_PASSWORD in Vercel).',
+            error: 'Email password reset is temporarily unavailable.',
           },
           503,
         );
@@ -406,23 +457,33 @@ export async function handleApiRequest(
 
       const user = await store.getUserByEmail(email);
       if (user && user.role !== 'admin') {
-        const otp = generateNumericOtp(6);
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-        await store.setPasswordResetCode(email, hashPassword(otp), expiresAt);
-        try {
-          await sender({
-            to: user.email,
-            fullName: user.fullName,
-            code: otp,
-          });
-        } catch (err) {
-          const detail = err instanceof Error ? err.message : 'SMTP error';
-          return json(
-            {
-              error: `Unable to send reset email right now (${detail}). Check Gmail App Password settings.`,
-            },
-            502,
-          );
+        const lastSentMs = user.passwordResetSentAt
+          ? new Date(user.passwordResetSentAt).getTime()
+          : 0;
+        const withinCooldown =
+          Number.isFinite(lastSentMs) &&
+          Date.now() - lastSentMs < RESET_RESEND_COOLDOWN_MS;
+
+        if (!withinCooldown) {
+          const otp = generateNumericOtp(6);
+          const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+          await store.setPasswordResetCode(email, hashPassword(otp), expiresAt);
+          try {
+            await sender({
+              to: user.email,
+              fullName: user.fullName,
+              code: otp,
+            });
+          } catch (err) {
+            console.error('[LifeCheckpoint Mailer Error]', err);
+            return json(
+              {
+                error:
+                  'Unable to send reset email right now. Please try again in a moment.',
+              },
+              502,
+            );
+          }
         }
       }
 
@@ -448,7 +509,12 @@ export async function handleApiRequest(
       const newPassword =
         typeof body.newPassword === 'string' ? body.newPassword : '';
 
-      if (!email || !email.includes('@') || !code || newPassword.length < 6) {
+      if (
+        !isValidEmail(email) ||
+        !/^\d{6}$/.test(code) ||
+        newPassword.length < 6 ||
+        newPassword.length > 128
+      ) {
         return json(
           {
             error:
@@ -475,11 +541,30 @@ export async function handleApiRequest(
       }
 
       const expiresMs = new Date(user.passwordResetExpiresAt).getTime();
-      if (
-        !Number.isFinite(expiresMs) ||
-        expiresMs <= Date.now() ||
-        !verifyPassword(code, user.passwordResetCodeHash)
-      ) {
+      if (!Number.isFinite(expiresMs) || expiresMs <= Date.now()) {
+        return json(
+          {
+            error:
+              'Invalid or expired 6-digit reset code. Please request a new code.',
+          },
+          400,
+        );
+      }
+
+      if (!verifyPassword(code, user.passwordResetCodeHash)) {
+        const attemptState = await store.incrementPasswordResetAttempts(
+          user.id,
+          MAX_OTP_ATTEMPTS,
+        );
+        if (attemptState.locked) {
+          return json(
+            {
+              error:
+                'Too many incorrect reset attempts. Please request a new 6-digit code.',
+            },
+            429,
+          );
+        }
         return json(
           {
             error:
@@ -497,12 +582,14 @@ export async function handleApiRequest(
     }
 
     if (method === 'POST' && path === '/households/join') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const body = await parseJsonBody(req);
       const inviteCode =
-        typeof body.inviteCode === 'string' ? body.inviteCode.trim().toUpperCase() : '';
+        typeof body.inviteCode === 'string'
+          ? body.inviteCode.trim().toUpperCase().slice(0, 16)
+          : '';
       if (!inviteCode) {
         return json({ error: 'Household inviteCode is required.' }, 400);
       }
@@ -520,6 +607,7 @@ export async function handleApiRequest(
           fullName: claims.fullName,
           role: claims.role,
           householdId: target.id,
+          tv: claims.tv,
         },
         getRequiredEnv('JWT_SECRET'),
       );
@@ -535,7 +623,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && path === '/sync/bundle') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const bundle = await store.getSyncBundle(claims.householdId);
@@ -544,11 +632,13 @@ export async function handleApiRequest(
     }
 
     if (method === 'PUT' && path === '/kit') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const body = await parseJsonBody(req);
-      const items = Array.isArray(body.items) ? (body.items as KitItemRecord[]) : undefined;
+      const items = Array.isArray(body.items)
+        ? (body.items as KitItemRecord[]).slice(0, 200)
+        : undefined;
       const profile =
         body.profile && typeof body.profile === 'object'
           ? (body.profile as HouseholdProfileData)
@@ -567,7 +657,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'DELETE' && path.startsWith('/kit/')) {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const itemId = decodeURIComponent(path.slice('/kit/'.length)).trim();
@@ -582,7 +672,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'PUT' && path === '/plan') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const body = await parseJsonBody(req);
@@ -591,7 +681,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && path === '/checkins') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const checkins = await store.getCheckins(claims.householdId, 25);
@@ -599,12 +689,14 @@ export async function handleApiRequest(
     }
 
     if (method === 'POST' && path === '/checkins') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const body = await parseJsonBody(req);
-      const status = typeof body.status === 'string' ? body.status.trim() : '';
-      const note = typeof body.note === 'string' ? body.note.trim() : '';
+      const status =
+        typeof body.status === 'string' ? body.status.trim().slice(0, 40) : '';
+      const note =
+        typeof body.note === 'string' ? body.note.trim().slice(0, 500) : '';
       if (!status) return json({ error: 'status is required.' }, 400);
 
       const record = await store.addCheckin({
@@ -620,21 +712,22 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && path === '/shelters') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       const shelters = await store.getShelters(claims?.householdId ?? null);
       return json({ shelters });
     }
 
     if (method === 'POST' && path === '/shelters') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const body = await parseJsonBody(req);
-      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      const name =
+        typeof body.name === 'string' ? body.name.trim().slice(0, 140) : '';
       if (!name) return json({ error: 'Shelter name is required.' }, 400);
 
       const rawId =
-        typeof body.id === 'string' && body.id.trim() ? body.id.trim() : '';
+        typeof body.id === 'string' && body.id.trim() ? body.id.trim().slice(0, 80) : '';
       const isAdminOfficial = claims.role === 'admin' && body.isOfficial === true;
       const safeId = isAdminOfficial
         ? rawId || `official_${Date.now()}`
@@ -647,28 +740,30 @@ export async function handleApiRequest(
         name,
         address:
           typeof body.address === 'string' && body.address.trim()
-            ? body.address.trim()
+            ? body.address.trim().slice(0, 240)
             : 'Local Barangay Site, City of Manila',
         city:
           typeof body.city === 'string' && body.city.trim()
-            ? body.city.trim()
+            ? body.city.trim().slice(0, 60)
             : 'Manila',
         latitude: typeof body.latitude === 'number' ? body.latitude : 14.5822,
         longitude: typeof body.longitude === 'number' ? body.longitude : 120.9882,
         contactPerson:
           typeof body.contactPerson === 'string' && body.contactPerson.trim()
-            ? body.contactPerson.trim()
+            ? body.contactPerson.trim().slice(0, 100)
             : 'Barangay DRRM Officer',
         contactNumber:
           typeof body.contactNumber === 'string' && body.contactNumber.trim()
-            ? body.contactNumber.trim()
+            ? body.contactNumber.trim().slice(0, 60)
             : '(02) 8568-6909',
         capacityPeople:
-          typeof body.capacityPeople === 'number' ? body.capacityPeople : 400,
+          typeof body.capacityPeople === 'number'
+            ? Math.max(0, Math.min(100000, Math.round(body.capacityPeople)))
+            : 400,
         isOpen: typeof body.isOpen === 'boolean' ? body.isOpen : true,
         facilities:
           typeof body.facilities === 'string' && body.facilities.trim()
-            ? body.facilities.trim()
+            ? body.facilities.trim().slice(0, 300)
             : 'Community Saved Evacuation Shelter',
         isOfficial: isAdminOfficial,
       };
@@ -687,7 +782,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'DELETE' && path.startsWith('/shelters/')) {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!claims) return json({ error: 'Unauthorized' }, 401);
 
       const id = decodeURIComponent(path.slice('/shelters/'.length)).trim();
@@ -703,7 +798,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'PATCH' && path.startsWith('/shelters/')) {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin access required to update shelter status.' }, 403);
       }
@@ -753,7 +848,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'PATCH' && path.startsWith('/admin/checkins/')) {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required.' }, 403);
       }
@@ -776,7 +871,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'POST' && path === '/admin/advisories') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required to post advisories.' }, 403);
       }
@@ -805,7 +900,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'PATCH' && path.startsWith('/admin/advisories/')) {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required.' }, 403);
       }
@@ -829,7 +924,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'DELETE' && path.startsWith('/admin/advisories/')) {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required.' }, 403);
       }
@@ -841,7 +936,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && path === '/admin/overview') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required.' }, 403);
       }
@@ -854,7 +949,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'POST' && path === '/admin/shelters') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required to add official shelters.' }, 403);
       }
@@ -907,7 +1002,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'DELETE' && path.startsWith('/admin/shelters/')) {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json({ error: 'Admin authorization required to remove shelters.' }, 403);
       }
@@ -958,7 +1053,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'POST' && path === '/evaluations') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       const body = await parseJsonBody(req);
 
       const functionalityScore = clampLikert(body.functionalityScore);
@@ -1008,7 +1103,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && path === '/evaluations/summary') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json(
           { error: 'Researcher/Admin authorization required to view Chapter 4 dataset.' },
@@ -1020,7 +1115,7 @@ export async function handleApiRequest(
     }
 
     if (method === 'GET' && path === '/evaluations/export') {
-      const claims = getBearerClaims(req);
+      const claims = await getActiveSession(req, store);
       if (!isAdminAuthorized(req, claims)) {
         return json(
           { error: 'Researcher/Admin authorization required to export CSV.' },
@@ -1083,8 +1178,11 @@ export async function handleApiRequest(
 
     return json({ error: `Route not found: ${method} ${path}` }, 404);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Internal server error';
-    return json({ error: message }, 500);
+    console.error('[LifeCheckpoint API Error]', err);
+    return json(
+      { error: 'Temporary server error. Please try again shortly.' },
+      500,
+    );
   }
 }
 

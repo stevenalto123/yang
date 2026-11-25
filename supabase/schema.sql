@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS users (
   household_id UUID REFERENCES households(id) ON DELETE SET NULL,
   password_reset_code_hash TEXT NULL,
   password_reset_expires_at TIMESTAMPTZ NULL,
+  password_reset_attempts INTEGER NOT NULL DEFAULT 0,
+  password_reset_sent_at TIMESTAMPTZ NULL,
+  token_version INTEGER NOT NULL DEFAULT 1,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

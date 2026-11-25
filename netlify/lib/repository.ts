@@ -42,12 +42,16 @@ export interface DataStore {
     householdId: string;
   }): Promise<UserRecord>;
   updateUserHousehold(userId: string, householdId: string): Promise<void>;
-  updateUserPassword(userId: string, passwordHash: string): Promise<void>;
+  updateUserPassword(userId: string, passwordHash: string): Promise<number>;
   setPasswordResetCode(
     email: string,
     codeHash: string,
     expiresAtIso: string,
   ): Promise<{ id: string; email: string; fullName: string; role: UserRole } | null>;
+  incrementPasswordResetAttempts(
+    userId: string,
+    maxAttempts: number,
+  ): Promise<{ attempts: number; locked: boolean }>;
   deleteUserAccount(
     userId: string,
   ): Promise<{ deleted: boolean; householdDeleted: boolean }>;
@@ -209,6 +213,11 @@ function mapUserRow(row: Record<string, unknown>): UserRecord {
     passwordResetExpiresAt: row.password_reset_expires_at
       ? toIso(row.password_reset_expires_at)
       : null,
+    passwordResetAttempts: Number(row.password_reset_attempts ?? 0),
+    passwordResetSentAt: row.password_reset_sent_at
+      ? toIso(row.password_reset_sent_at)
+      : null,
+    tokenVersion: Number(row.token_version ?? 1),
     createdAt: toIso(row.created_at),
   };
 }
@@ -348,15 +357,19 @@ export class PostgresStore implements DataStore {
     `;
   }
 
-  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+  async updateUserPassword(userId: string, passwordHash: string): Promise<number> {
     const sql = await ensureSchema();
-    await sql`
+    const rows = await sql`
       UPDATE users
       SET password_hash = ${passwordHash},
           password_reset_code_hash = NULL,
-          password_reset_expires_at = NULL
+          password_reset_expires_at = NULL,
+          password_reset_attempts = 0,
+          token_version = COALESCE(token_version, 1) + 1
       WHERE id = ${userId}
+      RETURNING token_version
     `;
+    return Number(rows[0]?.token_version ?? 1);
   }
 
   async setPasswordResetCode(
@@ -368,7 +381,9 @@ export class PostgresStore implements DataStore {
     const rows = await sql`
       UPDATE users
       SET password_reset_code_hash = ${codeHash},
-          password_reset_expires_at = ${expiresAtIso}
+          password_reset_expires_at = ${expiresAtIso},
+          password_reset_attempts = 0,
+          password_reset_sent_at = NOW()
       WHERE LOWER(email) = LOWER(${email.trim()})
       RETURNING id, email, full_name, role
     `;
@@ -380,6 +395,29 @@ export class PostgresStore implements DataStore {
       fullName: String(r.full_name),
       role: r.role === 'admin' ? 'admin' : 'household',
     };
+  }
+
+  async incrementPasswordResetAttempts(
+    userId: string,
+    maxAttempts: number,
+  ): Promise<{ attempts: number; locked: boolean }> {
+    const sql = await ensureSchema();
+    const rows = await sql`
+      UPDATE users
+      SET password_reset_attempts = COALESCE(password_reset_attempts, 0) + 1,
+          password_reset_code_hash = CASE
+            WHEN COALESCE(password_reset_attempts, 0) + 1 >= ${maxAttempts} THEN NULL
+            ELSE password_reset_code_hash
+          END,
+          password_reset_expires_at = CASE
+            WHEN COALESCE(password_reset_attempts, 0) + 1 >= ${maxAttempts} THEN NULL
+            ELSE password_reset_expires_at
+          END
+      WHERE id = ${userId}
+      RETURNING password_reset_attempts
+    `;
+    const attempts = Number(rows[0]?.password_reset_attempts ?? maxAttempts);
+    return { attempts, locked: attempts >= maxAttempts };
   }
 
   async deleteUserAccount(
@@ -1173,6 +1211,9 @@ export class InMemoryStore implements DataStore {
       fullName: input.fullName.trim(),
       role: input.role,
       householdId: input.householdId,
+      passwordResetAttempts: 0,
+      passwordResetSentAt: null,
+      tokenVersion: 1,
       createdAt: new Date().toISOString(),
     };
     this.users.set(user.id, user);
@@ -1186,13 +1227,15 @@ export class InMemoryStore implements DataStore {
     }
   }
 
-  async updateUserPassword(userId: string, passwordHash: string): Promise<void> {
+  async updateUserPassword(userId: string, passwordHash: string): Promise<number> {
     const user = this.users.get(userId);
-    if (user) {
-      user.passwordHash = passwordHash;
-      user.passwordResetCodeHash = null;
-      user.passwordResetExpiresAt = null;
-    }
+    if (!user) return 1;
+    user.passwordHash = passwordHash;
+    user.passwordResetCodeHash = null;
+    user.passwordResetExpiresAt = null;
+    user.passwordResetAttempts = 0;
+    user.tokenVersion = (user.tokenVersion ?? 1) + 1;
+    return user.tokenVersion;
   }
 
   async setPasswordResetCode(
@@ -1204,12 +1247,30 @@ export class InMemoryStore implements DataStore {
     if (!user) return null;
     user.passwordResetCodeHash = codeHash;
     user.passwordResetExpiresAt = expiresAtIso;
+    user.passwordResetAttempts = 0;
+    user.passwordResetSentAt = new Date().toISOString();
     return {
       id: user.id,
       email: user.email,
       fullName: user.fullName,
       role: user.role,
     };
+  }
+
+  async incrementPasswordResetAttempts(
+    userId: string,
+    maxAttempts: number,
+  ): Promise<{ attempts: number; locked: boolean }> {
+    const user = this.users.get(userId);
+    if (!user) return { attempts: maxAttempts, locked: true };
+    const next = (user.passwordResetAttempts ?? 0) + 1;
+    user.passwordResetAttempts = next;
+    const locked = next >= maxAttempts;
+    if (locked) {
+      user.passwordResetCodeHash = null;
+      user.passwordResetExpiresAt = null;
+    }
+    return { attempts: next, locked };
   }
 
   async deleteUserAccount(

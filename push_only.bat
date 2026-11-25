@@ -33,7 +33,7 @@ echo [2/3] Staging and committing updates...
 git status -s
 git add -A
 if errorlevel 1 goto :error
-git commit -m "Remove Practice a Disaster Drill UI and wire Alerts tab dot to live Manila hazards"
+git commit -m "Harden OTP lockout/cooldown, JWT revocation, CSP, error sanitization, and mobile FIL/Dark UI fixes"
 
 echo [3/3] Pushing to GitHub (master)...
 git push origin master

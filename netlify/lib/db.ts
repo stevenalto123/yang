@@ -35,16 +35,19 @@ export async function ensureSchema(): Promise<SqlClient> {
             SELECT 1 FROM information_schema.columns
             WHERE table_schema = 'public'
               AND table_name = 'users'
-              AND column_name = 'password_reset_code_hash'
-          ) AS has_reset_cols
+              AND column_name = 'token_version'
+          ) AS has_auth_hardening_cols
       `;
       if (!check[0]?.ready) {
         await runBootstrap(sql);
-      } else if (!check[0]?.has_reset_cols) {
+      } else if (!check[0]?.has_auth_hardening_cols) {
         await sql`
           ALTER TABLE users
             ADD COLUMN IF NOT EXISTS password_reset_code_hash TEXT NULL,
-            ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ NULL
+            ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ NULL,
+            ADD COLUMN IF NOT EXISTS password_reset_attempts INTEGER NOT NULL DEFAULT 0,
+            ADD COLUMN IF NOT EXISTS password_reset_sent_at TIMESTAMPTZ NULL,
+            ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1
         `;
       }
     })().catch((err) => {
@@ -82,6 +85,9 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
       household_id UUID REFERENCES households(id) ON DELETE SET NULL,
       password_reset_code_hash TEXT NULL,
       password_reset_expires_at TIMESTAMPTZ NULL,
+      password_reset_attempts INTEGER NOT NULL DEFAULT 0,
+      password_reset_sent_at TIMESTAMPTZ NULL,
+      token_version INTEGER NOT NULL DEFAULT 1,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `;
@@ -89,7 +95,10 @@ async function runBootstrap(sql: SqlClient): Promise<void> {
   await sql`
     ALTER TABLE users
       ADD COLUMN IF NOT EXISTS password_reset_code_hash TEXT NULL,
-      ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ NULL
+      ADD COLUMN IF NOT EXISTS password_reset_expires_at TIMESTAMPTZ NULL,
+      ADD COLUMN IF NOT EXISTS password_reset_attempts INTEGER NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS password_reset_sent_at TIMESTAMPTZ NULL,
+      ADD COLUMN IF NOT EXISTS token_version INTEGER NOT NULL DEFAULT 1
   `;
 
   await sql`

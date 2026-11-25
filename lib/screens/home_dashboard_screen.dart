@@ -1440,11 +1440,16 @@ class HomeDashboardScreen extends StatelessWidget {
                     foregroundColor: AppTheme.dangerRed,
                     side: BorderSide(color: AppTheme.dangerRed.withAlpha(160)),
                     minimumSize: const Size(0, 44),
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
                   ),
                   icon: const Icon(Icons.sos_rounded, size: 18),
-                  label: Text(
-                    isFil ? 'Kailangan ng Tulong' : 'Need Help',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      isFil ? 'Kailangan ng Tulong' : 'Need Help',
+                      maxLines: 1,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
                   ),
                   onPressed: () => _confirmQuickHelpDialog(
                     context,
@@ -1672,6 +1677,10 @@ class HomeDashboardScreen extends StatelessWidget {
               const SizedBox(width: 8),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
+                  foregroundColor: isDark ? Colors.white : AppTheme.darkSlate,
+                  side: BorderSide(
+                    color: isDark ? Colors.white38 : AppTheme.lightBorder,
+                  ),
                   minimumSize: const Size(0, 40),
                   padding: const EdgeInsets.symmetric(horizontal: 11),
                 ),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
@@ -60,33 +61,34 @@ class ApiClient {
 
     try {
       final encodedBody = body != null ? json.encode(body) : null;
+      const reqTimeout = Duration(seconds: 15);
       late final http.Response resp;
 
       switch (method.toUpperCase()) {
         case 'GET':
           resp = await _client
               .get(uri, headers: reqHeaders)
-              .timeout(const Duration(seconds: 10));
+              .timeout(reqTimeout);
           break;
         case 'POST':
           resp = await _client
               .post(uri, headers: reqHeaders, body: encodedBody)
-              .timeout(const Duration(seconds: 10));
+              .timeout(reqTimeout);
           break;
         case 'PUT':
           resp = await _client
               .put(uri, headers: reqHeaders, body: encodedBody)
-              .timeout(const Duration(seconds: 10));
+              .timeout(reqTimeout);
           break;
         case 'PATCH':
           resp = await _client
               .patch(uri, headers: reqHeaders, body: encodedBody)
-              .timeout(const Duration(seconds: 10));
+              .timeout(reqTimeout);
           break;
         case 'DELETE':
           resp = await _client
               .delete(uri, headers: reqHeaders)
-              .timeout(const Duration(seconds: 10));
+              .timeout(reqTimeout);
           break;
         default:
           return ApiResponse(
@@ -112,14 +114,24 @@ class ApiClient {
         rawText: resp.body,
         error: isOk
             ? null
-            : (parsed?['error']?.toString() ?? 'Request failed (${resp.statusCode})'),
+            : (parsed?['error']?.toString() ??
+                (resp.statusCode >= 500
+                    ? 'Server is temporarily busy. Please try again.'
+                    : 'Request failed (${resp.statusCode})')),
       );
-    } catch (e) {
-      return ApiResponse(
+    } on TimeoutException {
+      return const ApiResponse(
         ok: false,
         statusCode: 0,
         isNetworkError: true,
-        error: 'Offline or server unreachable ($e)',
+        error: 'Connection timed out. Please try again.',
+      );
+    } catch (_) {
+      return const ApiResponse(
+        ok: false,
+        statusCode: 0,
+        isNetworkError: true,
+        error: 'Unable to reach server. Please check your connection and try again.',
       );
     }
   }

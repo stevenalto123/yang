@@ -571,7 +571,7 @@ test('forgot password via Gmail 6-digit email OTP and authenticated change passw
   });
   assert.equal(badReset.status, 400);
 
-  // 4. Valid 6-digit emailed OTP resets password cleanly
+  // 4. Valid 6-digit emailed OTP resets password cleanly & revokes old JWTs immediately
   const okReset = await callApi(store, '/auth/reset-password', {
     method: 'POST',
     body: {
@@ -581,6 +581,11 @@ test('forgot password via Gmail 6-digit email OTP and authenticated change passw
     },
   });
   assert.equal(okReset.status, 200);
+
+  const staleAfterReset = await callApi(store, '/auth/me', {
+    token: reg.json.token,
+  });
+  assert.equal(staleAfterReset.status, 401);
 
   // 5. Reusing the same 6-digit OTP fails (single-use)
   const reuseAttempt = await callApi(store, '/auth/reset-password', {
@@ -605,7 +610,7 @@ test('forgot password via Gmail 6-digit email OTP and authenticated change passw
   });
   assert.equal(newLogin.status, 200);
 
-  // 6. Authenticated Change Password (rejects wrong current, accepts right current)
+  // 6. Authenticated Change Password (rejects wrong current, accepts right current, revokes old JWT, issues fresh JWT)
   const badChange = await callApi(store, '/auth/password', {
     method: 'PATCH',
     token: newLogin.json.token,
@@ -619,10 +624,104 @@ test('forgot password via Gmail 6-digit email OTP and authenticated change passw
     body: { currentPassword: 'NewPassword2!', newPassword: 'ChangedPass3!' },
   });
   assert.equal(okChange.status, 200);
+  assert.ok(okChange.json.token);
+
+  const revokedOldToken = await callApi(store, '/auth/me', {
+    token: newLogin.json.token,
+  });
+  assert.equal(revokedOldToken.status, 401);
+
+  const validFreshToken = await callApi(store, '/auth/me', {
+    token: okChange.json.token,
+  });
+  assert.equal(validFreshToken.status, 200);
 
   const finalLogin = await callApi(store, '/auth/login', {
     method: 'POST',
     body: { email: 'forgot.user@gmail.com', password: 'ChangedPass3!' },
   });
   assert.equal(finalLogin.status, 200);
+});
+
+test('OTP brute-force lockout after 5 wrong guesses, 60s resend cooldown, and strict email validation', async () => {
+  const store = new InMemoryStore();
+  const sentEmails = [];
+  const mockSendEmail = async (payload) => {
+    sentEmails.push(payload);
+  };
+
+  // Reject CRLF / SMTP header-injection email on registration
+  const badEmailReg = await callApi(store, '/auth/register', {
+    method: 'POST',
+    body: {
+      email: 'attacker@example.com\r\nBcc: victim@example.com',
+      password: 'Password123!',
+      fullName: 'Bad Input',
+    },
+  });
+  assert.equal(badEmailReg.status, 400);
+
+  const reg = await callApi(store, '/auth/register', {
+    method: 'POST',
+    body: {
+      email: 'lockout.user@manila.ph',
+      password: 'InitialPass1!',
+      fullName: 'Ermita Resident',
+      householdName: 'Ermita Family',
+    },
+  });
+  assert.equal(reg.status, 201);
+
+  // First reset request sends email; immediate second request within 60s is cooldown-throttled silently (still 200)
+  const req1 = await callApi(store, '/auth/forgot-password', {
+    method: 'POST',
+    body: { email: 'lockout.user@manila.ph' },
+    sendResetEmail: mockSendEmail,
+  });
+  assert.equal(req1.status, 200);
+  assert.equal(sentEmails.length, 1);
+  const realOtp = sentEmails[0].code;
+
+  const req2 = await callApi(store, '/auth/forgot-password', {
+    method: 'POST',
+    body: { email: 'lockout.user@manila.ph' },
+    sendResetEmail: mockSendEmail,
+  });
+  assert.equal(req2.status, 200);
+  assert.equal(sentEmails.length, 1);
+
+  // 4 wrong guesses return 400; 5th wrong guess returns 429 and permanently invalidates the OTP
+  const wrongOtp = realOtp === '111111' ? '222222' : '111111';
+  for (let i = 0; i < 4; i++) {
+    const failRes = await callApi(store, '/auth/reset-password', {
+      method: 'POST',
+      body: {
+        email: 'lockout.user@manila.ph',
+        code: wrongOtp,
+        newPassword: 'NewPassword9!',
+      },
+    });
+    assert.equal(failRes.status, 400);
+  }
+
+  const lockRes = await callApi(store, '/auth/reset-password', {
+    method: 'POST',
+    body: {
+      email: 'lockout.user@manila.ph',
+      code: wrongOtp,
+      newPassword: 'NewPassword9!',
+    },
+  });
+  assert.equal(lockRes.status, 429);
+
+  // Even the previously valid OTP is now invalidated after lockout
+  const afterLock = await callApi(store, '/auth/reset-password', {
+    method: 'POST',
+    body: {
+      email: 'lockout.user@manila.ph',
+      code: realOtp,
+      newPassword: 'NewPassword9!',
+    },
+  });
+  assert.equal(afterLock.status, 400);
 });

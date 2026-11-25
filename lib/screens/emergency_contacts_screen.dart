@@ -144,14 +144,16 @@ class _EmergencyContactsScreenState extends State<EmergencyContactsScreen> {
                         color: AppTheme.safeGreen,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        isFil
-                            ? 'Gumagana ang tawag at SMS kahit walang internet'
-                            : 'Calls & SMS work without internet',
-                        style: TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: headingColor,
+                      Flexible(
+                        child: Text(
+                          isFil
+                              ? 'Gumagana ang tawag at SMS kahit walang internet'
+                              : 'Calls & SMS work without internet',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: headingColor,
+                          ),
                         ),
                       ),
                     ],
