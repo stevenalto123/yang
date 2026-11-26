@@ -53,9 +53,6 @@ function normalizeApiPath(rawUrl: string): string {
     return clean.startsWith('/') ? clean : `/${clean}`;
   }
   const { pathname } = url;
-  if (pathname.startsWith('/.netlify/functions/api')) {
-    return pathname.slice('/.netlify/functions/api'.length) || '/';
-  }
   if (pathname.startsWith('/api')) {
     return pathname.slice('/api'.length) || '/';
   }

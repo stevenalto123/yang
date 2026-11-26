@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemoryStore } from '../../.test-dist/netlify/lib/repository.js';
-import { handleApiRequest } from '../../.test-dist/netlify/lib/router.js';
+import { InMemoryStore } from '../../.test-dist/server/lib/repository.js';
+import { handleApiRequest } from '../../.test-dist/server/lib/router.js';
 
 process.env.JWT_SECRET = 'test_jwt_secret_for_lifecheckpoint_unit_tests_2026';
 process.env.ADMIN_INVITE_CODE = 'DRRM-TEST-ADMIN';

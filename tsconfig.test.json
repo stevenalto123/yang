@@ -5,5 +5,5 @@
     "outDir": ".test-dist",
     "rootDir": "."
   },
-  "include": ["netlify/lib/**/*.ts"]
+  "include": ["server/lib/**/*.ts"]
 }

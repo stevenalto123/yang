@@ -10,5 +10,5 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["netlify/lib/**/*.ts", "api/**/*.ts"]
+  "include": ["server/lib/**/*.ts", "api/**/*.ts"]
 }

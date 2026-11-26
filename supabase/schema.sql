@@ -1,6 +1,6 @@
 -- LifeCheckpoint Supabase PostgreSQL Schema
 -- Multi-Platform Application in Emergency Monitoring and Disaster Preparedness
--- Apply in Supabase SQL Editor (or let netlify/lib/db.ts auto-bootstrap on first API call).
+-- Apply in Supabase SQL Editor (or let server/lib/db.ts auto-bootstrap on first API call).
 
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 

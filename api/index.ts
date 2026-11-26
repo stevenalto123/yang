@@ -1,5 +1,5 @@
-import { getPostgresStore } from '../netlify/lib/repository.js';
-import { handleApiRequest } from '../netlify/lib/router.js';
+import { getPostgresStore } from '../server/lib/repository.js';
+import { handleApiRequest } from '../server/lib/router.js';
 
 export default {
   async fetch(request: Request): Promise<Response> {

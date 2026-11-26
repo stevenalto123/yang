@@ -125,7 +125,6 @@ self.addEventListener('fetch', (event) => {
   // Never intercept backend API routes or service worker scripts
   if (
     url.pathname.startsWith('/api/') ||
-    url.pathname.startsWith('/.netlify/') ||
     url.pathname.endsWith('/sw.js') ||
     url.pathname.endsWith('/flutter_service_worker.js')
   ) {

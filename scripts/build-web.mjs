@@ -13,7 +13,6 @@ import { dirname, relative, resolve } from 'node:path';
 const buildWebDir = resolve(process.cwd(), 'build', 'web');
 const webIndex = resolve(buildWebDir, 'index.html');
 const isCloudCi =
-  process.env.NETLIFY === 'true' ||
   process.env.VERCEL === '1' ||
   process.env.VERCEL === 'true';
 
