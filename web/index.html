@@ -199,6 +199,14 @@
     });
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', function () {
+        navigator.serviceWorker.getRegistrations().then(function (regs) {
+          regs.forEach(function (r) {
+            var url = (r.active && r.active.scriptURL) || (r.installing && r.installing.scriptURL) || '';
+            if (url.indexOf('flutter_service_worker.js') !== -1) {
+              r.unregister();
+            }
+          });
+        }).catch(function () {});
         navigator.serviceWorker.register('./sw.js', { scope: './' });
       });
     }
